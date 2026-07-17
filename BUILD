@@ -23,6 +23,7 @@ filegroup(
 # Custom Envoy with the out-of-tree filter linked for static factory registration.
 envoy_cc_binary(
     name = "envoy-modsecurity",
+    repository = "@envoy",
     deps = [
         "//source/extensions/filters/http/modsecurity:config",
         "@envoy//source/exe:envoy_main_entry_lib",

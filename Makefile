@@ -14,8 +14,8 @@ build: verify-deps
 	bazel build //:envoy-modsecurity
 
 test: verify-deps
-	bazel test //test/engine:rules_test //test/unit:filter_test
+	bazel test //test/engine:rules_test //test/engine:engine_integration_test //test/unit:filter_test
 
 check: verify-deps
 	bazel build //:api_bindings //source/extensions/filters/http/modsecurity:config
-	bazel test //test/engine:rules_test //test/unit:filter_test
+	bazel test //test/engine:rules_test //test/engine:engine_integration_test //test/unit:filter_test

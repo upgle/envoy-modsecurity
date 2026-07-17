@@ -1,14 +1,13 @@
 #include "source/engine/transaction.h"
 
-#include <exception>
 #include <string>
 #include <utility>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-
 #include "modsecurity/intervention.h"
 #include "modsecurity/transaction.h"
+#include "source/engine/exception.h"
 
 namespace Envoy {
 namespace Extensions {
@@ -17,25 +16,33 @@ namespace ModSecurityFilter {
 namespace Engine {
 namespace {
 
-template <class Callback> absl::Status call(absl::string_view operation, Callback&& callback) {
-  try {
+template <class Callback>
+absl::Status call(absl::string_view operation, Callback&& callback) {
+  return catchLibraryExceptions(operation, [&]() -> absl::Status {
     if (callback() == 1) {
       return absl::OkStatus();
     }
     return absl::InternalError(absl::StrCat("libmodsecurity operation failed: ", operation));
-  } catch (const std::exception& error) {
-    return absl::InternalError(
-        absl::StrCat("libmodsecurity operation threw in ", operation, ": ", error.what()));
-  } catch (...) {
-    return absl::InternalError(
-        absl::StrCat("libmodsecurity operation threw in ", operation));
-  }
+  });
 }
 
-} // namespace
+class NativeIntervention {
+ public:
+  NativeIntervention() { modsecurity::intervention::clean(&value_); }
+  ~NativeIntervention() { modsecurity::intervention::free(&value_); }
 
-TransactionImpl::TransactionImpl(std::unique_ptr<modsecurity::Transaction> transaction)
-    : transaction_(std::move(transaction)) {}
+  modsecurity::ModSecurityIntervention* get() { return &value_; }
+  const modsecurity::ModSecurityIntervention& value() const { return value_; }
+
+ private:
+  modsecurity::ModSecurityIntervention value_;
+};
+
+}  // namespace
+
+TransactionImpl::TransactionImpl(std::unique_ptr<modsecurity::Transaction> transaction,
+                                 std::shared_ptr<const RuleGeneration> generation)
+    : generation_(std::move(generation)), transaction_(std::move(transaction)) {}
 
 TransactionImpl::~TransactionImpl() = default;
 
@@ -62,8 +69,7 @@ absl::Status TransactionImpl::processUri(absl::string_view uri, absl::string_vie
   });
 }
 
-absl::Status TransactionImpl::addRequestHeader(absl::string_view name,
-                                               absl::string_view value) {
+absl::Status TransactionImpl::addRequestHeader(absl::string_view name, absl::string_view value) {
   return call("addRequestHeader", [&] {
     return transaction_->addRequestHeader(
         reinterpret_cast<const unsigned char*>(name.data()), name.size(),
@@ -77,8 +83,8 @@ absl::Status TransactionImpl::processRequestHeaders() {
 
 absl::Status TransactionImpl::appendRequestBody(absl::string_view data) {
   return call("appendRequestBody", [&] {
-    return transaction_->appendRequestBody(
-        reinterpret_cast<const unsigned char*>(data.data()), data.size());
+    return transaction_->appendRequestBody(reinterpret_cast<const unsigned char*>(data.data()),
+                                           data.size());
   });
 }
 
@@ -86,8 +92,7 @@ absl::Status TransactionImpl::processRequestBody() {
   return call("processRequestBody", [&] { return transaction_->processRequestBody(); });
 }
 
-absl::Status TransactionImpl::addResponseHeader(absl::string_view name,
-                                                absl::string_view value) {
+absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::string_view value) {
   return call("addResponseHeader", [&] {
     return transaction_->addResponseHeader(
         reinterpret_cast<const unsigned char*>(name.data()), name.size(),
@@ -105,8 +110,8 @@ absl::Status TransactionImpl::processResponseHeaders(uint32_t status,
 
 absl::Status TransactionImpl::appendResponseBody(absl::string_view data) {
   return call("appendResponseBody", [&] {
-    return transaction_->appendResponseBody(
-        reinterpret_cast<const unsigned char*>(data.data()), data.size());
+    return transaction_->appendResponseBody(reinterpret_cast<const unsigned char*>(data.data()),
+                                            data.size());
   });
 }
 
@@ -119,33 +124,27 @@ absl::Status TransactionImpl::processLogging() {
 }
 
 absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {
-  try {
-    modsecurity::ModSecurityIntervention native_intervention;
-    modsecurity::intervention::clean(&native_intervention);
-    if (!transaction_->intervention(&native_intervention)) {
-      return std::nullopt;
-    }
+  return catchLibraryExceptions("intervention check",
+                                [&]() -> absl::StatusOr<std::optional<Intervention>> {
+                                  NativeIntervention native;
+                                  if (!transaction_->intervention(native.get())) {
+                                    return std::nullopt;
+                                  }
 
-    Intervention result;
-    result.status = native_intervention.status;
-    if (native_intervention.url != nullptr) {
-      result.redirect_url = native_intervention.url;
-    }
-    if (native_intervention.log != nullptr) {
-      result.log = native_intervention.log;
-    }
-    modsecurity::intervention::free(&native_intervention);
-    return result;
-  } catch (const std::exception& error) {
-    return absl::InternalError(
-        absl::StrCat("libmodsecurity intervention check threw: ", error.what()));
-  } catch (...) {
-    return absl::InternalError("libmodsecurity intervention check threw");
-  }
+                                  Intervention result;
+                                  result.status = native.value().status;
+                                  if (native.value().url != nullptr) {
+                                    result.redirect_url = native.value().url;
+                                  }
+                                  if (native.value().log != nullptr) {
+                                    result.log = native.value().log;
+                                  }
+                                  return result;
+                                });
 }
 
-} // namespace Engine
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace Engine
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy
