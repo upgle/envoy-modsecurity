@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package envoy_modsecurity.extensions.filters.http.modsecurity.v3;
+
+import "google/protobuf/wrappers.proto";
+
+import "validate/validate.proto";
+
+option java_package = "io.envoymodsecurity.extensions.filters.http.modsecurity.v3";
+option java_outer_classname = "ModSecurityProto";
+option java_multiple_files = true;
+option go_package =
+    "github.com/envoy-modsecurity/envoy-modsecurity/api/envoy_modsecurity/extensions/filters/http/modsecurity/v3;modsecurityv3";
+
+// Configuration for the out-of-tree ModSecurity HTTP filter.
+//
+// The runtime implementation treats an unspecified failure mode as fail-closed. Body limits are
+// optional so that their defaults can evolve within a filter release without changing the wire
+// format. The resolved values are emitted in the startup log and config dump.
+message ModSecurity {
+  oneof rules_source {
+    option (validate.required) = true;
+
+    // Absolute path to the root ModSecurity configuration file. Includes are resolved by
+    // libmodsecurity relative to its configured filesystem context.
+    string rules_path = 1 [(validate.rules).string = {min_len: 1}];
+
+    // Inline SecLang configuration. Prefer rules_path for production configurations so rules can
+    // be delivered and audited independently from xDS resources.
+    string rules_inline = 2 [(validate.rules).string = {min_len: 1}];
+  }
+
+  // Maximum request body bytes retained for phase 2 inspection. The implementation default is
+  // 1 MiB. This limit must not exceed the owning HTTP connection manager's buffer limit.
+  google.protobuf.UInt64Value max_request_body_bytes = 3
+      [(validate.rules).uint64 = {gt: 0, lte: 1073741824}];
+
+  // Whether response headers and bodies are passed through ModSecurity phases 3 and 4.
+  bool inspect_response = 4;
+
+  // Maximum response body bytes retained when inspect_response is enabled. The implementation
+  // default is 1 MiB.
+  google.protobuf.UInt64Value max_response_body_bytes = 5
+      [(validate.rules).uint64 = {gt: 0, lte: 1073741824}];
+
+  FailureMode failure_mode = 6 [(validate.rules).enum = {defined_only: true}];
+}
+
+enum FailureMode {
+  // Safe default. Configuration, engine, and transaction failures terminate the request.
+  FAILURE_MODE_UNSPECIFIED = 0;
+
+  FAILURE_MODE_FAIL_CLOSED = 1;
+
+  // Continue the request after an internal engine failure. Intended for explicitly accepted
+  // availability trade-offs and always accompanied by an error metric.
+  FAILURE_MODE_FAIL_OPEN = 2;
+}
+
+message ModSecurityPerRoute {
+  oneof override {
+    option (validate.required) = true;
+
+    bool disabled = 1 [(validate.rules).bool = {const: true}];
+
+    ModSecurity settings = 2 [(validate.rules).message = {required: true}];
+  }
+}

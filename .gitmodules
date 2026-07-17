@@ -1,0 +1,12 @@
+[submodule "envoy"]
+	path = envoy
+	url = https://github.com/envoyproxy/envoy.git
+	shallow = true
+[submodule "third_party/modsecurity"]
+	path = third_party/modsecurity
+	url = https://github.com/owasp-modsecurity/ModSecurity.git
+	shallow = true
+[submodule "third_party/coreruleset"]
+	path = third_party/coreruleset
+	url = https://github.com/coreruleset/coreruleset.git
+	shallow = true
