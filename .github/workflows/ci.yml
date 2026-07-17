@@ -23,7 +23,12 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
-          submodules: true
+          submodules: recursive
+
+      - name: Install ModSecurity build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes autoconf automake libpcre2-dev libtool libyajl-dev pkg-config
 
       - name: Verify dependency pins
         run: ./tools/verify-dependency-pins.sh
@@ -35,5 +40,5 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
 
-      - name: Build and validate the v3 API
-        run: bazel build //:api_bindings
+      - name: Build and test the API, engine, and filter
+        run: make check

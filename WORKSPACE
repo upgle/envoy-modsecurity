@@ -5,6 +5,14 @@ local_repository(
     path = "envoy",
 )
 
+# The pinned ModSecurity gitlink remains the source of truth. A BUILD overlay lets
+# rules_foreign_cc consume it without adding project files inside the upstream submodule.
+new_local_repository(
+    name = "modsecurity_source",
+    build_file = "//bazel:modsecurity_source.BUILD",
+    path = "third_party/modsecurity",
+)
+
 load("@envoy//bazel:api_binding.bzl", "envoy_api_binding")
 
 envoy_api_binding()

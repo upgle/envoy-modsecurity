@@ -1,0 +1,21 @@
+load("@envoy//bazel:envoy_build_system.bzl", "envoy_cc_test", "envoy_package")
+
+licenses(["notice"])  # Apache 2
+
+envoy_package()
+
+envoy_cc_test(
+    name = "filter_test",
+    srcs = ["filter_test.cc"],
+    deps = [
+        "//source/engine:engine_interface",
+        "//source/extensions/filters/http/modsecurity:filter_lib",
+        "@envoy//source/common/buffer:buffer_lib",
+        "@envoy//source/common/http:header_map_lib",
+        "@envoy//source/common/stats:isolated_store_lib",
+        "@envoy//test/mocks/http:http_mocks",
+        "@envoy//test/test_common:simulated_time_system_lib",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)

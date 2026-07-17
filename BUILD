@@ -1,3 +1,5 @@
+load("@envoy//bazel:envoy_build_system.bzl", "envoy_cc_binary")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -15,5 +17,14 @@ filegroup(
         "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_go_proto",
         "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_java_proto",
         "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_py_proto",
+    ],
+)
+
+# Custom Envoy with the out-of-tree filter linked for static factory registration.
+envoy_cc_binary(
+    name = "envoy-modsecurity",
+    deps = [
+        "//source/extensions/filters/http/modsecurity:config",
+        "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )

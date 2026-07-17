@@ -2,8 +2,14 @@ syntax = "proto3";
 
 package envoy_modsecurity.extensions.filters.http.modsecurity.v3;
 
+import "envoy/type/v3/http_status.proto";
+
 import "google/protobuf/wrappers.proto";
 
+import "xds/annotations/v3/status.proto";
+
+import "udpa/annotations/sensitive.proto";
+import "udpa/annotations/status.proto";
 import "validate/validate.proto";
 
 option java_package = "io.envoymodsecurity.extensions.filters.http.modsecurity.v3";
@@ -11,58 +17,123 @@ option java_outer_classname = "ModSecurityProto";
 option java_multiple_files = true;
 option go_package =
     "github.com/envoy-modsecurity/envoy-modsecurity/api/envoy_modsecurity/extensions/filters/http/modsecurity/v3;modsecurityv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+option (xds.annotations.v3.file_status).work_in_progress = true;
+
+// [#protodoc-title: ModSecurity]
+// [#extension: envoy.filters.http.modsecurity]
 
 // Configuration for the out-of-tree ModSecurity HTTP filter.
 //
-// The runtime implementation treats an unspecified failure mode as fail-closed. Body limits are
-// optional so that their defaults can evolve within a filter release without changing the wire
-// format. The resolved values are emitted in the startup log and config dump.
+// Rule loading and request inspection are mandatory. Response inspection is opt-in because it
+// buffers upstream response data and adds latency to the response path.
+// [#next-free-field: 7]
 message ModSecurity {
-  oneof rules_source {
+  // Ordered SecLang sources loaded into one immutable ModSecurity rule set during filter-config
+  // construction. The order is significant: later sources may update or remove rules loaded by
+  // earlier sources. At least one source is required.
+  //
+  // A production configuration will normally load one root file that includes the recommended
+  // ModSecurity configuration, OWASP CRS setup, CRS rules, and local exclusions.
+  repeated RuleSource rules = 1
+      [(validate.rules).repeated = {min_items: 1 max_items: 64}];
+
+  // Envoy-side bound for buffering the downstream request body before phase 2 completes. This is
+  // independent of ``SecRequestBodyLimit``; the effective limit is the first limit reached.
+  // Requests that exceed this bound are rejected with HTTP 413. ``failure_mode_allow`` does not
+  // override this behavior.
+  BodyBufferSettings request_body = 2 [(validate.rules).message = {required: true}];
+
+  // Enables ModSecurity response-header and response-body processing. When absent, phases 3 and 4
+  // are skipped. ``SecResponseBodyAccess`` and related SecLang directives still determine which
+  // response bodies ModSecurity inspects.
+  ResponseInspection response = 3;
+
+  // When true, a runtime failure in the ModSecurity engine allows the stream to continue and emits
+  // an error counter. Defaults to false (fail closed).
+  //
+  // This setting never applies to rule-load failures, invalid configuration, body-buffer limits,
+  // or disruptive rule interventions.
+  bool failure_mode_allow = 4;
+
+  // HTTP status returned for a fail-closed runtime error or a response body that exceeds its Envoy
+  // buffer bound. Defaults to HTTP 500. The implementation accepts only 4xx and 5xx values.
+  envoy.type.v3.HttpStatus status_on_error = 5;
+
+  // Optional additional statistics prefix for distinguishing multiple filter instances. The base
+  // statistics namespace remains ``modsecurity``.
+  string stat_prefix = 6 [(validate.rules).string = {max_bytes: 128}];
+}
+
+// A SecLang source. Sources are intentionally local or inline; remote rule fetching is not part of
+// the data-plane filter contract.
+message RuleSource {
+  oneof source {
     option (validate.required) = true;
 
-    // Absolute path to the root ModSecurity configuration file. Includes are resolved by
-    // libmodsecurity relative to its configured filesystem context.
-    string rules_path = 1 [(validate.rules).string = {min_len: 1}];
+    // Path to a SecLang file loaded with ``RulesSet::loadFromUri``. Use an absolute path in
+    // production. SecLang ``Include`` directives are resolved by libmodsecurity.
+    string filename = 1 [(validate.rules).string = {min_len: 1 max_bytes: 4096}];
 
-    // Inline SecLang configuration. Prefer rules_path for production configurations so rules can
-    // be delivered and audited independently from xDS resources.
-    string rules_inline = 2 [(validate.rules).string = {min_len: 1}];
+    // SecLang embedded in the typed configuration. This is intended for small local exclusions and
+    // tests; filename-based sources are preferred for a production CRS deployment.
+    InlineRules inline_rules = 2 [(validate.rules).message = {required: true}];
   }
-
-  // Maximum request body bytes retained for phase 2 inspection. The implementation default is
-  // 1 MiB. This limit must not exceed the owning HTTP connection manager's buffer limit.
-  google.protobuf.UInt64Value max_request_body_bytes = 3
-      [(validate.rules).uint64 = {gt: 0, lte: 1073741824}];
-
-  // Whether response headers and bodies are passed through ModSecurity phases 3 and 4.
-  bool inspect_response = 4;
-
-  // Maximum response body bytes retained when inspect_response is enabled. The implementation
-  // default is 1 MiB.
-  google.protobuf.UInt64Value max_response_body_bytes = 5
-      [(validate.rules).uint64 = {gt: 0, lte: 1073741824}];
-
-  FailureMode failure_mode = 6 [(validate.rules).enum = {defined_only: true}];
 }
 
-enum FailureMode {
-  // Safe default. Configuration, engine, and transaction failures terminate the request.
-  FAILURE_MODE_UNSPECIFIED = 0;
+// Inline SecLang plus a diagnostic source name passed to libmodsecurity.
+message InlineRules {
+  // Stable name shown in parse errors and logs, for example ``local-exclusions.conf``.
+  string name = 1 [(validate.rules).string = {min_len: 1 max_bytes: 256}];
 
-  FAILURE_MODE_FAIL_CLOSED = 1;
-
-  // Continue the request after an internal engine failure. Intended for explicitly accepted
-  // availability trade-offs and always accompanied by an error metric.
-  FAILURE_MODE_FAIL_OPEN = 2;
+  // SecLang contents. Marked sensitive so configuration-dump tooling can redact rule content.
+  string rules = 2 [
+    (udpa.annotations.sensitive) = true,
+    (validate.rules).string = {min_len: 1 max_bytes: 1048576}
+  ];
 }
 
+// Memory bound applied by Envoy while a body inspection phase is pending.
+message BodyBufferSettings {
+  // Maximum body bytes buffered per stream. The upper bound is 1 GiB, but operators should choose
+  // the smallest limit that covers expected traffic and account for concurrent streams.
+  google.protobuf.UInt32Value max_bytes = 1
+      [(validate.rules).uint32 = {gt: 0 lte: 1073741824},
+       (validate.rules).message = {required: true}];
+}
+
+// Response inspection settings. Message presence enables phases 3 and 4.
+message ResponseInspection {
+  // Envoy-side response body bound. Exceeding it follows ``status_on_error`` and is always
+  // fail-closed.
+  BodyBufferSettings body = 1 [(validate.rules).message = {required: true}];
+}
+
+// Per-route configuration selected through ``typed_per_filter_config``.
 message ModSecurityPerRoute {
   oneof override {
     option (validate.required) = true;
 
+    // Disables all ModSecurity processing for this virtual host or route.
     bool disabled = 1 [(validate.rules).bool = {const: true}];
 
-    ModSecurity settings = 2 [(validate.rules).message = {required: true}];
+    // Overrides only buffering and response-inspection behavior. Rules and failure policy remain
+    // filter-wide so the immutable engine can be shared safely.
+    ModSecurityPerRouteOverrides overrides = 2
+        [(validate.rules).message = {required: true}];
+  }
+}
+
+// Narrow per-route overrides. Unset fields inherit the filter-level configuration.
+message ModSecurityPerRouteOverrides {
+  // Overrides the request body buffer bound for this route.
+  BodyBufferSettings request_body = 1;
+
+  oneof response_override {
+    // Disables response inspection for this route.
+    bool disable_response = 2 [(validate.rules).bool = {const: true}];
+
+    // Enables or replaces response inspection settings for this route.
+    ResponseInspection response = 3 [(validate.rules).message = {required: true}];
   }
 }
