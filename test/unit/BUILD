@@ -6,6 +6,7 @@ envoy_package()
 
 envoy_cc_test(
     name = "filter_test",
+    repository = "@envoy",
     srcs = ["filter_test.cc"],
     deps = [
         "//source/engine:engine_interface",

@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 configure_make(
     name = "libmodsecurity",
     autogen = True,
+    autogen_command = "build.sh",
     configure_in_place = True,
     configure_options = [
         "--disable-shared",
@@ -18,8 +19,35 @@ configure_make(
         "--without-lua",
         "--without-maxmind",
         "--without-ssdeep",
-    ],
+    ] + select({
+        "@platforms//os:macos": [
+            "--with-pcre2=/opt/homebrew/opt/pcre2",
+            "ARFLAGS=cr",
+            "AR_FLAGS=cr",
+            "RANLIB=/usr/bin/ranlib",
+        ],
+        "//conditions:default": [],
+    }),
+    # rules_foreign_cc maps Bazel's Darwin static-link tool to Apple's libtool. Autoconf expects
+    # AR to implement the traditional ar interface, so let configure discover /usr/bin/ar.
+    env = select({
+        "@platforms//os:macos": {"AR": ""},
+        "//conditions:default": {},
+    }),
     lib_source = "@modsecurity_source//:all",
+    # libmodsecurity.a intentionally remains a static archive, so its system-library dependencies
+    # must be propagated to every Bazel consumer.
+    linkopts = select({
+        "@platforms//os:linux": [
+            "-lpcre2-8",
+            "-lyajl",
+        ],
+        "@platforms//os:macos": [
+            "-L/opt/homebrew/opt/pcre2/lib",
+            "-lpcre2-8",
+        ],
+        "//conditions:default": ["-lpcre2-8"],
+    }),
     out_static_libs = ["libmodsecurity.a"],
     tags = [
         "nocompdb",

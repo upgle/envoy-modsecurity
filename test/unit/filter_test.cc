@@ -4,18 +4,15 @@
 #include <optional>
 #include <string>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "source/common/buffer/buffer_impl.h"
 #include "source/common/http/header_map_impl.h"
 #include "source/common/stats/isolated_store_impl.h"
-
 #include "test/mocks/http/mocks.h"
 #include "test/test_common/simulated_time_system.h"
-
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using testing::_;
 using testing::NiceMock;
@@ -30,6 +27,8 @@ struct TransactionState {
   std::string request_body;
   std::string response_body;
   absl::Status request_headers_status{absl::OkStatus()};
+  absl::Status request_body_status{absl::OkStatus()};
+  absl::Status response_body_status{absl::OkStatus()};
   int request_headers_calls{0};
   int request_body_calls{0};
   int response_headers_calls{0};
@@ -41,15 +40,14 @@ struct TransactionState {
 };
 
 class FakeTransaction final : public Engine::Transaction {
-public:
+ public:
   explicit FakeTransaction(std::shared_ptr<TransactionState> state) : state_(std::move(state)) {}
 
   absl::Status processConnection(absl::string_view, uint32_t, absl::string_view,
                                  uint32_t) override {
     return absl::OkStatus();
   }
-  absl::Status processUri(absl::string_view, absl::string_view,
-                          absl::string_view) override {
+  absl::Status processUri(absl::string_view, absl::string_view, absl::string_view) override {
     return absl::OkStatus();
   }
   absl::Status addRequestHeader(absl::string_view, absl::string_view) override {
@@ -65,7 +63,7 @@ public:
   }
   absl::Status processRequestBody() override {
     state_->request_body_calls++;
-    return absl::OkStatus();
+    return state_->request_body_status;
   }
   absl::Status addResponseHeader(absl::string_view, absl::string_view) override {
     return absl::OkStatus();
@@ -80,7 +78,7 @@ public:
   }
   absl::Status processResponseBody() override {
     state_->response_body_calls++;
-    return absl::OkStatus();
+    return state_->response_body_status;
   }
   absl::Status processLogging() override {
     state_->logging_calls++;
@@ -88,19 +86,18 @@ public:
   }
   absl::StatusOr<std::optional<Engine::Intervention>> intervention() override {
     state_->intervention_calls++;
-    if (state_->intervene_on_call != 0 &&
-        state_->intervention_calls == state_->intervene_on_call) {
+    if (state_->intervene_on_call != 0 && state_->intervention_calls == state_->intervene_on_call) {
       return state_->intervention;
     }
     return std::nullopt;
   }
 
-private:
+ private:
   const std::shared_ptr<TransactionState> state_;
 };
 
 class FakeGeneration final : public Engine::RuleGeneration {
-public:
+ public:
   explicit FakeGeneration(std::shared_ptr<TransactionState> state) : state_(std::move(state)) {}
 
   absl::StatusOr<std::unique_ptr<Engine::Transaction>> createTransaction() const override {
@@ -109,12 +106,12 @@ public:
   uint64_t loadedRuleCount() const override { return 1; }
   uint64_t sourceCount() const override { return 1; }
 
-private:
+ private:
   const std::shared_ptr<TransactionState> state_;
 };
 
 class FilterTest : public testing::Test {
-public:
+ public:
   void initialize(uint64_t request_limit = 32,
                   std::optional<uint64_t> response_limit = std::nullopt,
                   bool failure_mode_allow = false) {
@@ -210,6 +207,33 @@ TEST_F(FilterTest, RuntimeFailureCanFailOpen) {
   filter_->onDestroy();
 }
 
+TEST_F(FilterTest, BodyRuntimeFailureCanFailOpenAndReleaseIteration) {
+  initialize(32, std::nullopt, true);
+  state_->request_body_status = absl::InternalError("engine unavailable");
+  auto headers = requestHeaders();
+
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("buffered body");
+  EXPECT_EQ(filter_->decodeData(body, true), Http::FilterDataStatus::Continue);
+  EXPECT_EQ(state_->request_body_calls, 1);
+  EXPECT_EQ(stats_->runtime_errors_.value(), 1);
+  EXPECT_EQ(stats_->failure_mode_allowed_.value(), 1);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, RuntimeFailureFailsClosedByDefault) {
+  initialize();
+  state_->request_headers_status = absl::InternalError("engine unavailable");
+  auto headers = requestHeaders();
+
+  EXPECT_CALL(decoder_callbacks_, sendLocalReply(Http::Code::InternalServerError, _, _, _,
+                                                 "modsecurity_runtime_error"));
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  EXPECT_EQ(stats_->runtime_errors_.value(), 1);
+  EXPECT_EQ(stats_->failure_mode_allowed_.value(), 0);
+  filter_->onDestroy();
+}
+
 TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   initialize();
   state_->intervene_on_call = 3;
@@ -217,8 +241,7 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   auto headers = requestHeaders();
 
   EXPECT_CALL(decoder_callbacks_,
-              sendLocalReply(Http::Code::Forbidden, _, _, _,
-                             "modsecurity_request_intervention"));
+              sendLocalReply(Http::Code::Forbidden, _, _, _, "modsecurity_request_intervention"));
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
   EXPECT_EQ(stats_->request_interventions_.value(), 1);
   filter_->onDestroy();
@@ -232,9 +255,8 @@ TEST_F(FilterTest, ResponseOverflowIsFailClosedEvenWhenFailureModeAllows) {
   EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
             Http::FilterHeadersStatus::StopIteration);
 
-  EXPECT_CALL(encoder_callbacks_,
-              sendLocalReply(Http::Code::InternalServerError, _, _, _,
-                             "modsecurity_response_body_overflow"));
+  EXPECT_CALL(encoder_callbacks_, sendLocalReply(Http::Code::InternalServerError, _, _, _,
+                                                 "modsecurity_response_body_overflow"));
   Buffer::OwnedImpl response_body("123456");
   EXPECT_EQ(filter_->encodeData(response_body, true),
             Http::FilterDataStatus::StopIterationNoBuffer);
@@ -242,8 +264,53 @@ TEST_F(FilterTest, ResponseOverflowIsFailClosedEvenWhenFailureModeAllows) {
   filter_->onDestroy();
 }
 
-} // namespace
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+TEST_F(FilterTest, ResponseBodyRuntimeFailureCanFailOpenAndReleaseIteration) {
+  initialize(32, 32, true);
+  state_->response_body_status = absl::InternalError("engine unavailable");
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
+            Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl response_body("buffered response");
+  EXPECT_EQ(filter_->encodeData(response_body, true), Http::FilterDataStatus::Continue);
+  EXPECT_EQ(state_->response_body_calls, 1);
+  EXPECT_EQ(stats_->runtime_errors_.value(), 1);
+  EXPECT_EQ(stats_->failure_mode_allowed_.value(), 1);
+  filter_->onDestroy();
+}
+
+TEST(RouteConfigTest, AppliesIndependentRequestAndResponseOverrides) {
+  const EffectiveSettings base{32, 16, false, Http::Code::InternalServerError};
+
+  const RouteConfig replace(false, 64, RouteConfig::ResponseOverride::Replace, 128);
+  const EffectiveSettings replaced = replace.apply(base);
+  EXPECT_EQ(replaced.request_body_max_bytes, 64);
+  ASSERT_TRUE(replaced.response_body_max_bytes.has_value());
+  EXPECT_EQ(*replaced.response_body_max_bytes, 128);
+  EXPECT_FALSE(replace.disabled());
+
+  const RouteConfig disable(false, std::nullopt, RouteConfig::ResponseOverride::Disable,
+                            std::nullopt);
+  const EffectiveSettings disabled = disable.apply(base);
+  EXPECT_EQ(disabled.request_body_max_bytes, 32);
+  EXPECT_FALSE(disabled.response_body_max_bytes.has_value());
+
+  const RouteConfig inherit(false, std::nullopt, RouteConfig::ResponseOverride::Inherit,
+                            std::nullopt);
+  const EffectiveSettings inherited = inherit.apply(base);
+  EXPECT_EQ(inherited.request_body_max_bytes, 32);
+  ASSERT_TRUE(inherited.response_body_max_bytes.has_value());
+  EXPECT_EQ(*inherited.response_body_max_bytes, 16);
+
+  const RouteConfig route_disabled(true, std::nullopt, RouteConfig::ResponseOverride::Inherit,
+                                   std::nullopt);
+  EXPECT_TRUE(route_disabled.disabled());
+}
+
+}  // namespace
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy

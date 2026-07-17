@@ -5,8 +5,7 @@
 
 #include "envoy/buffer/buffer.h"
 #include "envoy/http/filter.h"
-
-#include "source/extensions/filters/http/modsecurity/config.h"
+#include "source/extensions/filters/http/modsecurity/filter_config.h"
 
 namespace Envoy {
 namespace Extensions {
@@ -14,7 +13,7 @@ namespace HttpFilters {
 namespace ModSecurityFilter {
 
 class Filter final : public Http::StreamFilter {
-public:
+ public:
   explicit Filter(FilterConfigSharedPtr config);
 
   Http::FilterHeadersStatus decodeHeaders(Http::RequestHeaderMap& headers,
@@ -38,20 +37,31 @@ public:
   void onStreamComplete() override;
   void onDestroy() override;
 
-private:
+ private:
   enum class Path { Request, Response };
+  struct BodyState {
+    uint64_t bytes{0};
+    bool finished{false};
+  };
 
   void initializeSettings();
   bool createTransaction();
-  bool handleEngineResult(const absl::Status& status, Path path, bool check_intervention);
+  bool evaluate(const absl::Status& status, Path path, bool check_intervention = true);
   bool checkIntervention(Path path);
   void sendIntervention(const Engine::Intervention& intervention, Path path);
   void sendRuntimeError(Path path, absl::string_view details);
-  bool addRequestHeaders(const Http::RequestHeaderMap& headers);
-  bool addResponseHeaders(const Http::ResponseHeaderMap& headers);
+  bool addHeaders(const Http::HeaderMap& headers, Path path, absl::string_view request_host = {});
+  bool inspectionEnabled(Path path) const;
+  Http::FilterHeadersStatus stoppedOrContinue() const;
+  Http::FilterDataStatus processData(Buffer::Instance& data, bool end_stream, Path path);
+  Http::FilterTrailersStatus processTrailers(Path path);
   bool appendBody(Buffer::Instance& data, Path path);
-  bool finishRequestBody();
-  bool finishResponseBody();
+  bool finishBody(Path path);
+  void sendBodyOverflow(Path path);
+  void ensureBufferLimit(Path path);
+  BodyState& bodyState(Path path);
+  uint64_t bodyLimit(Path path) const;
+  Stats::Histogram& bodyDurationHistogram(Path path) const;
   void finishLogging();
   void chargeBodyBytes(uint64_t bytes);
   void releaseResources();
@@ -63,22 +73,19 @@ private:
   Http::StreamEncoderFilterCallbacks* encoder_callbacks_{nullptr};
   std::unique_ptr<Engine::Transaction> transaction_;
   Buffer::BufferMemoryAccountSharedPtr memory_account_;
-  uint64_t request_body_bytes_{0};
-  uint64_t response_body_bytes_{0};
+  BodyState request_body_;
+  BodyState response_body_;
   uint64_t charged_body_bytes_{0};
   bool settings_initialized_{false};
   bool disabled_{false};
   bool engine_bypassed_{false};
   bool local_reply_{false};
-  bool request_body_finished_{false};
   bool response_headers_finished_{false};
-  bool response_body_finished_{false};
   bool logging_finished_{false};
   bool resources_released_{false};
-  bool transaction_counted_{false};
 };
 
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy

@@ -1,18 +1,15 @@
 #include "source/extensions/filters/http/modsecurity/filter.h"
 
-#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 
-#include "envoy/network/address.h"
-
-#include "source/common/http/utility.h"
-
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
+#include "envoy/network/address.h"
+#include "source/common/http/utility.h"
 
 namespace Envoy {
 namespace Extensions {
@@ -34,13 +31,34 @@ IpEndpoint endpoint(const Network::Address::InstanceConstSharedPtr& address) {
 
 bool isPseudoHeader(absl::string_view name) { return !name.empty() && name.front() == ':'; }
 
-uint64_t elapsedMicros(MonotonicTime start, TimeSource& time_source) {
-  return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
-                                   time_source.monotonicTime() - start)
-                                   .count());
-}
+class ScopedHistogramTimer {
+ public:
+  ScopedHistogramTimer(Stats::Histogram& histogram, TimeSource& time_source)
+      : histogram_(histogram), time_source_(time_source), start_(time_source.monotonicTime()) {}
 
-} // namespace
+  ScopedHistogramTimer(const ScopedHistogramTimer&) = delete;
+  ScopedHistogramTimer& operator=(const ScopedHistogramTimer&) = delete;
+
+  ~ScopedHistogramTimer() { complete(); }
+
+  void complete() {
+    if (completed_) {
+      return;
+    }
+    completed_ = true;
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        time_source_.monotonicTime() - start_);
+    histogram_.recordValue(static_cast<uint64_t>(elapsed.count()));
+  }
+
+ private:
+  Stats::Histogram& histogram_;
+  TimeSource& time_source_;
+  const MonotonicTime start_;
+  bool completed_{false};
+};
+
+}  // namespace
 
 Filter::Filter(FilterConfigSharedPtr config)
     : config_(std::move(config)), settings_(config_->settings()) {}
@@ -71,10 +89,9 @@ void Filter::initializeSettings() {
 bool Filter::createTransaction() {
   auto transaction = config_->generation()->createTransaction();
   if (!transaction.ok()) {
-    return handleEngineResult(transaction.status(), Path::Request, false);
+    return evaluate(transaction.status(), Path::Request, false);
   }
   transaction_ = std::move(*transaction);
-  transaction_counted_ = true;
   config_->stats().active_transactions_.inc();
   memory_account_ = decoder_callbacks_->account();
   return true;
@@ -85,14 +102,13 @@ std::string Filter::httpVersion() const {
   return protocol.has_value() ? Http::Utility::getProtocolString(*protocol) : "HTTP/1.1";
 }
 
-bool Filter::handleEngineResult(const absl::Status& status, Path path,
-                                bool check_intervention) {
+bool Filter::evaluate(const absl::Status& status, Path path, bool check_intervention) {
   if (!status.ok()) {
     config_->stats().runtime_errors_.inc();
     if (settings_.failure_mode_allow) {
       config_->stats().failure_mode_allowed_.inc();
       engine_bypassed_ = true;
-      return true;
+      return false;
     }
     sendRuntimeError(path, "modsecurity_runtime_error");
     return false;
@@ -103,7 +119,7 @@ bool Filter::handleEngineResult(const absl::Status& status, Path path,
 bool Filter::checkIntervention(Path path) {
   auto intervention = transaction_->intervention();
   if (!intervention.ok()) {
-    return handleEngineResult(intervention.status(), path, false);
+    return evaluate(intervention.status(), path, false);
   }
   if (!intervention->has_value()) {
     return true;
@@ -151,7 +167,7 @@ void Filter::sendRuntimeError(Path path, absl::string_view details) {
   }
 }
 
-bool Filter::addRequestHeaders(const Http::RequestHeaderMap& headers) {
+bool Filter::addHeaders(const Http::HeaderMap& headers, Path path, absl::string_view request_host) {
   bool host_added = false;
   bool succeeded = true;
   headers.iterate([&](const Http::HeaderEntry& header) {
@@ -159,39 +175,36 @@ bool Filter::addRequestHeaders(const Http::RequestHeaderMap& headers) {
     if (isPseudoHeader(name)) {
       return Http::HeaderMap::Iterate::Continue;
     }
-    host_added = host_added || absl::EqualsIgnoreCase(name, "host");
+    host_added = host_added || (path == Path::Request && absl::EqualsIgnoreCase(name, "host"));
     const absl::Status status =
-        transaction_->addRequestHeader(name, header.value().getStringView());
+        path == Path::Request
+            ? transaction_->addRequestHeader(name, header.value().getStringView())
+            : transaction_->addResponseHeader(name, header.value().getStringView());
     if (!status.ok()) {
-      succeeded = handleEngineResult(status, Path::Request, false);
+      evaluate(status, path, false);
+      succeeded = false;
       return Http::HeaderMap::Iterate::Break;
     }
     return Http::HeaderMap::Iterate::Continue;
   });
 
-  if (!succeeded || engine_bypassed_ || host_added || headers.getHostValue().empty()) {
+  if (!succeeded || path == Path::Response || host_added || request_host.empty()) {
     return succeeded;
   }
-  return handleEngineResult(transaction_->addRequestHeader("host", headers.getHostValue()),
-                            Path::Request, false);
+  return evaluate(transaction_->addRequestHeader("host", request_host), Path::Request, false);
 }
 
-bool Filter::addResponseHeaders(const Http::ResponseHeaderMap& headers) {
-  bool succeeded = true;
-  headers.iterate([&](const Http::HeaderEntry& header) {
-    const absl::string_view name = header.key().getStringView();
-    if (isPseudoHeader(name)) {
-      return Http::HeaderMap::Iterate::Continue;
-    }
-    const absl::Status status =
-        transaction_->addResponseHeader(name, header.value().getStringView());
-    if (!status.ok()) {
-      succeeded = handleEngineResult(status, Path::Response, false);
-      return Http::HeaderMap::Iterate::Break;
-    }
-    return Http::HeaderMap::Iterate::Continue;
-  });
-  return succeeded;
+bool Filter::inspectionEnabled(Path path) const {
+  if (disabled_ || engine_bypassed_ || local_reply_ || transaction_ == nullptr) {
+    return false;
+  }
+  return path == Path::Request ||
+         (settings_.response_body_max_bytes.has_value() && response_headers_finished_);
+}
+
+Http::FilterHeadersStatus Filter::stoppedOrContinue() const {
+  return local_reply_ ? Http::FilterHeadersStatus::StopIteration
+                      : Http::FilterHeadersStatus::Continue;
 }
 
 Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers, bool end_stream) {
@@ -200,54 +213,35 @@ Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers,
     return Http::FilterHeadersStatus::Continue;
   }
 
-  if (!createTransaction() || local_reply_) {
-    return Http::FilterHeadersStatus::StopIteration;
-  }
-  if (engine_bypassed_) {
-    return Http::FilterHeadersStatus::Continue;
+  if (!createTransaction()) {
+    return stoppedOrContinue();
   }
 
-  const MonotonicTime start = config_->timeSource().monotonicTime();
+  ScopedHistogramTimer timer(config_->stats().request_headers_duration_us_, config_->timeSource());
   const auto& addresses = decoder_callbacks_->streamInfo().downstreamAddressProvider();
   const IpEndpoint client = endpoint(addresses.remoteAddress());
   const IpEndpoint server = endpoint(addresses.localAddress());
-  if (!handleEngineResult(transaction_->processConnection(client.address, client.port,
-                                                           server.address, server.port),
-                          Path::Request, true) ||
-      engine_bypassed_) {
-    config_->stats().request_headers_duration_us_.recordValue(
-        elapsedMicros(start, config_->timeSource()));
-    return local_reply_ ? Http::FilterHeadersStatus::StopIteration
-                        : Http::FilterHeadersStatus::Continue;
+  if (!evaluate(
+          transaction_->processConnection(client.address, client.port, server.address, server.port),
+          Path::Request)) {
+    return stoppedOrContinue();
   }
-  if (!handleEngineResult(
+  if (!evaluate(
           transaction_->processUri(headers.getPathValue(), headers.getMethodValue(), httpVersion()),
-          Path::Request, true) ||
-      engine_bypassed_ || !addRequestHeaders(headers) || engine_bypassed_) {
-    config_->stats().request_headers_duration_us_.recordValue(
-        elapsedMicros(start, config_->timeSource()));
-    return local_reply_ ? Http::FilterHeadersStatus::StopIteration
-                        : Http::FilterHeadersStatus::Continue;
+          Path::Request) ||
+      !addHeaders(headers, Path::Request, headers.getHostValue())) {
+    return stoppedOrContinue();
   }
-  if (!handleEngineResult(transaction_->processRequestHeaders(), Path::Request, true)) {
-    config_->stats().request_headers_duration_us_.recordValue(
-        elapsedMicros(start, config_->timeSource()));
-    return Http::FilterHeadersStatus::StopIteration;
+  if (!evaluate(transaction_->processRequestHeaders(), Path::Request)) {
+    return stoppedOrContinue();
   }
-  config_->stats().request_headers_duration_us_.recordValue(
-      elapsedMicros(start, config_->timeSource()));
+  timer.complete();
 
-  if (engine_bypassed_) {
-    return Http::FilterHeadersStatus::Continue;
-  }
   if (end_stream) {
-    return finishRequestBody() ? Http::FilterHeadersStatus::Continue
-                               : Http::FilterHeadersStatus::StopIteration;
+    return finishBody(Path::Request) ? Http::FilterHeadersStatus::Continue : stoppedOrContinue();
   }
 
-  if (settings_.request_body_max_bytes > decoder_callbacks_->bufferLimit()) {
-    decoder_callbacks_->setBufferLimit(settings_.request_body_max_bytes);
-  }
+  ensureBufferLimit(Path::Request);
   // StopIteration keeps request headers from the next filter while still allowing this filter to
   // receive data callbacks. Intermediate data is held with StopIterationAndBuffer below.
   return Http::FilterHeadersStatus::StopIteration;
@@ -264,40 +258,65 @@ void Filter::chargeBodyBytes(uint64_t bytes) {
   config_->stats().modsecurity_buffer_bytes_.add(bytes);
 }
 
+Filter::BodyState& Filter::bodyState(Path path) {
+  return path == Path::Request ? request_body_ : response_body_;
+}
+
+uint64_t Filter::bodyLimit(Path path) const {
+  return path == Path::Request ? settings_.request_body_max_bytes
+                               : *settings_.response_body_max_bytes;
+}
+
+Stats::Histogram& Filter::bodyDurationHistogram(Path path) const {
+  return path == Path::Request ? config_->stats().request_body_duration_us_
+                               : config_->stats().response_body_duration_us_;
+}
+
+void Filter::ensureBufferLimit(Path path) {
+  const uint64_t limit = bodyLimit(path);
+  if (path == Path::Request) {
+    if (limit > decoder_callbacks_->bufferLimit()) {
+      decoder_callbacks_->setBufferLimit(limit);
+    }
+  } else if (limit > encoder_callbacks_->bufferLimit()) {
+    encoder_callbacks_->setBufferLimit(limit);
+  }
+}
+
+void Filter::sendBodyOverflow(Path path) {
+  local_reply_ = true;
+  if (path == Path::Request) {
+    config_->stats().request_body_overflow_.inc();
+    decoder_callbacks_->sendLocalReply(Http::Code::PayloadTooLarge,
+                                       "request body exceeds ModSecurity inspection limit", nullptr,
+                                       std::nullopt, "modsecurity_request_body_overflow");
+    return;
+  }
+
+  config_->stats().response_body_overflow_.inc();
+  sendRuntimeError(Path::Response, "modsecurity_response_body_overflow");
+}
+
 bool Filter::appendBody(Buffer::Instance& data, Path path) {
   const uint64_t length = data.length();
-  uint64_t& current_bytes =
-      path == Path::Request ? request_body_bytes_ : response_body_bytes_;
-  const uint64_t max_bytes = path == Path::Request
-                                 ? settings_.request_body_max_bytes
-                                 : settings_.response_body_max_bytes.value();
+  BodyState& state = bodyState(path);
+  const uint64_t limit = bodyLimit(path);
 
-  if (current_bytes > max_bytes || length > max_bytes - current_bytes) {
-    local_reply_ = true;
-    if (path == Path::Request) {
-      config_->stats().request_body_overflow_.inc();
-      decoder_callbacks_->sendLocalReply(Http::Code::PayloadTooLarge,
-                                         "request body exceeds ModSecurity inspection limit",
-                                         nullptr, std::nullopt,
-                                         "modsecurity_request_body_overflow");
-    } else {
-      config_->stats().response_body_overflow_.inc();
-      sendRuntimeError(Path::Response, "modsecurity_response_body_overflow");
-    }
+  if (state.bytes > limit || length > limit - state.bytes) {
+    sendBodyOverflow(path);
     return false;
   }
-  current_bytes += length;
+  state.bytes += length;
 
   for (const Buffer::RawSlice& slice : data.getRawSlices()) {
     if (slice.len_ == 0) {
       continue;
     }
     const absl::string_view bytes(static_cast<const char*>(slice.mem_), slice.len_);
-    const absl::Status status = path == Path::Request
-                                    ? transaction_->appendRequestBody(bytes)
-                                    : transaction_->appendResponseBody(bytes);
+    const absl::Status status = path == Path::Request ? transaction_->appendRequestBody(bytes)
+                                                      : transaction_->appendResponseBody(bytes);
     if (!status.ok()) {
-      return handleEngineResult(status, path, false);
+      return evaluate(status, path, false);
     }
     chargeBodyBytes(slice.len_);
     if (!checkIntervention(path)) {
@@ -307,122 +326,85 @@ bool Filter::appendBody(Buffer::Instance& data, Path path) {
   return true;
 }
 
-bool Filter::finishRequestBody() {
-  if (request_body_finished_ || engine_bypassed_) {
+bool Filter::finishBody(Path path) {
+  BodyState& state = bodyState(path);
+  if (state.finished) {
     return true;
   }
-  request_body_finished_ = true;
-  const MonotonicTime start = config_->timeSource().monotonicTime();
-  const bool result =
-      handleEngineResult(transaction_->processRequestBody(), Path::Request, true);
-  config_->stats().request_body_duration_us_.recordValue(
-      elapsedMicros(start, config_->timeSource()));
-  return result;
+  state.finished = true;
+  ScopedHistogramTimer timer(bodyDurationHistogram(path), config_->timeSource());
+  const absl::Status status = path == Path::Request ? transaction_->processRequestBody()
+                                                    : transaction_->processResponseBody();
+  return evaluate(status, path);
+}
+
+Http::FilterDataStatus Filter::processData(Buffer::Instance& data, bool end_stream, Path path) {
+  if (!inspectionEnabled(path)) {
+    return Http::FilterDataStatus::Continue;
+  }
+  if (!appendBody(data, path)) {
+    return local_reply_ ? Http::FilterDataStatus::StopIterationNoBuffer
+                        : Http::FilterDataStatus::Continue;
+  }
+  if (end_stream) {
+    if (!finishBody(path) && local_reply_) {
+      return Http::FilterDataStatus::StopIterationNoBuffer;
+    }
+    return Http::FilterDataStatus::Continue;
+  }
+  return Http::FilterDataStatus::StopIterationAndBuffer;
+}
+
+Http::FilterTrailersStatus Filter::processTrailers(Path path) {
+  if (!inspectionEnabled(path)) {
+    return Http::FilterTrailersStatus::Continue;
+  }
+  if (!finishBody(path) && local_reply_) {
+    return Http::FilterTrailersStatus::StopIteration;
+  }
+  return Http::FilterTrailersStatus::Continue;
 }
 
 Http::FilterDataStatus Filter::decodeData(Buffer::Instance& data, bool end_stream) {
-  if (disabled_ || engine_bypassed_) {
-    return Http::FilterDataStatus::Continue;
-  }
-  if (!appendBody(data, Path::Request)) {
-    return Http::FilterDataStatus::StopIterationNoBuffer;
-  }
-  if (engine_bypassed_) {
-    return Http::FilterDataStatus::Continue;
-  }
-  if (end_stream) {
-    return finishRequestBody() ? Http::FilterDataStatus::Continue
-                               : Http::FilterDataStatus::StopIterationNoBuffer;
-  }
-  return Http::FilterDataStatus::StopIterationAndBuffer;
+  return processData(data, end_stream, Path::Request);
 }
 
 Http::FilterTrailersStatus Filter::decodeTrailers(Http::RequestTrailerMap&) {
-  if (disabled_ || engine_bypassed_) {
-    return Http::FilterTrailersStatus::Continue;
-  }
-  return finishRequestBody() ? Http::FilterTrailersStatus::Continue
-                             : Http::FilterTrailersStatus::StopIteration;
+  return processTrailers(Path::Request);
 }
 
-Http::FilterHeadersStatus Filter::encodeHeaders(Http::ResponseHeaderMap& headers,
-                                                bool end_stream) {
+Http::FilterHeadersStatus Filter::encodeHeaders(Http::ResponseHeaderMap& headers, bool end_stream) {
   if (disabled_ || engine_bypassed_ || local_reply_ ||
       !settings_.response_body_max_bytes.has_value()) {
     return Http::FilterHeadersStatus::Continue;
   }
 
-  const MonotonicTime start = config_->timeSource().monotonicTime();
-  if (!addResponseHeaders(headers) || engine_bypassed_) {
-    config_->stats().response_headers_duration_us_.recordValue(
-        elapsedMicros(start, config_->timeSource()));
-    return local_reply_ ? Http::FilterHeadersStatus::StopIteration
-                        : Http::FilterHeadersStatus::Continue;
+  ScopedHistogramTimer timer(config_->stats().response_headers_duration_us_, config_->timeSource());
+  if (!addHeaders(headers, Path::Response)) {
+    return stoppedOrContinue();
   }
   const uint64_t response_status = Http::Utility::getResponseStatus(headers);
-  if (!handleEngineResult(
-          transaction_->processResponseHeaders(response_status, httpVersion()), Path::Response,
-          true)) {
-    config_->stats().response_headers_duration_us_.recordValue(
-        elapsedMicros(start, config_->timeSource()));
-    return Http::FilterHeadersStatus::StopIteration;
+  if (!evaluate(transaction_->processResponseHeaders(response_status, httpVersion()),
+                Path::Response)) {
+    return stoppedOrContinue();
   }
   response_headers_finished_ = true;
-  config_->stats().response_headers_duration_us_.recordValue(
-      elapsedMicros(start, config_->timeSource()));
+  timer.complete();
 
-  if (engine_bypassed_) {
-    return Http::FilterHeadersStatus::Continue;
-  }
   if (end_stream) {
-    return finishResponseBody() ? Http::FilterHeadersStatus::Continue
-                                : Http::FilterHeadersStatus::StopIteration;
+    return finishBody(Path::Response) ? Http::FilterHeadersStatus::Continue : stoppedOrContinue();
   }
 
-  if (*settings_.response_body_max_bytes > encoder_callbacks_->bufferLimit()) {
-    encoder_callbacks_->setBufferLimit(*settings_.response_body_max_bytes);
-  }
+  ensureBufferLimit(Path::Response);
   return Http::FilterHeadersStatus::StopIteration;
 }
 
-bool Filter::finishResponseBody() {
-  if (response_body_finished_ || engine_bypassed_ || !response_headers_finished_) {
-    return true;
-  }
-  response_body_finished_ = true;
-  const MonotonicTime start = config_->timeSource().monotonicTime();
-  const bool result =
-      handleEngineResult(transaction_->processResponseBody(), Path::Response, true);
-  config_->stats().response_body_duration_us_.recordValue(
-      elapsedMicros(start, config_->timeSource()));
-  return result;
-}
-
 Http::FilterDataStatus Filter::encodeData(Buffer::Instance& data, bool end_stream) {
-  if (disabled_ || engine_bypassed_ || local_reply_ ||
-      !settings_.response_body_max_bytes.has_value()) {
-    return Http::FilterDataStatus::Continue;
-  }
-  if (!appendBody(data, Path::Response)) {
-    return Http::FilterDataStatus::StopIterationNoBuffer;
-  }
-  if (engine_bypassed_) {
-    return Http::FilterDataStatus::Continue;
-  }
-  if (end_stream) {
-    return finishResponseBody() ? Http::FilterDataStatus::Continue
-                                : Http::FilterDataStatus::StopIterationNoBuffer;
-  }
-  return Http::FilterDataStatus::StopIterationAndBuffer;
+  return processData(data, end_stream, Path::Response);
 }
 
 Http::FilterTrailersStatus Filter::encodeTrailers(Http::ResponseTrailerMap&) {
-  if (disabled_ || engine_bypassed_ || local_reply_ ||
-      !settings_.response_body_max_bytes.has_value()) {
-    return Http::FilterTrailersStatus::Continue;
-  }
-  return finishResponseBody() ? Http::FilterTrailersStatus::Continue
-                              : Http::FilterTrailersStatus::StopIteration;
+  return processTrailers(Path::Response);
 }
 
 void Filter::finishLogging() {
@@ -430,12 +412,10 @@ void Filter::finishLogging() {
     return;
   }
   logging_finished_ = true;
-  const MonotonicTime start = config_->timeSource().monotonicTime();
+  ScopedHistogramTimer timer(config_->stats().logging_duration_us_, config_->timeSource());
   if (!transaction_->processLogging().ok()) {
     config_->stats().logging_errors_.inc();
   }
-  config_->stats().logging_duration_us_.recordValue(
-      elapsedMicros(start, config_->timeSource()));
 }
 
 void Filter::onStreamComplete() { finishLogging(); }
@@ -445,10 +425,9 @@ void Filter::releaseResources() {
     return;
   }
   resources_released_ = true;
-  transaction_.reset();
-  if (transaction_counted_) {
+  if (transaction_ != nullptr) {
+    transaction_.reset();
     config_->stats().active_transactions_.dec();
-    transaction_counted_ = false;
   }
   if (charged_body_bytes_ != 0) {
     if (memory_account_ != nullptr) {
@@ -465,7 +444,7 @@ void Filter::onDestroy() {
   releaseResources();
 }
 
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy
