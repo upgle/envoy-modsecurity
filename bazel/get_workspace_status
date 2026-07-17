@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+  revision="0000000000000000000000000000000000000000"
+  branch="$(git symbolic-ref --quiet --short HEAD || echo unknown)"
+  echo "BUILD_SCM_REVISION ${revision}"
+  echo "ENVOY_BUILD_SCM_REVISION ${revision}"
+  echo "STABLE_BUILD_SCM_REVISION ${revision}"
+  echo "BUILD_SCM_STATUS Modified"
+  echo "STABLE_BUILD_SCM_STATUS Modified"
+  echo "BUILD_SCM_BRANCH ${branch}"
+  exit 0
+fi
+
+exec "$(dirname "$0")/../envoy/bazel/get_workspace_status" "$@"

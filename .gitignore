@@ -1,0 +1,9 @@
+.DS_Store
+.cache/
+.deps/
+.idea/
+.vscode/
+bazel-*
+build/
+compile_commands.json
+coverage/

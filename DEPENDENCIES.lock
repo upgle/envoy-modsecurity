@@ -1,0 +1,9 @@
+# This file is sourced by tools/verify-dependency-pins.sh. Keep it shell-compatible.
+ENVOY_VERSION=v1.39.0
+ENVOY_COMMIT=8eea3285d6bdb89f8ea34632cfe7ce1608a8f374
+
+MODSECURITY_VERSION=v3.0.16
+MODSECURITY_COMMIT=7ea9fefbe0ba409d8733b4d682c8c4c059cd028d
+
+CORERULESET_VERSION=v4.28.0
+CORERULESET_COMMIT=55b09f5acfd16413e7b31041100711ceb7adc89c
