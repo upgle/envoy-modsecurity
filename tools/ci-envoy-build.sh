@@ -17,7 +17,7 @@ if ! bazel build --sandbox_debug //third_party:libmodsecurity; then
     -name config.log \
     -path '*libmodsecurity*' \
     -print \
-    -exec tail --lines=200 {} \;
+    -exec cat {} \;
   exit 1
 fi
 make check
