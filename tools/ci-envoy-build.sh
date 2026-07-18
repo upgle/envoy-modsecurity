@@ -25,6 +25,7 @@ export CI_SYSROOT_FINGERPRINT="$({
 
 buildbuddy_bazelrc="${HOME}/.bazelrc"
 if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
+  previous_umask="$(umask)"
   umask 077
   printf '%s\n' \
     'build --bes_results_url=https://app.buildbuddy.io/invocation/' \
@@ -35,6 +36,7 @@ if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
     'common --remote_timeout=60s' \
     'build --action_env=CI_SYSROOT_FINGERPRINT' \
     > "${buildbuddy_bazelrc}"
+  umask "${previous_umask}"
   trap 'rm -f -- "${buildbuddy_bazelrc}"' EXIT
   echo "BuildBuddy remote cache enabled for CI."
 else
