@@ -36,7 +36,7 @@ option (xds.annotations.v3.file_status).work_in_progress = true;
 // uninspected because libmodsecurity has no trailer phase. Dedicated counters expose these cases.
 // Other streaming routes must disable this filter for unbounded requests or disable response
 // inspection for unbounded responses.
-// [#next-free-field: 8]
+// [#next-free-field: 9]
 message ModSecurity {
   // Ordered SecLang sources loaded into one immutable ModSecurity rule set during filter-config
   // construction. The order is significant: later sources may update or remove rules loaded by
@@ -80,6 +80,15 @@ message ModSecurity {
   // budget fails closed with ``status_on_error``. Defaults to 64 MiB.
   google.protobuf.UInt64Value max_active_body_bytes = 7
       [(validate.rules).uint64 = {gt: 0 lte: 1073741824}];
+
+  // Maximum PCRE2 match steps allowed for each regular-expression evaluation. The filter installs
+  // this value before all configured SecLang sources, so a rule file cannot silently remove the
+  // guard. Exceeding it during request or response inspection fails the stream closed and
+  // increments a dedicated counter. A phase-5 exceedance is recorded after stream completion.
+  // Defaults to 1000. This bounds PCRE work but is not a wall-clock deadline for an entire native
+  // phase.
+  google.protobuf.UInt32Value pcre_match_limit = 8
+      [(validate.rules).uint32 = {gt: 0 lte: 1000000}];
 }
 
 // A SecLang source. Sources are local files or inline text; the data-plane filter does not fetch

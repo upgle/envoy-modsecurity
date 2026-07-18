@@ -5,6 +5,7 @@ import http.client
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,7 @@ from test.integration.envoy_test_harness import (
 
 
 EXPECTED_CRS_RULE_FILE_COUNT = 27
+EXPECTED_CRS_DATA_FILE_COUNT = 21
 
 
 def parse_args():
@@ -108,13 +110,38 @@ class OwaspCrsSmokeTest(unittest.TestCase):
 
     @classmethod
     def _write_crs_config(cls):
-        rules_directory = Path(ARGS.crs_rules_marker).resolve().parent
+        rules_directory = Path(ARGS.crs_rules_marker).parent
         rule_files = sorted(rules_directory.glob("*.conf"))
         if len(rule_files) != EXPECTED_CRS_RULE_FILE_COUNT:
             raise RuntimeError(
                 "expected "
                 f"{EXPECTED_CRS_RULE_FILE_COUNT} pinned CRS rule files, "
                 f"found {len(rule_files)}"
+            )
+        data_files = sorted(rules_directory.glob("*.data"))
+        if len(data_files) != EXPECTED_CRS_DATA_FILE_COUNT:
+            raise RuntimeError(
+                "expected "
+                f"{EXPECTED_CRS_DATA_FILE_COUNT} pinned CRS data files, "
+                f"found {len(data_files)}"
+            )
+        referenced_data_files = {
+            match
+            for rule_file in rule_files
+            for match in re.findall(
+                r"@pmFromFile\s+([A-Za-z0-9_.-]+\.data)\b",
+                rule_file.read_text(encoding="utf-8"),
+            )
+        }
+        missing_data_files = sorted(
+            filename
+            for filename in referenced_data_files
+            if not (rules_directory / filename).is_file()
+        )
+        if missing_data_files:
+            raise RuntimeError(
+                "CRS rule runfiles are missing @pmFromFile inputs: "
+                + ", ".join(missing_data_files)
             )
 
         template = Path(ARGS.crs_config_template).read_text(encoding="utf-8")

@@ -49,6 +49,7 @@ Its primary fields are:
 | `request_body.max_bytes` | Required per-request body limit; maximum 32 MiB. |
 | `response.body.max_bytes` | Enables response inspection and sets its per-response limit. |
 | `max_active_body_bytes` | Aggregate admitted body budget for one accepted filter configuration; defaults to 64 MiB. |
+| `pcre_match_limit` | Finite PCRE2 work limit per regular-expression evaluation; defaults to 1000. |
 | `failure_mode_allow` | Continues the stream after runtime engine or transaction errors other than resource exhaustion. Resource-exhaustion errors always fail closed. |
 | `status_on_error` | Local-reply status for runtime errors, response overflow, and body-budget exhaustion; defaults to 500. |
 | `stat_prefix` | Optional suffix for distinguishing filter-instance statistics. |

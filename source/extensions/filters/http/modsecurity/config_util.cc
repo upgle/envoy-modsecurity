@@ -80,7 +80,12 @@ absl::StatusOr<ParsedFilterSettings> parseFilterSettings(const ConfigProto::ModS
     return absl::InvalidArgumentError(
         "max_active_body_bytes must be at least the largest configured body limit");
   }
-  return ParsedFilterSettings{settings, max_active_body_bytes};
+  const uint32_t pcre_match_limit = proto.has_pcre_match_limit() ? proto.pcre_match_limit().value()
+                                                                 : Engine::DefaultPcreMatchLimit;
+  if (pcre_match_limit == 0 || pcre_match_limit > Engine::MaxPcreMatchLimit) {
+    return absl::InvalidArgumentError("pcre_match_limit must be between 1 and 1000000");
+  }
+  return ParsedFilterSettings{settings, max_active_body_bytes, pcre_match_limit};
 }
 
 absl::StatusOr<std::shared_ptr<const RouteConfig>> convertRouteConfig(

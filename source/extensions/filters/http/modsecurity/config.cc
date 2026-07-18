@@ -58,7 +58,7 @@ absl::StatusOr<FilterConfigSharedPtr> makeConfig(const Proto::ModSecurity& proto
   auto singleton = singleton_manager.getTyped<RuntimeSingleton>(
       SINGLETON_MANAGER_REGISTERED_NAME(modsecurity_runtime),
       [] { return std::make_shared<RuntimeSingleton>(); }, true);
-  auto generation = singleton->runtime()->compile(*sources);
+  auto generation = singleton->runtime()->compile(*sources, parsed_settings->pcre_match_limit);
   if (!generation.ok()) {
     // Returning a status from the exception-free factory makes an ECDS update NACK atomically;
     // the previously accepted callback and generation stay live.

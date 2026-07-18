@@ -70,6 +70,25 @@ TEST(ConfigUtilTest, ParsesDefaultsAndResponseSettings) {
   EXPECT_TRUE(parsed->settings.failure_mode_allow);
   EXPECT_EQ(parsed->settings.status_on_error, Http::Code::InternalServerError);
   EXPECT_EQ(parsed->max_active_body_bytes, 64 * 1024 * 1024);
+  EXPECT_EQ(parsed->pcre_match_limit, Engine::DefaultPcreMatchLimit);
+}
+
+TEST(ConfigUtilTest, ParsesExplicitPcreMatchLimit) {
+  ConfigProto::ModSecurity proto = baseConfig();
+  proto.mutable_pcre_match_limit()->set_value(2500);
+
+  auto parsed = parseFilterSettings(proto);
+  ASSERT_TRUE(parsed.ok()) << parsed.status();
+  EXPECT_EQ(parsed->pcre_match_limit, 2500);
+}
+
+TEST(ConfigUtilTest, RejectsPcreMatchLimitOutsideTheRuntimeBound) {
+  ConfigProto::ModSecurity proto = baseConfig();
+  proto.mutable_pcre_match_limit()->set_value(Engine::MaxPcreMatchLimit + 1);
+
+  const auto parsed = parseFilterSettings(proto);
+  ASSERT_FALSE(parsed.ok());
+  EXPECT_EQ(parsed.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ConfigUtilTest, RejectsNonErrorStatus) {

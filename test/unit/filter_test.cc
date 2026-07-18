@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -191,6 +192,84 @@ TEST_F(FilterTest, ActiveRuleGenerationTracksInFlightTransactionAfterConfigRelea
   EXPECT_EQ(filter_->decodeData(body, true), Http::FilterDataStatus::Continue);
   EXPECT_EQ(stats_->active_rule_generations_.value(), 0);
   filter_->onDestroy();
+}
+
+TEST_F(FilterTest, DestroyReleasesPartiallyBufferedRequestAndPinnedGeneration) {
+  initialize();
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("partial");
+  EXPECT_EQ(filter_->decodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
+  config_.reset();
+
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 1);
+  EXPECT_EQ(stats_->active_transactions_.value(), 1);
+  EXPECT_EQ(body_memory_budget_->used(), 7);
+  filter_->onDestroy();
+
+  EXPECT_EQ(state_->logging_calls, 1);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 0);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
+  EXPECT_EQ(body_memory_budget_->used(), 0);
+}
+
+TEST_F(FilterTest, DestroyReleasesPartiallyBufferedResponseAndPinnedGeneration) {
+  initialize(32, 32);
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
+            Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("partial");
+  EXPECT_EQ(filter_->encodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
+  config_.reset();
+
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 1);
+  EXPECT_EQ(stats_->active_transactions_.value(), 1);
+  EXPECT_EQ(body_memory_budget_->used(), 7);
+  filter_->onDestroy();
+
+  EXPECT_EQ(state_->logging_calls, 1);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 0);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
+  EXPECT_EQ(body_memory_budget_->used(), 0);
+}
+
+TEST_F(FilterTest, RapidGenerationChurnKeepsOldStreamsPinnedUntilCompletion) {
+  constexpr size_t kGenerationCount = 16;
+  stats_ =
+      std::make_shared<FilterStats>(FilterStats::generate("test.modsecurity", *store_.rootScope()));
+  std::vector<std::unique_ptr<Filter>> filters;
+  filters.reserve(kGenerationCount);
+
+  for (size_t index = 0; index < kGenerationCount; ++index) {
+    auto state = std::make_shared<TransactionState>();
+    auto generation = std::make_shared<FakeGeneration>(state);
+    auto config = std::make_shared<FilterConfig>(
+        EffectiveSettings{32, std::nullopt, false, Http::Code::InternalServerError}, generation,
+        stats_, std::make_shared<BodyMemoryBudget>(64), time_system_);
+    auto filter = std::make_unique<Filter>(config);
+    filter->setDecoderFilterCallbacks(decoder_callbacks_);
+    filter->setEncoderFilterCallbacks(encoder_callbacks_);
+    auto headers = requestHeaders();
+    EXPECT_EQ(filter->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+    config.reset();
+    filters.push_back(std::move(filter));
+  }
+
+  EXPECT_EQ(stats_->active_rule_generations_.value(), kGenerationCount);
+  EXPECT_EQ(stats_->active_transactions_.value(), kGenerationCount);
+  for (auto& filter : filters) {
+    Buffer::OwnedImpl body("complete");
+    EXPECT_EQ(filter->decodeData(body, true), Http::FilterDataStatus::Continue);
+    filter->onDestroy();
+  }
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 0);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
 }
 
 TEST_F(FilterTest, PassesCanonicalHttp2ProtocolToEngineInterface) {
@@ -469,6 +548,20 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   filter_->onDestroy();
 }
 
+TEST_F(FilterTest, CountsBoundedRuleIdTruncationOnIntervention) {
+  initialize();
+  state_->intervene_on_call = 3;
+  state_->intervention = Engine::Intervention{403, {}, {1000001, 1000002}, true};
+  auto headers = requestHeaders();
+
+  EXPECT_CALL(decoder_callbacks_,
+              sendLocalReply(Http::Code::Forbidden, _, _, _, "modsecurity_request_intervention"));
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
+  EXPECT_EQ(stats_->request_interventions_.value(), 1);
+  EXPECT_EQ(stats_->intervention_rule_ids_truncated_.value(), 1);
+  filter_->onDestroy();
+}
+
 TEST_F(FilterTest, ResponseOverflowIsFailClosedEvenWhenFailureModeAllows) {
   initialize(32, 5, true);
   auto request_headers = requestHeaders();
@@ -577,6 +670,21 @@ TEST_F(FilterTest, NativeMemoryExhaustionIgnoresFailureModeAllow) {
   EXPECT_EQ(stats_->failure_mode_allowed_.value(), 0);
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, PcreMatchLimitFailsClosedAndUsesDedicatedCounter) {
+  initialize(32, std::nullopt, true);
+  state_->request_headers_status = Engine::pcreMatchLimitExceededStatus("processRequestHeaders");
+  auto headers = requestHeaders();
+
+  EXPECT_CALL(decoder_callbacks_, sendLocalReply(Http::Code::InternalServerError, _, _, _,
+                                                 "modsecurity_pcre_match_limit_exceeded"));
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  EXPECT_EQ(stats_->pcre_match_limit_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->runtime_errors_.value(), 1);
+  EXPECT_EQ(stats_->failure_mode_allowed_.value(), 0);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
   filter_->onDestroy();
 }
 

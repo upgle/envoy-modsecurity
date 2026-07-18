@@ -1,5 +1,6 @@
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
@@ -145,6 +146,46 @@ SecRule REQUEST_PROTOCOL "@streq HTTP/2" "id:1000004,phase:1,deny,status:419,nol
   ASSERT_TRUE(transaction->addRequestHeader("host", "example.test").ok());
   ASSERT_TRUE(transaction->processRequestHeaders().ok());
   expectIntervention(*transaction, 419);
+}
+
+TEST(EngineIntegrationTest, FailsClosedWhenTheEnforcedPcreMatchLimitIsExceeded) {
+  constexpr char kExpensiveRegexRules[] = R"(
+SecRuleEngine On
+SecPcreMatchLimit 1000000
+SecRule REQUEST_URI "@rx ^/(a+)+$" "id:1000005,phase:1,deny,status:403,nolog"
+)";
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("expensive-regex.conf", kExpensiveRegexRules)}, 1);
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  const absl::Status status = processRequestHeaders(
+      *transaction, "/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!");
+  EXPECT_TRUE(isPcreMatchLimitExceeded(status)) << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
+}
+
+TEST(EngineIntegrationTest, ExposesBoundedRuleIdsForInterventionLogs) {
+  constexpr char kLoggedInterventionRules[] = R"(
+SecRuleEngine On
+SecRule REQUEST_URI "@streq /logged-block" "id:1000006,phase:1,deny,status:431,log"
+)";
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation = runtime->compile(
+      {RuleSource::inlineRules("logged-intervention.conf", kLoggedInterventionRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/logged-block").ok());
+  auto intervention = transaction->intervention();
+  ASSERT_TRUE(intervention.ok()) << intervention.status();
+  ASSERT_TRUE(intervention->has_value());
+  EXPECT_EQ(intervention->value().status, 431);
+  EXPECT_EQ(intervention->value().rule_ids, std::vector<int64_t>({1000006}));
+  EXPECT_FALSE(intervention->value().rule_ids_truncated);
 }
 
 TEST(EngineIntegrationTest, TransactionKeepsItsCompiledGenerationAlive) {

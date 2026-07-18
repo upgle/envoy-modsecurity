@@ -1,5 +1,6 @@
 #include "source/engine/transaction.h"
 
+#include <array>
 #include <string>
 #include <utility>
 
@@ -47,6 +48,19 @@ TransactionImpl::TransactionImpl(std::unique_ptr<modsecurity::Transaction> trans
 
 TransactionImpl::~TransactionImpl() = default;
 
+absl::Status TransactionImpl::checkPcreMatchLimit(absl::string_view operation,
+                                                  const absl::Status& status) const {
+  if (!status.ok()) {
+    return status;
+  }
+  return catchLibraryExceptions("PCRE match-limit check", [&]() -> absl::Status {
+    const std::unique_ptr<std::string> exceeded =
+        transaction_->m_variableMscPcreLimitsExceeded.resolveFirst();
+    return exceeded != nullptr && *exceeded == "1" ? pcreMatchLimitExceededStatus(operation)
+                                                   : absl::OkStatus();
+  });
+}
+
 absl::Status TransactionImpl::processConnection(absl::string_view client_address,
                                                 uint32_t client_port,
                                                 absl::string_view server_address,
@@ -83,8 +97,10 @@ absl::Status TransactionImpl::addRequestHeader(absl::string_view name, absl::str
 }
 
 absl::Status TransactionImpl::processRequestHeaders() {
-  return callNativeOperation("processRequestHeaders",
-                             [&] { return transaction_->processRequestHeaders(); });
+  return checkPcreMatchLimit("processRequestHeaders",
+                             callNativeOperation("processRequestHeaders", [&] {
+                               return transaction_->processRequestHeaders();
+                             }));
 }
 
 absl::Status TransactionImpl::appendRequestBody(absl::string_view data) {
@@ -95,8 +111,9 @@ absl::Status TransactionImpl::appendRequestBody(absl::string_view data) {
 }
 
 absl::Status TransactionImpl::processRequestBody() {
-  return callNativeOperation("processRequestBody",
-                             [&] { return transaction_->processRequestBody(); });
+  return checkPcreMatchLimit("processRequestBody", callNativeOperation("processRequestBody", [&] {
+                               return transaction_->processRequestBody();
+                             }));
 }
 
 absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::string_view value) {
@@ -109,10 +126,11 @@ absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::st
 
 absl::Status TransactionImpl::processResponseHeaders(uint32_t status,
                                                      absl::string_view http_protocol) {
-  return callNativeOperation("processResponseHeaders", [&] {
-    const std::string protocol(http_protocol);
-    return transaction_->processResponseHeaders(static_cast<int>(status), protocol);
-  });
+  return checkPcreMatchLimit(
+      "processResponseHeaders", callNativeOperation("processResponseHeaders", [&] {
+        const std::string protocol(http_protocol);
+        return transaction_->processResponseHeaders(static_cast<int>(status), protocol);
+      }));
 }
 
 absl::Status TransactionImpl::appendResponseBody(absl::string_view data) {
@@ -123,29 +141,39 @@ absl::Status TransactionImpl::appendResponseBody(absl::string_view data) {
 }
 
 absl::Status TransactionImpl::processResponseBody() {
-  return callNativeOperation("processResponseBody",
-                             [&] { return transaction_->processResponseBody(); });
+  return checkPcreMatchLimit("processResponseBody", callNativeOperation("processResponseBody", [&] {
+                               return transaction_->processResponseBody();
+                             }));
 }
 
 absl::Status TransactionImpl::processLogging() {
-  return callNativeOperation("processLogging", [&] { return transaction_->processLogging(); });
+  return checkPcreMatchLimit("processLogging", callNativeOperation("processLogging", [&] {
+                               return transaction_->processLogging();
+                             }));
 }
 
 absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {
-  return catchLibraryExceptions("intervention check",
-                                [&]() -> absl::StatusOr<std::optional<Intervention>> {
-                                  NativeIntervention native;
-                                  if (!transaction_->intervention(native.get())) {
-                                    return std::nullopt;
-                                  }
+  return catchLibraryExceptions(
+      "intervention check", [&]() -> absl::StatusOr<std::optional<Intervention>> {
+        NativeIntervention native;
+        if (!transaction_->intervention(native.get())) {
+          return std::nullopt;
+        }
 
-                                  Intervention result;
-                                  result.status = native.value().status;
-                                  if (native.value().url != nullptr) {
-                                    result.redirect_url = native.value().url;
-                                  }
-                                  return result;
-                                });
+        Intervention result;
+        result.status = native.value().status;
+        if (native.value().url != nullptr) {
+          result.redirect_url = native.value().url;
+        }
+        const size_t rule_message_count =
+            modsecurity::msc_get_rules_messages_size(transaction_.get());
+        std::array<int64_t, MaxInterventionRuleIds> rule_ids{};
+        const size_t copied = modsecurity::msc_get_rules_messages_rule_ids(
+            transaction_.get(), rule_ids.data(), rule_ids.size());
+        result.rule_ids.assign(rule_ids.begin(), rule_ids.begin() + copied);
+        result.rule_ids_truncated = rule_message_count > copied;
+        return result;
+      });
 }
 
 }  // namespace Engine

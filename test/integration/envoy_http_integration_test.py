@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import http.client
 import os
 from pathlib import Path
@@ -289,6 +290,22 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
         for _ in range(64):
             self.assertResponse("POST", "/submit", 200, b"upstream-ok", safe_body)
         self.assertEqual(before + 64, self._upstream.request_count())
+
+    def test_parallel_requests_across_two_workers_release_accounting(self):
+        before = self._upstream.request_count()
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(
+                executor.map(
+                    lambda index: self._request(
+                        "POST", "/submit", f"value=safe-{index}"
+                    ),
+                    range(32),
+                )
+            )
+        for status, response_body in results:
+            self.assertEqual(200, status, self._envoy_logs())
+            self.assertIn(b"upstream-ok", response_body, self._envoy_logs())
+        self.assertEqual(before + 32, self._upstream.request_count())
 
     def test_file_upload_at_exact_inspection_limit_is_allowed(self):
         before = self._upstream.request_count()

@@ -9,6 +9,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_join.h"
 #include "envoy/network/address.h"
 #include "source/common/grpc/common.h"
 #include "source/common/http/header_utility.h"
@@ -117,6 +118,10 @@ std::string Filter::httpProtocol() const {
 Filter::InspectionOutcome Filter::handleEngineResult(const absl::Status& status, MessageSide side,
                                                      bool check_intervention) {
   if (!status.ok()) {
+    const bool pcre_match_limit_exceeded = Engine::isPcreMatchLimitExceeded(status);
+    if (pcre_match_limit_exceeded) {
+      stats_->pcre_match_limit_exceeded_.inc();
+    }
     stats_->runtime_errors_.inc();
     if (settings_.failure_mode_allow && status.code() != absl::StatusCode::kResourceExhausted) {
       stats_->failure_mode_allowed_.inc();
@@ -124,7 +129,8 @@ Filter::InspectionOutcome Filter::handleEngineResult(const absl::Status& status,
       releaseResources();
       return InspectionOutcome::Bypass;
     }
-    sendRuntimeError(side, "modsecurity_runtime_error");
+    sendRuntimeError(side, pcre_match_limit_exceeded ? "modsecurity_pcre_match_limit_exceeded"
+                                                     : "modsecurity_runtime_error");
     return InspectionOutcome::LocalReply;
   }
   return check_intervention ? checkIntervention(side) : InspectionOutcome::Continue;
@@ -151,6 +157,14 @@ void Filter::sendIntervention(const Engine::Intervention& intervention, MessageS
   }
 
   disposition_ = StreamDisposition::LocalReply;
+  if (intervention.rule_ids_truncated) {
+    stats_->intervention_rule_ids_truncated_.inc();
+  }
+  const std::string rule_ids =
+      intervention.rule_ids.empty() ? "none" : absl::StrJoin(intervention.rule_ids, ",");
+  ENVOY_LOG(info, "ModSecurity intervention side={} status={} rule_ids={} truncated={}",
+            side == MessageSide::Request ? "request" : "response", status, rule_ids,
+            intervention.rule_ids_truncated);
   const auto code = static_cast<Http::Code>(status);
   const std::string redirect_url = intervention.redirect_url;
   auto modify_headers = [redirect_url](Http::ResponseHeaderMap& headers) {
@@ -534,7 +548,11 @@ void Filter::finishLogging() {
   }
   logging_finished_ = true;
   ScopedHistogramTimer timer(stats_->logging_duration_us_, time_source_);
-  if (!transaction_->processLogging().ok()) {
+  const absl::Status status = transaction_->processLogging();
+  if (!status.ok()) {
+    if (Engine::isPcreMatchLimitExceeded(status)) {
+      stats_->pcre_match_limit_exceeded_.inc();
+    }
     stats_->logging_errors_.inc();
   }
 }

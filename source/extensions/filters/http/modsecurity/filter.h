@@ -5,6 +5,7 @@
 
 #include "envoy/buffer/buffer.h"
 #include "envoy/http/filter.h"
+#include "source/common/common/logger.h"
 #include "source/extensions/filters/http/modsecurity/filter_config.h"
 
 namespace Envoy {
@@ -12,7 +13,7 @@ namespace Extensions {
 namespace HttpFilters {
 namespace ModSecurityFilter {
 
-class Filter final : public Http::StreamFilter {
+class Filter final : public Http::StreamFilter, public Logger::Loggable<Logger::Id::filter> {
  public:
   explicit Filter(FilterConfigSharedPtr config);
 

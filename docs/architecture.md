@@ -45,6 +45,13 @@ capability enabled in this libmodsecurity build, including directives that perfo
 persistent storage, or external work. Because rule evaluation is synchronous, deployments must
 review those directives for worker blocking and contention.
 
+Before configured sources are loaded, each candidate ruleset receives a protobuf-controlled
+`SecPcreMatchLimit`. A request or response inspection phase returns resource exhaustion when
+libmodsecurity reports that limit, and the filter fails closed. Phase 5 can only record the error
+because the stream has completed. This bounds work inside each PCRE2 match but cannot interrupt an
+already-running native call, bound a complete phase by wall time, or constrain non-PCRE operators.
+Representative latency testing and stronger process isolation remain release work.
+
 The engine adapter does not expose Envoy header maps or buffers, so it can be tested against
 libmodsecurity without running the custom Envoy binary.
 
@@ -72,6 +79,8 @@ A typical source order is:
 6. emergency blocking rules.
 
 Order is significant because later SecLang sources may update or remove rules from earlier sources.
+The internal PCRE match-limit directive is the deliberate exception: it is installed first and
+cannot be replaced by a configured source.
 Files are read when the configuration is constructed and are not reread afterward. Their contents
 must therefore be immutable for the lifetime of a deployment revision; changing a file in place is
 not a supported update mechanism.
@@ -170,10 +179,24 @@ determines the representation seen during response inspection.
 | Aggregate body budget exhausted | Return `status_on_error`; `failure_mode_allow` does not override memory safety. |
 | Runtime engine or transaction error | Return `status_on_error`, unless `failure_mode_allow` is enabled and the error is not resource exhaustion. |
 | Runtime resource exhaustion | Return `status_on_error`; `failure_mode_allow` does not apply. |
+| PCRE match limit exceeded | Return `status_on_error`, increment `pcre_match_limit_exceeded`, and fail closed. |
 | Response inspection absent | Skip phases 3 and 4; attempt phase 5 after request inspection completes. |
 
 Rule-load failures, body limits, resource exhaustion, and interventions are always fail-closed.
 `failure_mode_allow` applies only to other runtime engine or transaction errors.
+
+## Observability
+
+The filter exposes bounded counters for interventions, PCRE-limit exhaustion, runtime and logging
+errors, body overflow and budget exhaustion, streaming bypass, and uninspected trailers. Gauges
+track live compiled generations, native transactions, and admitted body bytes; phase histograms
+track synchronous native duration. A generation gauge remains charged while an accepted config or
+an in-flight transaction pins that generation, including overlap during an update.
+
+Intervention logs are opt-in through Envoy's info log level and contain only the message side,
+normalized status, and up to eight numeric rule IDs selected for logging by libmodsecurity. A
+counter reports truncation. Request bodies, response bodies, matched values, URIs, client addresses,
+and free-form native errors are not logged or used as metric dimensions.
 
 ## Non-goals
 

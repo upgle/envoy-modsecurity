@@ -36,6 +36,8 @@ class TransactionImpl final : public Transaction {
   absl::StatusOr<std::optional<Intervention>> intervention() override;
 
  private:
+  absl::Status checkPcreMatchLimit(absl::string_view operation, const absl::Status& status) const;
+
   // Declared before transaction_ so the native transaction is destroyed before its runtime and
   // ruleset owners.
   const std::shared_ptr<const RuleGeneration> generation_;

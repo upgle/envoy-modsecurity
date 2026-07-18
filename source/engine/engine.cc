@@ -1,6 +1,7 @@
 #include "source/engine/engine.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -56,15 +57,24 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
   }
 
   absl::StatusOr<std::shared_ptr<const RuleGeneration>> compile(
-      const std::vector<RuleSource>& sources) override {
+      const std::vector<RuleSource>& sources, uint32_t pcre_match_limit) override {
     return catchLibraryExceptions(
         "ruleset compilation", [&]() -> absl::StatusOr<std::shared_ptr<const RuleGeneration>> {
           const absl::Status validation_status = validateRuleSources(sources);
           if (!validation_status.ok()) {
             return validation_status;
           }
+          if (pcre_match_limit == 0 || pcre_match_limit > MaxPcreMatchLimit) {
+            return absl::InvalidArgumentError(
+                absl::StrCat("pcre_match_limit must be between 1 and ", MaxPcreMatchLimit));
+          }
 
           auto candidate = std::make_shared<modsecurity::RulesSet>();
+          const std::string cpu_guard = absl::StrCat("SecPcreMatchLimit ", pcre_match_limit, "\n");
+          if (candidate->load(cpu_guard.c_str(), "<envoy-modsecurity-cpu-guard>") < 0) {
+            return absl::InternalError(absl::StrCat("failed to install the PCRE match limit: ",
+                                                    candidate->getParserError()));
+          }
           uint64_t loaded_rule_count = 0;
           for (const RuleSource& source : sources) {
             const int loaded = source.kind == RuleSource::Kind::File

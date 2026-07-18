@@ -48,11 +48,20 @@ class RecordingUpstream(ThreadingHTTPServer):
 
 
 class EnvoyProcess:
-    def __init__(self, binary, config_path, workdir, listener_name, config_description):
+    def __init__(
+        self,
+        binary,
+        config_path,
+        workdir,
+        listener_name,
+        config_description,
+        concurrency=2,
+    ):
         self._binary = binary
         self._config_path = Path(config_path)
         self._listener_name = listener_name
         self._config_description = config_description
+        self._concurrency = concurrency
         self._admin_address_path = Path(workdir) / "admin-address.txt"
         self._log_path = Path(workdir) / "envoy.log"
         self._log = None
@@ -85,7 +94,7 @@ class EnvoyProcess:
                     "--admin-address-path",
                     str(self._admin_address_path),
                     "--concurrency",
-                    "1",
+                    str(self._concurrency),
                     "--disable-hot-restart",
                     "--log-level",
                     "warning",

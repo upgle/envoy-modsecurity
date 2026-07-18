@@ -6,7 +6,10 @@ package(default_visibility = ["//visibility:public"])
 # third-party distribution into project-owned fixtures.
 filegroup(
     name = "owasp_crs_rules",
-    srcs = glob(["coreruleset/rules/*.conf"]),
+    srcs = glob([
+        "coreruleset/rules/*.conf",
+        "coreruleset/rules/*.data",
+    ]),
 )
 
 filegroup(

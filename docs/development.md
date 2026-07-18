@@ -52,10 +52,10 @@ The missing qualification and packaging items below block a supported release.
 | --- | --- | --- |
 | API, engine layer, HTTP filter, and custom Envoy HTTP/1.1 | Available | `make check` |
 | OWASP CRS PL1 smoke against custom Envoy | Available | `make integration-test` |
-| Explicit HTTP/2 and stream-reset matrix | Missing | Required before a supported release |
+| HTTP/2 mapping and reset/destruction matrix | Partial | Canonical HTTP/2 engine mapping and partial-body destruction are covered; downstream HTTP/2 integration remains required |
 | Complete OWASP CRS regression with exact rule IDs and reviewed exclusions | Missing | Required before a supported release |
 | ASAN, UBSAN, and leak detection on Linux | Missing | Required before a supported release |
-| Concurrent ECDS updates and transaction-lifetime stress | Missing | Required before a supported release |
+| Concurrent ECDS updates and transaction-lifetime stress | Partial | Rapid generation overlap/reclamation and two-worker HTTP traffic are covered; live ECDS ACK/NACK stress remains required |
 | Latency and memory profiles for representative payloads | Missing | Required before a supported release |
 
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior

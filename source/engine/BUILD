@@ -11,6 +11,7 @@ envoy_cc_library(
     deps = [
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )

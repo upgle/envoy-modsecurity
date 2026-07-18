@@ -19,6 +19,7 @@ namespace ConfigProto = envoy_modsecurity::extensions::filters::http::modsecurit
 struct ParsedFilterSettings {
   EffectiveSettings settings;
   uint64_t max_active_body_bytes;
+  uint32_t pcre_match_limit;
 };
 
 absl::StatusOr<std::vector<Engine::RuleSource>> convertRuleSources(

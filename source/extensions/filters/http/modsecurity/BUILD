@@ -31,6 +31,7 @@ envoy_cc_library(
         "@envoy//envoy/router:router_interface",
         "@envoy//envoy/stats:stats_macros",
         "@envoy//source/common/common:assert_lib",
+        "@envoy//source/common/common:logger_lib",
         "@envoy//source/common/grpc:common_lib",
         "@envoy//source/common/http:header_utility_lib",
         "@envoy//source/common/http:utility_lib",

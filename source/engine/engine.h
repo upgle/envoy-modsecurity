@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -9,6 +10,8 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
 namespace Envoy {
@@ -16,6 +19,21 @@ namespace Extensions {
 namespace HttpFilters {
 namespace ModSecurityFilter {
 namespace Engine {
+
+inline constexpr uint32_t DefaultPcreMatchLimit = 1000;
+inline constexpr uint32_t MaxPcreMatchLimit = 1000000;
+inline constexpr size_t MaxInterventionRuleIds = 8;
+inline constexpr absl::string_view PcreMatchLimitStatusPrefix =
+    "libmodsecurity PCRE match limit exceeded during ";
+
+inline absl::Status pcreMatchLimitExceededStatus(absl::string_view operation) {
+  return absl::ResourceExhaustedError(absl::StrCat(PcreMatchLimitStatusPrefix, operation));
+}
+
+inline bool isPcreMatchLimitExceeded(const absl::Status& status) {
+  return status.code() == absl::StatusCode::kResourceExhausted &&
+         absl::StartsWith(status.message(), PcreMatchLimitStatusPrefix);
+}
 
 // Envoy-independent representation of the ordered SecLang sources in the filter proto.
 struct RuleSource {
@@ -34,6 +52,8 @@ struct RuleSource {
 struct Intervention {
   int status{403};
   std::string redirect_url;
+  std::vector<int64_t> rule_ids;
+  bool rule_ids_truncated{false};
 };
 
 // One instance belongs to one HTTP stream and must stay on that stream's Envoy worker.
@@ -76,7 +96,8 @@ class Runtime {
   virtual ~Runtime() = default;
 
   virtual absl::StatusOr<std::shared_ptr<const RuleGeneration>> compile(
-      const std::vector<RuleSource>& sources) = 0;
+      const std::vector<RuleSource>& sources,
+      uint32_t pcre_match_limit = DefaultPcreMatchLimit) = 0;
 };
 
 std::shared_ptr<Runtime> createRuntime();
