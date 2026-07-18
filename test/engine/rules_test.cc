@@ -1,5 +1,7 @@
 #include "source/engine/rules.h"
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -50,6 +52,15 @@ TEST(RuleValidationTest, RequiresAbsoluteFilePath) {
 
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
   EXPECT_NE(status.message().find("absolute"), std::string::npos);
+}
+
+TEST(RuleValidationTest, RejectsExcessiveAggregateInlineContent) {
+  std::string oversized(8 * 1024 * 1024 + 1, 'x');
+  const absl::Status status =
+      validateRuleSources({RuleSource::inlineRules("oversized.conf", std::move(oversized))});
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(status.message().find("total inline rule content"), std::string::npos);
 }
 
 } // namespace

@@ -3,8 +3,8 @@
 #include <string>
 
 #include "envoy/server/factory_context.h"
-#include "envoy_modsecurity/extensions/filters/http/modsecurity/v3/modsecurity.pb.h"
-#include "envoy_modsecurity/extensions/filters/http/modsecurity/v3/modsecurity.pb.validate.h"
+#include "api/envoy_modsecurity/extensions/filters/http/modsecurity/v3/modsecurity.pb.h"
+#include "api/envoy_modsecurity/extensions/filters/http/modsecurity/v3/modsecurity.pb.validate.h"
 #include "source/extensions/filters/http/common/factory_base.h"
 
 namespace Envoy {

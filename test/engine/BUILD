@@ -5,6 +5,16 @@ licenses(["notice"])  # Apache 2
 envoy_package()
 
 envoy_cc_test(
+    name = "exception_test",
+    repository = "@envoy",
+    srcs = ["exception_test.cc"],
+    deps = [
+        "//source/engine:exception_lib",
+        "@abseil-cpp//absl/status",
+    ],
+)
+
+envoy_cc_test(
     name = "rules_test",
     repository = "@envoy",
     srcs = ["rules_test.cc"],

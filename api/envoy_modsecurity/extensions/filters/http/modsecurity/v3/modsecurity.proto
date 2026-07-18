@@ -27,7 +27,14 @@ option (xds.annotations.v3.file_status).work_in_progress = true;
 //
 // Rule loading and request inspection are mandatory. Response inspection is opt-in because it
 // buffers upstream response data and adds latency to the response path.
-// [#next-free-field: 7]
+//
+// Known long-lived protocols cannot use whole-body inspection without stalling the stream. gRPC,
+// Connect streaming, HTTP Upgrade/CONNECT tunnels, and ``text/event-stream`` responses receive
+// header-phase inspection only; their body bytes pass through without buffering. HTTP trailer
+// fields are also passed through uninspected because libmodsecurity has no trailer phase. Dedicated
+// counters expose both behaviors. Generic streaming routes must disable this filter or response
+// inspection explicitly when they cannot tolerate bounded whole-body buffering.
+// [#next-free-field: 8]
 message ModSecurity {
   // Ordered SecLang sources loaded into one immutable ModSecurity rule set during filter-config
   // construction. The order is significant: later sources may update or remove rules loaded by
@@ -63,6 +70,13 @@ message ModSecurity {
   // Optional additional statistics prefix for distinguishing multiple filter instances. The base
   // statistics namespace remains ``modsecurity``.
   string stat_prefix = 6 [(validate.rules).string = {max_bytes: 128}];
+
+  // Aggregate request and response body bytes admitted to libmodsecurity across concurrent
+  // streams using this filter configuration. This bounds the largest controllable part of native
+  // transaction memory; libmodsecurity may use additional copies and parser data. Exceeding the
+  // budget fails closed with ``status_on_error``. Defaults to 64 MiB.
+  google.protobuf.UInt64Value max_active_body_bytes = 7
+      [(validate.rules).uint64 = {gt: 0 lte: 1073741824}];
 }
 
 // A SecLang source. Sources are intentionally local or inline; remote rule fetching is not part of
@@ -95,10 +109,11 @@ message InlineRules {
 
 // Memory bound applied by Envoy while a body inspection phase is pending.
 message BodyBufferSettings {
-  // Maximum body bytes buffered per stream. The upper bound is 1 GiB, but operators should choose
-  // the smallest limit that covers expected traffic and account for concurrent streams.
+  // Maximum body bytes buffered per stream. The defensive upper bound is 32 MiB because Envoy and
+  // libmodsecurity retain multiple body representations. Operators should choose a much smaller
+  // limit when possible and account for concurrent streams.
   google.protobuf.UInt32Value max_bytes = 1
-      [(validate.rules).uint32 = {gt: 0 lte: 1073741824},
+      [(validate.rules).uint32 = {gt: 0 lte: 33554432},
        (validate.rules).message = {required: true}];
 }
 

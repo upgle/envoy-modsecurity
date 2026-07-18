@@ -1,4 +1,4 @@
-.PHONY: bootstrap build build-api check test verify-deps
+.PHONY: bootstrap build build-api check integration-test test verify-deps
 
 bootstrap:
 	git submodule update --init --recursive --depth 1
@@ -16,6 +16,9 @@ build: verify-deps
 test: verify-deps
 	bazel test //test/engine:rules_test //test/engine:engine_integration_test //test/unit:filter_test
 
+integration-test: verify-deps
+	bazel test //test/integration:envoy_http_integration_test
+
 check: verify-deps
 	bazel build //:api_bindings //source/extensions/filters/http/modsecurity:config
-	bazel test //test/engine:rules_test //test/engine:engine_integration_test //test/unit:filter_test
+	bazel test //test/engine:rules_test //test/engine:engine_integration_test //test/integration:envoy_http_integration_test //test/unit:filter_test

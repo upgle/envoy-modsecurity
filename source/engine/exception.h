@@ -1,6 +1,7 @@
 #pragma once
 
 #include <exception>
+#include <new>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -21,6 +22,9 @@ auto catchLibraryExceptions(absl::string_view operation,
                             Callback&& callback) -> decltype(callback()) {
   try {
     return std::forward<Callback>(callback)();
+  } catch (const std::bad_alloc&) {
+    return absl::ResourceExhaustedError(
+        absl::StrCat("libmodsecurity exhausted memory in ", operation));
   } catch (const std::exception& error) {
     return absl::InternalError(
         absl::StrCat("libmodsecurity threw in ", operation, ": ", error.what()));

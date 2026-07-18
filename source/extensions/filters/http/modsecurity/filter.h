@@ -39,6 +39,7 @@ class Filter final : public Http::StreamFilter {
 
  private:
   enum class Path { Request, Response };
+  enum class StreamKind { Regular, Grpc, ConnectStreaming, Tunnel };
   struct BodyState {
     uint64_t bytes{0};
     bool finished{false};
@@ -57,25 +58,35 @@ class Filter final : public Http::StreamFilter {
   Http::FilterTrailersStatus processTrailers(Path path);
   bool appendBody(Buffer::Instance& data, Path path);
   bool finishBody(Path path);
+  void bypassBodyForStreaming(Path path);
+  void classifyRequest(const Http::RequestHeaderMap& headers);
+  bool shouldBypassResponseBody(const Http::ResponseHeaderMap& headers) const;
+  bool declaredBodyExceedsLimit(const Http::RequestOrResponseHeaderMap& headers, Path path) const;
   void sendBodyOverflow(Path path);
+  void sendBodyMemoryBudgetExceeded(Path path);
   void ensureBufferLimit(Path path);
   BodyState& bodyState(Path path);
   uint64_t bodyLimit(Path path) const;
   Stats::Histogram& bodyDurationHistogram(Path path) const;
   void finishLogging();
-  void chargeBodyBytes(uint64_t bytes);
+  bool reserveBodyBytes(uint64_t bytes);
   void releaseResources();
   std::string httpVersion() const;
 
   FilterConfigSharedPtr config_;
   EffectiveSettings settings_;
+  FilterStatsSharedPtr stats_;
+  TimeSource& time_source_;
+  BodyMemoryBudgetSharedPtr body_memory_budget_;
   Http::StreamDecoderFilterCallbacks* decoder_callbacks_{nullptr};
   Http::StreamEncoderFilterCallbacks* encoder_callbacks_{nullptr};
   std::unique_ptr<Engine::Transaction> transaction_;
   Buffer::BufferMemoryAccountSharedPtr memory_account_;
   BodyState request_body_;
   BodyState response_body_;
+  StreamKind stream_kind_{StreamKind::Regular};
   uint64_t charged_body_bytes_{0};
+  bool connect_tunnel_{false};
   bool settings_initialized_{false};
   bool disabled_{false};
   bool engine_bypassed_{false};

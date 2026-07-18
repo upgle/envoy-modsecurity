@@ -24,8 +24,17 @@ filegroup(
 envoy_cc_binary(
     name = "envoy-modsecurity",
     repository = "@envoy",
+    srcs = ["source/exe/main.cc"],
+    stamped = True,
     deps = [
         "//source/extensions/filters/http/modsecurity:config",
-        "@envoy//source/exe:envoy_main_entry_lib",
+        "@envoy//source/common/formatter:formatter_extension_lib",
+        "@envoy//source/exe:envoy_main_common_with_core_extensions_lib",
+        "@envoy//source/exe:envoy_stripped_main_base_lib",
+        "@envoy//source/extensions/clusters/static:static_cluster_lib",
+        "@envoy//source/exe:platform_impl_lib",
+        "@envoy//source/exe:scm_impl_lib",
+        "@envoy//source/server:options_lib",
+        "@abseil-cpp//absl/debugging:symbolize",
     ],
 )
