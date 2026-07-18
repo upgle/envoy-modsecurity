@@ -293,7 +293,7 @@ TEST(EngineIntegrationTest, ConcurrentTransactionsRemainPinnedDuringGenerationCh
         selected.reset();
         if (!transaction.ok()) {
           failures.fetch_add(1, std::memory_order_relaxed);
-          continue;
+          return;
         }
 
         std::this_thread::yield();

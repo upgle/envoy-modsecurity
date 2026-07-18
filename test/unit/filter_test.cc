@@ -818,6 +818,7 @@ TEST(BodyMemoryBudgetTest, ConcurrentReservationsNeverExceedLimitAndReturnToZero
   constexpr int Iterations = 5000;
   BodyMemoryBudget budget(Limit);
   std::atomic<uint64_t> maximum_observed{0};
+  std::atomic<bool> reservation_failed{false};
   std::vector<std::thread> threads;
   threads.reserve(ThreadCount);
 
@@ -825,8 +826,9 @@ TEST(BodyMemoryBudgetTest, ConcurrentReservationsNeverExceedLimitAndReturnToZero
     threads.emplace_back([&, thread_index]() {
       const uint64_t reservation = 1 + (thread_index % 4);
       for (int iteration = 0; iteration < Iterations; ++iteration) {
-        while (!budget.tryReserve(reservation)) {
-          std::this_thread::yield();
+        if (!budget.tryReserve(reservation)) {
+          reservation_failed.store(true, std::memory_order_relaxed);
+          return;
         }
         const uint64_t used = budget.used();
         uint64_t current_maximum = maximum_observed.load(std::memory_order_relaxed);
@@ -843,6 +845,7 @@ TEST(BodyMemoryBudgetTest, ConcurrentReservationsNeverExceedLimitAndReturnToZero
     thread.join();
   }
 
+  EXPECT_FALSE(reservation_failed.load());
   EXPECT_LE(maximum_observed.load(), Limit);
   EXPECT_GT(maximum_observed.load(), 0);
   EXPECT_EQ(budget.used(), 0);
