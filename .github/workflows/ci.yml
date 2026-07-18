@@ -72,7 +72,15 @@ jobs:
           SOURCE_DIR: ${{ github.workspace }}
         run: |
           mkdir --parents "${ENVOY_DOCKER_BUILD_DIR}"
-          envoy/ci/run_envoy_docker.sh ./tools/ci-envoy-build.sh
+          docker run --rm \
+            --user root:root \
+            --volume "${ENVOY_DOCKER_BUILD_DIR}:/build" \
+            --volume "${SOURCE_DIR}:/source" \
+            --workdir /source \
+            --env HOME=/build \
+            --entrypoint /bin/bash \
+            "${ENVOY_BUILD_IMAGE}" \
+            ./tools/ci-envoy-build.sh
 
       - name: Report disk usage
         if: always()
