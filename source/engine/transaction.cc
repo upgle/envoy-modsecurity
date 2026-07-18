@@ -50,9 +50,9 @@ absl::Status TransactionImpl::processConnection(absl::string_view client_address
                                                 uint32_t client_port,
                                                 absl::string_view server_address,
                                                 uint32_t server_port) {
-  const std::string client(client_address);
-  const std::string server(server_address);
   return call("processConnection", [&] {
+    const std::string client(client_address);
+    const std::string server(server_address);
     return transaction_->processConnection(client.c_str(), static_cast<int>(client_port),
                                            server.c_str(), static_cast<int>(server_port));
   });
@@ -60,10 +60,10 @@ absl::Status TransactionImpl::processConnection(absl::string_view client_address
 
 absl::Status TransactionImpl::processUri(absl::string_view uri, absl::string_view method,
                                          absl::string_view http_version) {
-  const std::string uri_string(uri);
-  const std::string method_string(method);
-  const std::string version_string(http_version);
   return call("processURI", [&] {
+    const std::string uri_string(uri);
+    const std::string method_string(method);
+    const std::string version_string(http_version);
     return transaction_->processURI(uri_string.c_str(), method_string.c_str(),
                                     version_string.c_str());
   });
@@ -102,8 +102,8 @@ absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::st
 
 absl::Status TransactionImpl::processResponseHeaders(uint32_t status,
                                                      absl::string_view http_version) {
-  const std::string version(http_version);
   return call("processResponseHeaders", [&] {
+    const std::string version(http_version);
     return transaction_->processResponseHeaders(static_cast<int>(status), version);
   });
 }
@@ -135,9 +135,6 @@ absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {
                                   result.status = native.value().status;
                                   if (native.value().url != nullptr) {
                                     result.redirect_url = native.value().url;
-                                  }
-                                  if (native.value().log != nullptr) {
-                                    result.log = native.value().log;
                                   }
                                   return result;
                                 });

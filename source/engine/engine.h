@@ -36,7 +36,6 @@ struct RuleSource {
 struct Intervention {
   int status{403};
   std::string redirect_url;
-  std::string log;
 };
 
 // One instance belongs to one HTTP stream and must stay on that stream's Envoy worker.

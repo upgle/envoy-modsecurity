@@ -1,10 +1,8 @@
 #include "source/engine/rules.h"
 
 #include <filesystem>
-#include <string>
 
 #include "absl/status/status.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 
@@ -27,35 +25,26 @@ constexpr absl::string_view UnsafeInlineTokens[] = {
     "setvar:session.",  "setvar:user.",    "secxmlexternalentity on",
 };
 
-std::string withoutCommentsAndLowercase(absl::string_view rules) {
-  std::string normalized;
-  normalized.reserve(rules.size());
-  bool in_comment = false;
-  for (const char character : rules) {
-    if (character == '\n') {
-      in_comment = false;
-      normalized.push_back(character);
-      continue;
-    }
-    if (!in_comment && character == '#') {
-      in_comment = true;
-      continue;
-    }
-    if (!in_comment) {
-      normalized.push_back(absl::ascii_tolower(character));
-    }
-  }
-  return normalized;
-}
-
 absl::Status validateInlineSource(const RuleSource& source) {
-  const std::string normalized = withoutCommentsAndLowercase(source.contents);
-  for (const absl::string_view token : UnsafeInlineTokens) {
-    if (absl::StrContains(normalized, token)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("inline rule source '", source.name,
-                       "' uses a capability disabled by the initial safe profile: ", token));
+  absl::string_view remaining = source.contents;
+  while (!remaining.empty()) {
+    const size_t newline = remaining.find('\n');
+    absl::string_view line = remaining.substr(0, newline);
+    const size_t comment = line.find('#');
+    if (comment != absl::string_view::npos) {
+      line.remove_suffix(line.size() - comment);
     }
+    for (const absl::string_view token : UnsafeInlineTokens) {
+      if (absl::StrContainsIgnoreCase(line, token)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("inline rule source '", source.name,
+                         "' uses a capability disabled by the initial safe profile: ", token));
+      }
+    }
+    if (newline == absl::string_view::npos) {
+      break;
+    }
+    remaining.remove_prefix(newline + 1);
   }
   return absl::OkStatus();
 }
@@ -85,6 +74,7 @@ absl::Status validateRuleSources(const std::vector<RuleSource>& sources) {
     return absl::InvalidArgumentError("at least one rule source is required");
   }
 
+  uint64_t total_inline_rule_bytes = 0;
   for (const RuleSource& source : sources) {
     if (source.name.empty()) {
       return absl::InvalidArgumentError("rule source name must not be empty");
@@ -100,6 +90,11 @@ absl::Status validateRuleSources(const std::vector<RuleSource>& sources) {
       return absl::InvalidArgumentError(
           absl::StrCat("inline rule source '", source.name, "' must not be empty"));
     }
+    if (source.contents.size() > MaxTotalInlineRuleBytes - total_inline_rule_bytes) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("total inline rule content exceeds ", MaxTotalInlineRuleBytes, " bytes"));
+    }
+    total_inline_rule_bytes += source.contents.size();
     const absl::Status status = validateInlineSource(source);
     if (!status.ok()) {
       return status;

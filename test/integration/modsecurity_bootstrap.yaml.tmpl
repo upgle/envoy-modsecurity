@@ -1,0 +1,74 @@
+admin:
+  address:
+    socket_address:
+      address: 127.0.0.1
+      port_value: 0
+
+static_resources:
+  listeners:
+    - name: modsecurity_integration_listener
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 0
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: integration_http
+                route_config:
+                  name: integration_routes
+                  virtual_hosts:
+                    - name: integration_service
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: integration_upstream
+                            upgrade_configs:
+                              - upgrade_type: websocket
+                http_filters:
+                  - name: envoy.filters.http.modsecurity
+                    typed_config:
+                      "@type": type.googleapis.com/envoy_modsecurity.extensions.filters.http.modsecurity.v3.ModSecurity
+                      rules:
+                        - inline_rules:
+                            name: http-integration.conf
+                            rules: |
+                              SecRuleEngine On
+                              SecRequestBodyAccess On
+                              SecResponseBodyAccess On
+                              SecResponseBodyMimeType text/plain
+                              SecRule REQUEST_URI "@rx ^/request-blocked" "id:9100001,phase:1,deny,status:418,nolog"
+                              SecRule REQUEST_BODY "@contains attack-token" "id:9100002,phase:2,deny,status:406,nolog"
+                              SecRule RESPONSE_BODY "@contains upstream-secret" "id:9100003,phase:4,deny,status:451,nolog"
+                      request_body:
+                        max_bytes:
+                          value: 1048576
+                      response:
+                        body:
+                          max_bytes:
+                            value: 1048576
+                      failure_mode_allow: false
+                      stat_prefix: integration
+                      max_active_body_bytes:
+                        value: 2097152
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+    - name: integration_upstream
+      connect_timeout: 1s
+      type: STATIC
+      load_assignment:
+        cluster_name: integration_upstream
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: __UPSTREAM_PORT__

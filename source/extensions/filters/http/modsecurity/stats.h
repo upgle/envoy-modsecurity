@@ -12,12 +12,17 @@ namespace HttpFilters {
 namespace ModSecurityFilter {
 
 #define ALL_MODSECURITY_FILTER_STATS(COUNTER, GAUGE, HISTOGRAM)                                   \
+  COUNTER(body_memory_budget_exceeded)                                                            \
   COUNTER(failure_mode_allowed)                                                                   \
   COUNTER(logging_errors)                                                                         \
+  COUNTER(request_body_bypassed)                                                                  \
   COUNTER(request_body_overflow)                                                                  \
   COUNTER(request_interventions)                                                                  \
+  COUNTER(request_trailers_uninspected)                                                           \
+  COUNTER(response_body_bypassed)                                                                 \
   COUNTER(response_body_overflow)                                                                 \
   COUNTER(response_interventions)                                                                 \
+  COUNTER(response_trailers_uninspected)                                                          \
   COUNTER(runtime_errors)                                                                         \
   GAUGE(active_rule_generations, Accumulate)                                                      \
   GAUGE(active_transactions, Accumulate)                                                          \
