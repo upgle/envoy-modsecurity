@@ -11,4 +11,5 @@ git config --global --add safe.directory "${PWD}/third_party/modsecurity"
 git config --global --add safe.directory "${PWD}/third_party/coreruleset"
 bazel --version
 df --human-readable
+bazel build //third_party:libmodsecurity
 make check
