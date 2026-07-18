@@ -9,15 +9,12 @@ git config --global --add safe.directory "${PWD}"
 git config --global --add safe.directory "${PWD}/envoy"
 git config --global --add safe.directory "${PWD}/third_party/modsecurity"
 git config --global --add safe.directory "${PWD}/third_party/coreruleset"
+
+# ModSecurity uses distro PCRE2 and YAJL packages, so compile all Linux targets against the same
+# container sysroot instead of mixing those libraries with Envoy's hermetic glibc.
+export BAZEL_USE_HOST_SYSROOT=True
+
 bazel --version
 df --human-readable
-if ! bazel build --sandbox_debug //third_party:libmodsecurity; then
-  find /build/.cache/bazel \
-    -type f \
-    -name config.log \
-    -path '*libmodsecurity*' \
-    -print \
-    -exec cat {} \;
-  exit 1
-fi
+bazel build //third_party:libmodsecurity
 make check

@@ -42,10 +42,6 @@ configure_make(
         "--without-maxmind",
         "--without-ssdeep",
     ] + select({
-        "@platforms//os:linux": [
-            "--with-pcre2=/usr",
-            "--with-yajl=/usr",
-        ],
         "@platforms//os:macos": [
             "--with-pcre2=/opt/homebrew/opt/pcre2",
             "ARFLAGS=cr",
@@ -54,12 +50,8 @@ configure_make(
         ],
         "//conditions:default": [],
     }),
-    # The pinned Linux build image stores pkg-config metadata in Debian's multiarch directory.
     # On Darwin, let configure discover /usr/bin/ar because Bazel's static-link tool is libtool.
     env = select({
-        "@platforms//os:linux": {
-            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig",
-        },
         "@platforms//os:macos": {"AR": ""},
         "//conditions:default": {},
     }),
@@ -68,7 +60,6 @@ configure_make(
     # must be propagated to every Bazel consumer.
     linkopts = select({
         "@platforms//os:linux": [
-            "-L/usr/lib/x86_64-linux-gnu",
             "-lpcre2-8",
             "-lyajl",
         ],
