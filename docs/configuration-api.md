@@ -1,8 +1,7 @@
 # Configuration API
 
-The configuration follows Envoy v1.39 HTTP-filter naming and validation conventions while keeping
-the protobuf package in this project's namespace. The implementation is pre-release and the proto
-is marked work-in-progress, so compatibility is not guaranteed until the first supported release.
+The filter uses Envoy's v3 typed-extension API and a project-owned protobuf package. The proto is
+marked work-in-progress; compatibility is not guaranteed until the first supported release.
 
 ## Canonical names
 
@@ -19,20 +18,20 @@ is marked work-in-progress, so compatibility is not guaranteed until the first s
 `HttpFilter.name` is also the lookup key for `typed_per_filter_config`. Use the canonical name
 consistently even though Envoy permits an instance-specific name.
 
-## Configuration ownership
+## Configuration scope
 
-The protobuf owns settings required by the Envoy adapter:
+The filter configuration controls:
 
-- ordered rule sources and their diagnostic identity;
+- ordered rule sources and their names in diagnostics;
 - per-stream request and response body limits;
 - the aggregate active-body memory budget;
 - whether response phases run;
 - runtime engine failure behavior and its local-reply status;
-- a narrow set of per-route buffering overrides.
+- per-route buffering overrides.
 
-SecLang remains the source of truth for `SecRuleEngine`, CRS includes, audit and debug logging,
-request/response MIME selection, rule exclusions, and ModSecurity's internal body limits. The
-protobuf does not duplicate those directives.
+SecLang controls `SecRuleEngine`, CRS includes, request/response MIME selection, rule exclusions,
+and ModSecurity's internal body limits. Trusted filename sources may also configure audit and debug
+logging; inline sources reject those directives. The protobuf does not duplicate these settings.
 
 ## Static example
 
@@ -61,14 +60,21 @@ typed_config:
   stat_prefix: edge_waf
 ```
 
-The root rule file can include `modsecurity.conf`, `crs-setup.conf`, CRS rules, and durable local
-policy files. Additional file and inline sources are loaded in list order. Production filenames
-must be absolute regular files. Inline rules are individually limited to 1 MiB and collectively
-limited to 8 MiB; the initial safe profile rejects filesystem, subprocess, remote-rule, persistent
-collection, and similar high-risk capabilities in inline content.
+The root rule file can include `modsecurity.conf`, `crs-setup.conf`, CRS rules, and local policy
+files. Additional file and inline sources are loaded in list order. Every filename must be an
+absolute path to a regular file.
+
+Inline rules are limited to 1 MiB per source and 8 MiB in total. A conservative textual denylist
+rejects directives associated with filesystem access, subprocesses, remote rules, native logging,
+uploads and temporary files, external entities, and persistent collections. This check is defense
+in depth, not a SecLang sandbox. Inline rules can still consume excessive CPU or trigger unexpected
+engine behavior, so the configuration source and xDS control plane must be trusted.
 
 For ECDS configuration and update-generation semantics, see
 [architecture.md](architecture.md#dynamic-configuration-with-ecds).
+
+ECDS carries inline text directly. A `filename` carries only a path, and every Envoy host reads its
+own local file while constructing the candidate configuration.
 
 ## Failure and buffering semantics
 
@@ -79,16 +85,20 @@ For ECDS configuration and update-generation semantics, see
 | Request exceeds `request_body.max_bytes` | Return HTTP 413 before phase 2; never process a partial request body. |
 | Response exceeds `response.body.max_bytes` | Discard the buffered upstream response and return `status_on_error`, default HTTP 500. |
 | Aggregate active-body budget is exhausted | Return `status_on_error`; `failure_mode_allow` does not override the memory bound. |
-| Runtime engine/transaction failure | Return `status_on_error`, unless `failure_mode_allow` is explicitly true. |
-| Response configuration is absent | Skip ModSecurity phases 3 and 4; phase 5 logging still finalizes the transaction. |
+| Runtime engine/transaction error | Return `status_on_error`, unless `failure_mode_allow` is true and the error is not resource exhaustion. |
+| Runtime resource exhaustion | Return `status_on_error`; `failure_mode_allow` does not apply. |
+| Response configuration is absent | Skip ModSecurity phases 3 and 4; attempt phase 5 after request inspection completes. |
 
 The protobuf limits each request or response body to 32 MiB. `max_active_body_bytes` defaults to
-64 MiB, may be configured up to 1 GiB, and must be at least the largest configured body limit.
-Envoy-side limits and SecLang limits are independent; operators should align them deliberately and
-account for concurrent streams plus libmodsecurity's internal copies and parser state.
+64 MiB, may be configured up to 1 GiB, and is validated against the filter-level body limits. Each
+accepted ECDS configuration has a separate budget, and old and new generations may overlap while
+streams drain. The value is not a process-wide memory or RSS limit. Envoy-side limits and SecLang
+limits are independent; account for concurrent streams, overlapping generations, libmodsecurity's
+internal copies, and parser state.
 
-Known gRPC/Connect streaming requests, Upgrade/CONNECT tunnels, and event-stream responses receive
-header-phase inspection but bypass whole-body buffering. Trailer fields pass through uninspected,
+All recognized gRPC requests, including unary calls, and recognized Connect streaming requests
+receive request-header inspection but bypass request-body buffering. Upgrade/CONNECT tunnel data
+and event-stream response bodies also bypass buffering. Trailer fields pass through uninspected,
 while their arrival completes a pending body phase. Dedicated statistics expose these cases.
 
 ## Per-route policy
@@ -110,7 +120,9 @@ typed_per_filter_config:
 ```
 
 The route-level request or response limit remains subject to the same 32 MiB protobuf maximum and
-the filter configuration's aggregate body budget.
+the filter configuration's aggregate body budget. A route override can exceed that aggregate
+budget; if it does, the request or response fails closed when the budget is exhausted, before the
+route limit is reached.
 
 ## Filter ordering
 

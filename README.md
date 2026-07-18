@@ -1,21 +1,19 @@
 # Envoy ModSecurity filter
 
-An out-of-tree HTTP filter project for integrating ModSecurity v3 with Envoy without adding the
-filter source to the Envoy core repository.
+This repository builds an out-of-tree native Envoy HTTP filter backed by ModSecurity v3. The
+filter is maintained separately from the Envoy core repository.
 
 ## Status
 
-The repository contains a statically registered native filter, a custom Envoy binary, real
-libmodsecurity integration, the v3 configuration API, and HTTP integration tests. The project is
-still pre-release: OWASP CRS regression, sanitizer/concurrency qualification, performance gates,
-and release-image hardening remain before a supported production release.
+The filter links against libmodsecurity and includes a v3 protobuf configuration API, a custom
+Envoy binary, and HTTP integration tests. It is pre-release and is not yet supported for production
+use. OWASP CRS regression coverage, sanitizer and concurrency testing, performance baselines, and
+release packaging are still required.
 
-## Architecture decision
+## Packaging
 
-The first production path is a statically linked custom Envoy binary built from this repository.
-This keeps the source out of Envoy core while retaining the native C++ filter API and predictable
-libmodsecurity integration. A Dynamic Modules adapter may be added later, but it must use the same
-engine abstraction and pass an Envoy-version compatibility matrix before release.
+The initial distribution model is a custom Envoy binary with the filter statically linked. Envoy
+remains an unmodified, pinned submodule, and the filter uses Envoy's native C++ extension API.
 
 See [docs/architecture.md](docs/architecture.md) for the component boundaries,
 [docs/configuration-api.md](docs/configuration-api.md) for the configuration and failure contract,
@@ -24,18 +22,18 @@ and [docs/development.md](docs/development.md) for the remaining release work.
 ## Features
 
 - ModSecurity phases 1 and 2 for request headers and finite request bodies.
-- Opt-in phases 3 and 4 for response headers and finite response bodies, with phase 5 logging
-  finalization on every terminal stream path.
+- Opt-in phases 3 and 4 for response headers and finite response bodies. Phase 5 runs on normal
+  completion, interventions, and stream teardown when the transaction remains usable.
 - Ordered SecLang sources using absolute local `filename` entries, bounded `inline_rules`, or both.
 - Static bootstrap configuration and atomic whole-filter ECDS replacement with last-good retention
   when validation or rule compilation fails.
 - Per-route disable and request/response buffering overrides without per-route rule replacement.
-- Per-body limits, an aggregate active-body memory budget, Envoy memory accounting, and fail-closed
-  handling for overflow and budget exhaustion.
-- Disruptive intervention handling, configurable runtime-error fail-open behavior, and bounded
-  filter statistics.
-- Header-phase inspection with explicit body bypass counters for known gRPC/Connect streams,
-  Upgrade/CONNECT tunnels, and event-stream responses.
+- Per-body limits, a per-configuration active-body memory budget, Envoy memory accounting, and
+  fail-closed handling for overflow and budget exhaustion.
+- Disruptive intervention handling, configurable fail-open handling for non-resource-exhaustion
+  runtime errors, and fixed-name counters, gauges, and latency histograms.
+- Header-phase inspection with explicit body-bypass counters for recognized gRPC requests, Connect
+  streaming requests, Upgrade/CONNECT tunnels, and event-stream responses.
 
 ## Configuration API
 
@@ -50,9 +48,9 @@ Its primary fields are:
 | `rules` | Ordered `filename` and `inline_rules` SecLang sources. At least one is required. |
 | `request_body.max_bytes` | Required per-request body limit; maximum 32 MiB. |
 | `response.body.max_bytes` | Enables response inspection and sets its per-response limit. |
-| `max_active_body_bytes` | Aggregate admitted body budget; defaults to 64 MiB. |
-| `failure_mode_allow` | Allows only runtime engine/transaction failures; defaults to fail-closed. |
-| `status_on_error` | Local-reply status for fail-closed runtime and response errors; defaults to 500. |
+| `max_active_body_bytes` | Aggregate admitted body budget for one accepted filter configuration; defaults to 64 MiB. |
+| `failure_mode_allow` | Continues the stream after runtime engine or transaction errors other than resource exhaustion. Resource-exhaustion errors always fail closed. |
+| `status_on_error` | Local-reply status for runtime errors, response overflow, and body-budget exhaustion; defaults to 500. |
 | `stat_prefix` | Optional suffix for distinguishing filter-instance statistics. |
 
 `ModSecurityPerRoute` may disable the filter or override request/response buffering. It cannot
@@ -92,13 +90,15 @@ http_filters:
       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 ```
 
-The filename must be an absolute regular file available to the Envoy process. A production root
-file normally includes the recommended ModSecurity configuration, CRS setup, CRS rules, and stable
-local policy. Inline sources are intended for small exclusions, emergency rules, and tests.
+Every filename must be an absolute path to a regular file available to the Envoy process. A root
+file can include the deployment's ModSecurity configuration, CRS setup, CRS rules, and local
+policy. Inline sources are intended for small exclusions, emergency rules, and tests.
 
 For dynamic delivery, replace `typed_config` with ECDS `config_discovery`. Every accepted update
 must contain the complete `ModSecurity` message; existing streams keep their pinned rule generation
-and new streams use the new generation. See
+and new streams use the new generation. Inline rule text travels in the xDS resource, but a
+`filename` is only a path: each Envoy host reads that local file while constructing the candidate
+configuration. See
 [the ECDS architecture](docs/architecture.md#dynamic-configuration-with-ecds) for the listener
 configuration and update lifecycle.
 
@@ -115,17 +115,21 @@ The exact commit SHAs are recorded in `DEPENDENCIES.lock` and verified in CI.
 
 ## Build, test, and run
 
+Install the prerequisites in [docs/development.md](docs/development.md), then run:
+
 ```shell
 make bootstrap
 make build
 ./bazel-bin/envoy-modsecurity -c /path/to/envoy.yaml
 ```
 
-Envoy builds are resource intensive. Bazel reuses its output base across these targets; no
-system-wide installation of the pinned submodules is required. Linux remains the release target,
-while the current local integration harness also validates the custom binary on macOS. Run
-`make check` for the API, engine, filter, and custom-Envoy HTTP suites, or `make integration-test`
-to run only the HTTP suite.
+Envoy builds are resource intensive. Bazel reuses its output base across these targets; the pinned
+submodules do not need to be installed system-wide. CI and release qualification target Linux.
+macOS builds are best-effort and are not CI-qualified. Run `make check` for the API, engine, filter,
+and custom-Envoy HTTP suites, or `make integration-test` to run only the HTTP suite.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report suspected
+vulnerabilities through the private process in [SECURITY.md](SECURITY.md).
 
 ## License
 
