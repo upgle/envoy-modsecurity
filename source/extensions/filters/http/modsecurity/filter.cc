@@ -112,6 +112,13 @@ std::string Filter::httpVersion() const {
   return protocol.has_value() ? Http::Utility::getProtocolString(*protocol) : "HTTP/1.1";
 }
 
+std::string Filter::modSecurityRequestVersion() const {
+  const std::string version = httpVersion();
+  constexpr absl::string_view prefix = "HTTP/";
+  // libmodsecurity's processURI API prepends "HTTP/" when it initializes REQUEST_PROTOCOL.
+  return absl::StartsWith(version, prefix) ? version.substr(prefix.size()) : version;
+}
+
 bool Filter::evaluate(const absl::Status& status, Path path, bool check_intervention) {
   if (!status.ok()) {
     stats_->runtime_errors_.inc();
@@ -244,7 +251,8 @@ Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers,
     return stoppedOrContinue();
   }
   if (!evaluate(
-          transaction_->processUri(headers.getPathValue(), headers.getMethodValue(), httpVersion()),
+          transaction_->processUri(headers.getPathValue(), headers.getMethodValue(),
+                                   modSecurityRequestVersion()),
           Path::Request) ||
       !addHeaders(headers, Path::Request, headers.getHostValue())) {
     return stoppedOrContinue();

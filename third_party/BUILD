@@ -2,6 +2,28 @@ load("@rules_foreign_cc//foreign_cc:configure.bzl", "configure_make")
 
 package(default_visibility = ["//visibility:public"])
 
+# Keep the pinned CRS inputs available to black-box tests without copying the
+# third-party distribution into project-owned fixtures.
+filegroup(
+    name = "owasp_crs_rules",
+    srcs = glob(["coreruleset/rules/*.conf"]),
+)
+
+filegroup(
+    name = "owasp_crs_rules_marker",
+    srcs = ["coreruleset/rules/REQUEST-901-INITIALIZATION.conf"],
+)
+
+filegroup(
+    name = "owasp_crs_setup",
+    srcs = ["coreruleset/crs-setup.conf.example"],
+)
+
+filegroup(
+    name = "modsecurity_unicode_mapping",
+    srcs = ["modsecurity/unicode.mapping"],
+)
+
 # Builds the pinned ModSecurity source and its pinned libinjection/mbedtls submodules. Optional
 # parsers are discovered by configure from the build image; the release image installs PCRE2 and
 # YAJL development packages so CRS regular expressions and JSON request bodies are supported.

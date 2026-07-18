@@ -72,6 +72,7 @@ class Filter final : public Http::StreamFilter {
   bool reserveBodyBytes(uint64_t bytes);
   void releaseResources();
   std::string httpVersion() const;
+  std::string modSecurityRequestVersion() const;
 
   FilterConfigSharedPtr config_;
   EffectiveSettings settings_;

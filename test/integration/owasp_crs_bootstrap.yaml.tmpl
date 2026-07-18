@@ -1,0 +1,59 @@
+admin:
+  address:
+    socket_address:
+      address: 127.0.0.1
+      port_value: 0
+
+static_resources:
+  listeners:
+    - name: owasp_crs_smoke_listener
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 0
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: owasp_crs_smoke_http
+                route_config:
+                  name: owasp_crs_smoke_routes
+                  virtual_hosts:
+                    - name: owasp_crs_smoke_service
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: owasp_crs_smoke_upstream
+                http_filters:
+                  - name: envoy.filters.http.modsecurity
+                    typed_config:
+                      "@type": type.googleapis.com/envoy_modsecurity.extensions.filters.http.modsecurity.v3.ModSecurity
+                      rules:
+                        - filename: __CRS_ROOT_CONFIG__
+                      request_body:
+                        max_bytes:
+                          value: 1048576
+                      failure_mode_allow: false
+                      stat_prefix: owasp_crs_smoke
+                      max_active_body_bytes:
+                        value: 2097152
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+    - name: owasp_crs_smoke_upstream
+      connect_timeout: 1s
+      type: STATIC
+      load_assignment:
+        cluster_name: owasp_crs_smoke_upstream
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: __UPSTREAM_PORT__

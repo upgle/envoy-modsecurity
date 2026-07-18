@@ -21,7 +21,9 @@ test: verify-deps
 		//test/unit:filter_test
 
 integration-test: verify-deps
-	bazel test //test/integration:envoy_http_integration_test
+	bazel test \
+		//test/integration:envoy_http_integration_test \
+		//test/integration:owasp_crs_smoke_test
 
 check: verify-deps
 	bazel build //:api_bindings //source/extensions/filters/http/modsecurity:config
@@ -30,4 +32,5 @@ check: verify-deps
 		//test/engine:rules_test \
 		//test/engine:engine_integration_test \
 		//test/integration:envoy_http_integration_test \
+		//test/integration:owasp_crs_smoke_test \
 		//test/unit:filter_test
