@@ -1,4 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_test")
+load("@envoy//bazel:envoy_build_system.bzl", "envoy_cc_test")
 
 licenses(["notice"])  # Apache-2.0 OR MIT
 
@@ -46,5 +47,50 @@ py_test(
         "integration",
         "nocoverage",
         "skip_on_windows",
+    ],
+)
+
+envoy_cc_test(
+    name = "filter_protocol_integration_test",
+    size = "large",
+    repository = "@envoy",
+    srcs = ["filter_protocol_integration_test.cc"],
+    tags = [
+        "integration",
+        "nocoverage",
+        "skip_on_windows",
+    ],
+    deps = [
+        "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_cc_proto",
+        "//source/extensions/filters/http/modsecurity:config",
+        "@envoy//test/integration:http_protocol_integration_lib",
+        "@envoy//test/test_common:utility_lib",
+        "@envoy_api//envoy/extensions/filters/network/http_connection_manager/v3:pkg_cc_proto",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+envoy_cc_test(
+    name = "filter_ecds_integration_test",
+    size = "large",
+    repository = "@envoy",
+    srcs = ["filter_ecds_integration_test.cc"],
+    tags = [
+        "integration",
+        "nocoverage",
+        "skip_on_windows",
+    ],
+    deps = [
+        "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_cc_proto",
+        "//source/extensions/filters/http/modsecurity:config",
+        "@envoy//test/common/grpc:grpc_client_integration_lib",
+        "@envoy//test/config:v2_link_hacks",
+        "@envoy//test/integration:http_integration_lib",
+        "@envoy//test/test_common:utility_lib",
+        "@envoy_api//envoy/config/core/v3:pkg_cc_proto",
+        "@envoy_api//envoy/extensions/filters/network/http_connection_manager/v3:pkg_cc_proto",
+        "@envoy_api//envoy/service/discovery/v3:pkg_cc_proto",
+        "@envoy_api//envoy/service/extension/v3:pkg_cc_proto",
+        "@com_google_absl//absl/strings",
     ],
 )

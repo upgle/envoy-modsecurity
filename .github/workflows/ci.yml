@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  api:
+  build:
+    name: build
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -65,7 +66,7 @@ jobs:
 
       # Match the devtools environment pinned by the Envoy v1.39.0 submodule. The image includes
       # the legacy libtinfo runtime required by Envoy's hermetic LLVM 18 toolchain.
-      - name: Run checks in pinned Envoy build image
+      - name: Build in pinned Envoy image
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
           ENVOY_BUILD_IMAGE: docker.io/envoyproxy/envoy-build@sha256:9e7dee3f9ce05274cfeb79a629b6b4f9163edb7bed436daa567ca7b58a35dfac
@@ -83,14 +84,115 @@ jobs:
             --env HOME=/build \
             --entrypoint /bin/bash \
             "${ENVOY_BUILD_IMAGE}" \
-            ./tools/ci-envoy-build.sh
+            ./tools/ci-envoy-build.sh build
+
+      - name: Report disk usage
+        if: always()
+        run: df --human-readable
+
+  verify:
+    name: ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: qa
+            mode: qa
+          - name: sanitizers
+            mode: sanitizers
+
+    steps:
+      - name: Detect runner data disk
+        id: disk
+        shell: bash
+        run: |
+          mnt_available=false
+          if mountpoint --quiet /mnt; then
+            mnt_available=true
+          fi
+          echo "mnt-available=${mnt_available}" >> "${GITHUB_OUTPUT}"
+
+      # Each verification job receives an isolated runner. BuildBuddy supplies reusable Bazel
+      # outputs from the build job; sanitizer configurations still compile distinct artifacts.
+      - name: Use runner data disk
+        if: steps.disk.outputs.mnt-available == 'true'
+        uses: envoyproxy/toolshed/actions/bind-mounts@1f5b552c6749502b885cb8cf23549b929e745547 # actions-v0.4.17
+        with:
+          mounts: |
+            - src: /mnt/docker
+              target: /var/lib/docker
+              rm: true
+              command-pre: sudo systemctl stop docker
+              command-post: sudo systemctl start docker
+            - src: /mnt/workspace
+              target: GITHUB_WORKSPACE
+              chown: runner:runner
+            - src: /mnt/envoy-build
+              target: RUNNER_TEMP/envoy-build
+              chown: runner:runner
+
+      - name: Free root disk space
+        if: steps.disk.outputs.mnt-available != 'true'
+        uses: envoyproxy/toolshed/actions/diskspace@1f5b552c6749502b885cb8cf23549b929e745547 # actions-v0.4.17
+        with:
+          background: false
+
+      - name: Report initial disk usage
+        run: df --human-readable
+
+      - name: Check out pinned sources
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Run ${{ matrix.name }} in pinned Envoy build image
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          ENVOY_BUILD_IMAGE: docker.io/envoyproxy/envoy-build@sha256:9e7dee3f9ce05274cfeb79a629b6b4f9163edb7bed436daa567ca7b58a35dfac
+          ENVOY_DOCKER_BUILD_DIR: ${{ runner.temp }}/envoy-build
+          SOURCE_DIR: ${{ github.workspace }}
+        run: |
+          mkdir --parents "${ENVOY_DOCKER_BUILD_DIR}"
+          docker run --rm \
+            --user root:root \
+            --volume "${ENVOY_DOCKER_BUILD_DIR}:/build" \
+            --volume "${SOURCE_DIR}:/source" \
+            --workdir /source \
+            --env BUILDBUDDY_API_KEY \
+            --env ENVOY_BUILD_IMAGE \
+            --env HOME=/build \
+            --entrypoint /bin/bash \
+            "${ENVOY_BUILD_IMAGE}" \
+            ./tools/ci-envoy-build.sh "${{ matrix.mode }}"
 
       - name: Upload CRS compatibility report
-        if: always()
+        if: ${{ always() && matrix.mode == 'qa' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: crs-compatibility-linux-amd64
           path: artifacts/crs-compatibility-linux-amd64/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload qualification benchmark
+        if: ${{ always() && matrix.mode == 'qa' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qualification-benchmark-linux-amd64
+          path: artifacts/qualification-benchmark/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload sanitizer test logs
+        if: ${{ always() && matrix.mode == 'sanitizers' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sanitizer-testlogs-linux-amd64
+          path: artifacts/sanitizers/
           if-no-files-found: warn
           retention-days: 30
 
