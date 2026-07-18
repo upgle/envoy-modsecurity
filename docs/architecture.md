@@ -139,6 +139,8 @@ use explicit protocol-specific behavior:
 - Upgrade and CONNECT requests receive header-phase inspection. Response data bypasses buffering
   after a successful tunnel handshake; rejected responses can still be inspected;
 - `text/event-stream` responses bypass response-body buffering;
+- after phase 3, responses excluded by `SecResponseBodyAccess` or `SecResponseBodyMimeType` bypass
+  response-body buffering because libmodsecurity would not evaluate phase 4 for them;
 - HTTP trailers end a pending body phase, but trailer fields themselves are not inspected because
   libmodsecurity has no trailer phase.
 
@@ -188,8 +190,10 @@ Rule-load failures, body limits, resource exhaustion, and interventions are alwa
 ## Observability
 
 The filter exposes bounded counters for interventions, PCRE-limit exhaustion, runtime and logging
-errors, body overflow and budget exhaustion, streaming bypass, and uninspected trailers. Gauges
-track live compiled generations, native transactions, and admitted body bytes; phase histograms
+errors, body overflow and budget exhaustion, streaming bypass, SecLang-selected body skips, and
+uninspected trailers. `response_body_skipped_by_rules` counts responses that complete after phase 3
+without buffering because SecLang disables or does not select their bodies. Gauges track live
+compiled generations, native transactions, and admitted body bytes; phase histograms
 track synchronous native duration. A generation gauge remains charged while an accepted config or
 an in-flight transaction pins that generation, including overlap during an update.
 

@@ -74,6 +74,10 @@ class Transaction {
   virtual absl::Status processRequestBody() = 0;
   virtual absl::Status addResponseHeader(absl::string_view name, absl::string_view value) = 0;
   virtual absl::Status processResponseHeaders(uint32_t status, absl::string_view http_protocol) = 0;
+  // Called after response headers have been processed. False means libmodsecurity would skip the
+  // response-body phase because SecResponseBodyAccess is disabled or the response MIME type is not
+  // selected by SecResponseBodyMimeType.
+  virtual absl::StatusOr<bool> shouldInspectResponseBody() const = 0;
   virtual absl::Status appendResponseBody(absl::string_view data) = 0;
   virtual absl::Status processResponseBody() = 0;
   virtual absl::Status processLogging() = 0;

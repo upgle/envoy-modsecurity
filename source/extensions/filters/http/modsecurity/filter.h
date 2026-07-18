@@ -64,6 +64,7 @@ class Filter final : public Http::StreamFilter, public Logger::Loggable<Logger::
   InspectionOutcome appendBody(Buffer::Instance& data, MessageSide side);
   InspectionOutcome completeBodyInspection(MessageSide side);
   void skipBodyInspectionForStreaming(MessageSide side);
+  void skipResponseBodyInspectionByRules();
   void classifyRequest(const Http::RequestHeaderMap& headers);
   bool shouldBypassResponseBody(const Http::ResponseHeaderMap& headers) const;
   bool declaredBodyExceedsLimit(const Http::RequestOrResponseHeaderMap& headers,

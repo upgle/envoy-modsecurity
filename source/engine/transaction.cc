@@ -8,6 +8,8 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "modsecurity/intervention.h"
+#include "modsecurity/rules_set.h"
+#include "modsecurity/rules_set_properties.h"
 #include "modsecurity/transaction.h"
 #include "source/engine/exception.h"
 
@@ -54,8 +56,7 @@ absl::Status TransactionImpl::checkPcreMatchLimit(absl::string_view operation,
     return status;
   }
   return catchLibraryExceptions("PCRE match-limit check", [&]() -> absl::Status {
-    const std::unique_ptr<std::string> exceeded =
-        transaction_->m_variableMscPcreLimitsExceeded.resolveFirst();
+    const std::string* exceeded = transaction_->m_variableMscPcreLimitsExceeded.evaluate();
     return exceeded != nullptr && *exceeded == "1" ? pcreMatchLimitExceededStatus(operation)
                                                    : absl::OkStatus();
   });
@@ -131,6 +132,22 @@ absl::Status TransactionImpl::processResponseHeaders(uint32_t status,
         const std::string protocol(http_protocol);
         return transaction_->processResponseHeaders(static_cast<int>(status), protocol);
       }));
+}
+
+absl::StatusOr<bool> TransactionImpl::shouldInspectResponseBody() const {
+  return catchLibraryExceptions("response body inspection decision", [&]() -> absl::StatusOr<bool> {
+    const modsecurity::RulesSet* rules = transaction_->m_rules;
+    if (rules->m_secResponseBodyAccess != modsecurity::RulesSetProperties::TrueConfigBoolean) {
+      return false;
+    }
+
+    const auto& selected_types = rules->m_responseBodyTypeToBeInspected;
+    if (!selected_types.m_set) {
+      return true;
+    }
+    const std::string* content_type = transaction_->m_variableResponseContentType.evaluate();
+    return content_type != nullptr && selected_types.m_value.contains(*content_type);
+  });
 }
 
 absl::Status TransactionImpl::appendResponseBody(absl::string_view data) {

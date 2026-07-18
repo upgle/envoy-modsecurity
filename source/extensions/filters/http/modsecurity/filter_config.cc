@@ -21,10 +21,8 @@ bool BodyMemoryBudget::tryReserve(uint64_t bytes) {
 }
 
 void BodyMemoryBudget::release(uint64_t bytes) {
-  uint64_t current = used_.load(std::memory_order_relaxed);
-  do {
-    RELEASE_ASSERT(current >= bytes, "body memory budget underflow");
-  } while (!used_.compare_exchange_weak(current, current - bytes, std::memory_order_relaxed));
+  const uint64_t previous = used_.fetch_sub(bytes, std::memory_order_relaxed);
+  RELEASE_ASSERT(previous >= bytes, "body memory budget underflow");
 }
 
 RouteConfig::RouteConfig(bool disabled, std::optional<uint64_t> request_body_max_bytes,

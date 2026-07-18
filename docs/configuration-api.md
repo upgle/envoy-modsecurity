@@ -115,7 +115,9 @@ internal copies, and parser state.
 
 All recognized gRPC requests, including unary calls, and recognized Connect streaming requests
 receive request-header inspection but bypass request-body buffering. Upgrade/CONNECT tunnel data
-and event-stream response bodies also bypass buffering. Trailer fields pass through uninspected,
+and event-stream response bodies also bypass buffering. After response-header processing, bodies
+excluded by `SecResponseBodyAccess` or `SecResponseBodyMimeType` continue without buffering or phase
+4 evaluation. Trailer fields pass through uninspected,
 while their arrival completes a pending body phase. Dedicated statistics expose these cases.
 
 ## Operational observability
@@ -128,6 +130,8 @@ All metric dimensions are bounded under the filter's statistics prefix. The prim
 - `active_rule_generations`, `active_transactions`, and `modsecurity_buffer_bytes` for generation,
   transaction, and buffered-body lifetime;
 - request/response overflow, aggregate-budget, streaming-bypass, and uninspected-trailer counters;
+- `response_body_skipped_by_rules` for responses that SecLang excludes from body inspection after
+  phase 3;
 - per-phase and logging duration histograms in microseconds.
 
 At info log level an intervention emits only its side, normalized status, and at most eight numeric

@@ -23,6 +23,7 @@ namespace ModSecurityFilter {
   COUNTER(request_trailers_uninspected)                         \
   COUNTER(response_body_bypassed)                               \
   COUNTER(response_body_overflow)                               \
+  COUNTER(response_body_skipped_by_rules)                       \
   COUNTER(response_interventions)                               \
   COUNTER(response_trailers_uninspected)                        \
   COUNTER(runtime_errors)                                       \

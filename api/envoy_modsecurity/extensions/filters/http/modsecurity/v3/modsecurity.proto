@@ -54,8 +54,8 @@ message ModSecurity {
   BodyBufferSettings request_body = 2 [(validate.rules).message = {required: true}];
 
   // Enables ModSecurity response-header and response-body processing. When absent, phases 3 and 4
-  // are skipped. ``SecResponseBodyAccess`` and related SecLang directives still determine which
-  // response bodies ModSecurity inspects.
+  // are skipped. After phase 3, responses excluded by ``SecResponseBodyAccess`` or
+  // ``SecResponseBodyMimeType`` continue without body buffering or phase 4 evaluation.
   ResponseInspection response = 3;
 
   // When true, the stream continues after a runtime engine or transaction error other than

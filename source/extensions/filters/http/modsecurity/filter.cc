@@ -461,6 +461,16 @@ void Filter::skipBodyInspectionForStreaming(MessageSide side) {
   releaseResources();
 }
 
+void Filter::skipResponseBodyInspectionByRules() {
+  if (response_body_.finished) {
+    return;
+  }
+  response_body_.finished = true;
+  stats_->response_body_skipped_by_rules_.inc();
+  finishLogging();
+  releaseResources();
+}
+
 Http::FilterDataStatus Filter::processData(Buffer::Instance& data, bool end_stream,
                                            MessageSide side) {
   if (!bodyInspectionPending(side)) {
@@ -522,6 +532,15 @@ Http::FilterHeadersStatus Filter::encodeHeaders(Http::ResponseHeaderMap& headers
   }
   if (shouldBypassResponseBody(headers)) {
     skipBodyInspectionForStreaming(MessageSide::Response);
+    return Http::FilterHeadersStatus::Continue;
+  }
+  auto should_inspect_body = transaction_->shouldInspectResponseBody();
+  if (!should_inspect_body.ok()) {
+    return headerStatusForOutcome(
+        handleEngineResult(should_inspect_body.status(), MessageSide::Response, false));
+  }
+  if (!*should_inspect_body) {
+    skipResponseBodyInspectionByRules();
     return Http::FilterHeadersStatus::Continue;
   }
   if (declaredBodyExceedsLimit(headers, MessageSide::Response)) {

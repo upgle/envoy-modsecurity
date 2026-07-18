@@ -39,6 +39,7 @@ struct TransactionState {
   int logging_calls{0};
   int intervention_calls{0};
   int intervene_on_call{0};
+  bool inspect_response_body{true};
   int destroyed_transactions{0};
   std::optional<Engine::Intervention> intervention;
 };
@@ -79,6 +80,9 @@ class FakeTransaction final : public Engine::Transaction {
     state_->response_http_protocol = http_protocol;
     state_->response_headers_calls++;
     return absl::OkStatus();
+  }
+  absl::StatusOr<bool> shouldInspectResponseBody() const override {
+    return state_->inspect_response_body;
   }
   absl::Status appendResponseBody(absl::string_view data) override {
     state_->response_body.append(data.data(), data.size());
@@ -480,6 +484,29 @@ TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
   EXPECT_EQ(state_->response_body_calls, 1);
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
+  EXPECT_EQ(body_memory_budget_->used(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, SkipsUnselectedResponseBodyBeforeLimitAndBudgetChecks) {
+  initialize(32, 5);
+  state_->inspect_response_body = false;
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+
+  Http::TestResponseHeaderMapImpl response_headers{
+      {":status", "200"}, {"content-type", "application/octet-stream"}, {"content-length", "64"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
+
+  Buffer::OwnedImpl response_body("body that must pass without buffering");
+  EXPECT_EQ(filter_->encodeData(response_body, true), Http::FilterDataStatus::Continue);
+  EXPECT_TRUE(state_->response_body.empty());
+  EXPECT_EQ(state_->response_body_calls, 0);
+  EXPECT_EQ(state_->logging_calls, 1);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->response_body_skipped_by_rules_.value(), 1);
+  EXPECT_EQ(stats_->response_body_overflow_.value(), 0);
   EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
   EXPECT_EQ(body_memory_budget_->used(), 0);
   filter_->onDestroy();

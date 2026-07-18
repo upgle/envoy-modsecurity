@@ -30,6 +30,7 @@ class TransactionImpl final : public Transaction {
   absl::Status processRequestBody() override;
   absl::Status addResponseHeader(absl::string_view name, absl::string_view value) override;
   absl::Status processResponseHeaders(uint32_t status, absl::string_view http_protocol) override;
+  absl::StatusOr<bool> shouldInspectResponseBody() const override;
   absl::Status appendResponseBody(absl::string_view data) override;
   absl::Status processResponseBody() override;
   absl::Status processLogging() override;

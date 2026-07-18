@@ -42,6 +42,14 @@ absl::Status processRequestHeaders(Transaction& transaction, const std::string& 
   return transaction.processRequestHeaders();
 }
 
+absl::Status processResponseHeaders(Transaction& transaction, absl::string_view content_type) {
+  absl::Status status = transaction.addResponseHeader("content-type", content_type);
+  if (!status.ok()) {
+    return status;
+  }
+  return transaction.processResponseHeaders(200, "HTTP/1.1");
+}
+
 std::unique_ptr<Transaction> createTransaction(
     const std::shared_ptr<const RuleGeneration>& generation) {
   auto transaction = generation->createTransaction();
@@ -102,6 +110,54 @@ TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {
   ASSERT_TRUE(transaction->appendRequestBody("value=contains-attack-token").ok());
   ASSERT_TRUE(transaction->processRequestBody().ok());
   expectIntervention(*transaction, 406);
+}
+
+TEST(EngineIntegrationTest, ReportsResponseBodyAccessDisabled) {
+  constexpr char kResponseDisabledRules[] = R"(
+SecRuleEngine On
+SecResponseBodyAccess Off
+)";
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("response-disabled.conf", kResponseDisabledRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/response-disabled").ok());
+  ASSERT_TRUE(processResponseHeaders(*transaction, "text/plain").ok());
+  auto should_inspect = transaction->shouldInspectResponseBody();
+  ASSERT_TRUE(should_inspect.ok()) << should_inspect.status();
+  EXPECT_FALSE(*should_inspect);
+}
+
+TEST(EngineIntegrationTest, ReportsWhetherResponseMimeTypeIsSelected) {
+  constexpr char kResponseMimeRules[] = R"(
+SecRuleEngine On
+SecResponseBodyAccess On
+SecResponseBodyMimeType text/plain
+SecRule RESPONSE_BODY "@contains blocked-response" "id:1000007,phase:4,deny,status:409,nolog"
+)";
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("response-mime.conf", kResponseMimeRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> selected = createTransaction(*generation);
+  ASSERT_NE(selected, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*selected, "/selected").ok());
+  ASSERT_TRUE(processResponseHeaders(*selected, "text/plain; charset=utf-8").ok());
+  auto selected_result = selected->shouldInspectResponseBody();
+  ASSERT_TRUE(selected_result.ok()) << selected_result.status();
+  EXPECT_TRUE(*selected_result);
+
+  std::unique_ptr<Transaction> unselected = createTransaction(*generation);
+  ASSERT_NE(unselected, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*unselected, "/unselected").ok());
+  ASSERT_TRUE(processResponseHeaders(*unselected, "application/octet-stream").ok());
+  auto unselected_result = unselected->shouldInspectResponseBody();
+  ASSERT_TRUE(unselected_result.ok()) << unselected_result.status();
+  EXPECT_FALSE(*unselected_result);
 }
 
 TEST(EngineIntegrationTest, LoadsRulesFromFile) {
