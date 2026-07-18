@@ -643,11 +643,29 @@ def parse_args():
         "--envoy-binary",
         default=repository_root / "bazel-bin" / "envoy-modsecurity",
         type=Path,
+        help="custom Envoy executable to run (default: %(default)s)",
     )
-    parser.add_argument("--ui-port", default=8080, type=int)
-    parser.add_argument("--open-browser", action="store_true")
-    parser.add_argument("--work-directory", type=Path)
-    parser.add_argument("--log-level", default="warning")
+    parser.add_argument(
+        "--ui-port",
+        default=8080,
+        type=int,
+        help="loopback port for the web UI; use 0 to select an available port (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--open-browser",
+        action="store_true",
+        help="open the lab URL in the default browser after startup",
+    )
+    parser.add_argument(
+        "--work-directory",
+        type=Path,
+        help="directory for generated configuration and logs; retained after shutdown",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="warning",
+        help="Envoy log level (default: %(default)s)",
+    )
     args = parser.parse_args()
     if not 0 <= args.ui_port <= 65535:
         parser.error("--ui-port must be between 0 and 65535")

@@ -95,6 +95,18 @@ automatically or retain generated files, run:
 ./tools/run-owasp-crs-lab.sh --work-directory /tmp/envoy-modsecurity-crs-lab
 ```
 
+The wrapper forwards command-line arguments to the Python lab server and supports these additional
+controls:
+
+| Control | Purpose |
+| --- | --- |
+| `--open-browser` | Open the lab URL in the default browser after Envoy becomes ready. |
+| `--log-level LEVEL` | Set the Envoy log level; the default is `warning`. |
+| `--envoy-binary PATH` | Run a specific prebuilt custom Envoy binary instead of `bazel-bin/envoy-modsecurity`. |
+| `BAZEL=/path/to/bazel` | Select the Bazel or Bazelisk executable used by the build wrapper. Without it, the wrapper searches `PATH` for `bazel` and then `bazelisk`. |
+
+Run `python3 tools/owasp-crs-lab.py --help` for the complete server option reference.
+
 ## Full OWASP CRS compatibility report
 
 Run the complete pinned CRS go-ftw corpus against the custom Envoy binary with:

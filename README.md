@@ -126,6 +126,16 @@ make build
 ./bazel-bin/envoy-modsecurity -c /path/to/envoy.yaml
 ```
 
+To build the custom Envoy binary and explore the pinned OWASP CRS through a loopback-only web UI,
+run:
+
+```shell
+make owasp-lab
+```
+
+See the [local OWASP CRS web lab guide](docs/development.md#local-owasp-crs-web-lab) for runtime
+options and security boundaries.
+
 Envoy builds are resource intensive. Bazel reuses its output base across these targets; the pinned
 submodules do not need to be installed system-wide. CI and release qualification target Linux.
 macOS builds are best-effort and are not CI-qualified. Run `make check` for the API, engine, filter,
