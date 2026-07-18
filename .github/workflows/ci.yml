@@ -16,7 +16,11 @@ concurrency:
 jobs:
   api:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
+    # Match the build environment pinned by the Envoy v1.39.0 submodule. The image includes the
+    # legacy libtinfo runtime required by Envoy's hermetic LLVM 18 toolchain.
+    container:
+      image: docker.io/envoyproxy/envoy-build:v0.1.6@sha256:0b285a2c5e8fd85db238a6159f9748dac38569f081501bd508876076fecc3fe5
 
     steps:
       - name: Check out pinned sources
