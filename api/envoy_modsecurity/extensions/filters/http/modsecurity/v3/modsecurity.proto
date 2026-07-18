@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package envoy_modsecurity.extensions.filters.http.modsecurity.v3;
 
+import "envoy/config/core/v3/base.proto";
 import "envoy/type/v3/http_status.proto";
 
 import "google/protobuf/wrappers.proto";
@@ -36,7 +37,7 @@ option (xds.annotations.v3.file_status).work_in_progress = true;
 // uninspected because libmodsecurity has no trailer phase. Dedicated counters expose these cases.
 // Other streaming routes must disable this filter for unbounded requests or disable response
 // inspection for unbounded responses.
-// [#next-free-field: 8]
+// [#next-free-field: 9]
 message ModSecurity {
   // Ordered SecLang sources loaded into one immutable ModSecurity rule set during filter-config
   // construction. The order is significant: later sources may update or remove rules loaded by
@@ -80,6 +81,15 @@ message ModSecurity {
   // budget fails closed with ``status_on_error``. Defaults to 64 MiB.
   google.protobuf.UInt64Value max_active_body_bytes = 7
       [(validate.rules).uint64 = {gt: 0 lte: 1073741824}];
+
+  // Customizes local-reply bodies for disruptive ModSecurity interventions. The intervention
+  // continues to determine the HTTP status and redirect location. Envoy's HTTP connection manager
+  // may further rewrite or format the local reply.
+  //
+  // Each configured body is loaded when the filter configuration is constructed, is limited to
+  // 4 KiB, and does not support ``watched_directory`` reloads. Unset bodies retain the built-in
+  // defaults.
+  InterventionResponse intervention_response = 8;
 }
 
 // A SecLang source. Sources are local files or inline text; the data-plane filter does not fetch
@@ -127,6 +137,19 @@ message ResponseInspection {
   // Envoy-side response body bound. Exceeding it follows ``status_on_error`` and is always
   // fail-closed.
   BodyBufferSettings body = 1 [(validate.rules).message = {required: true}];
+}
+
+// Local-reply bodies selected by the inspection path where a disruptive intervention occurs.
+// [#next-free-field: 3]
+message InterventionResponse {
+  // Body returned when an intervention occurs during request inspection. This is the downstream
+  // response body, not the request body being inspected. Defaults to
+  // ``request blocked by ModSecurity``.
+  envoy.config.core.v3.DataSource request_body = 1;
+
+  // Body returned when an intervention occurs during response inspection. Defaults to
+  // ``response blocked by ModSecurity``.
+  envoy.config.core.v3.DataSource response_body = 2;
 }
 
 // Per-route configuration selected through ``typed_per_filter_config``.

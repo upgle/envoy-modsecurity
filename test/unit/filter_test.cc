@@ -1,8 +1,10 @@
 #include "source/extensions/filters/http/modsecurity/filter.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -132,7 +134,9 @@ class FilterTest : public testing::Test {
  public:
   void initialize(uint64_t request_limit = 32,
                   std::optional<uint64_t> response_limit = std::nullopt,
-                  bool failure_mode_allow = false, uint64_t active_body_limit = 64) {
+                  bool failure_mode_allow = false, uint64_t active_body_limit = 64,
+                  std::string request_intervention_body = "request blocked by ModSecurity",
+                  std::string response_intervention_body = "response blocked by ModSecurity") {
     state_ = std::make_shared<TransactionState>();
     generation_ = std::make_shared<FakeGeneration>(state_);
     stats_ = std::make_shared<FilterStats>(
@@ -140,7 +144,11 @@ class FilterTest : public testing::Test {
     body_memory_budget_ = std::make_shared<BodyMemoryBudget>(active_body_limit);
     config_ = std::make_shared<FilterConfig>(
         EffectiveSettings{request_limit, response_limit, failure_mode_allow,
-                          Http::Code::InternalServerError},
+                          Http::Code::InternalServerError,
+                          std::make_shared<const std::string>(
+                              std::move(request_intervention_body)),
+                          std::make_shared<const std::string>(
+                              std::move(response_intervention_body))},
         generation_, stats_, body_memory_budget_, time_system_);
     filter_ = std::make_unique<Filter>(config_);
     filter_->setDecoderFilterCallbacks(decoder_callbacks_);
@@ -573,7 +581,8 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   auto headers = requestHeaders();
 
   EXPECT_CALL(decoder_callbacks_,
-              sendLocalReply(Http::Code::Forbidden, _, _, _, "modsecurity_request_intervention"));
+              sendLocalReply(Http::Code::Forbidden, "request blocked by ModSecurity", _, _,
+                             "modsecurity_request_intervention"));
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
   EXPECT_EQ(stats_->request_interventions_.value(), 1);
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
@@ -592,6 +601,57 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
                   .bool_value());
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, RequestInterventionUsesConfiguredBodyAndPreservesRedirect) {
+  initialize(32, std::nullopt, false, 64, "custom request intervention");
+  state_->intervene_on_call = 3;
+  state_->intervention = Engine::Intervention{200, "https://example.test/blocked"};
+  auto headers = requestHeaders();
+  std::function<void(Http::ResponseHeaderMap&)> modify_headers;
+
+  EXPECT_CALL(decoder_callbacks_,
+              sendLocalReply(Http::Code::Found, "custom request intervention", _, _,
+                             "modsecurity_request_intervention"))
+      .WillOnce(SaveArg<2>(&modify_headers));
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
+
+  ASSERT_NE(modify_headers, nullptr);
+  Http::TestResponseHeaderMapImpl response_headers;
+  modify_headers(response_headers);
+  EXPECT_EQ(response_headers.getLocationValue(), "https://example.test/blocked");
+  EXPECT_EQ(stats_->request_interventions_.value(), 1);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, RequestInterventionAllowsExplicitEmptyBody) {
+  initialize(32, std::nullopt, false, 64, "");
+  state_->intervene_on_call = 3;
+  state_->intervention = Engine::Intervention{403, {}};
+  auto headers = requestHeaders();
+
+  EXPECT_CALL(decoder_callbacks_,
+              sendLocalReply(Http::Code::Forbidden, "", _, _,
+                             "modsecurity_request_intervention"));
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, ResponseInterventionUsesConfiguredBody) {
+  initialize(32, 32, false, 64, "request body", "custom response intervention");
+  state_->intervene_on_call = 5;
+  state_->intervention = Engine::Intervention{451, {}};
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
+
+  EXPECT_CALL(encoder_callbacks_,
+              sendLocalReply(static_cast<Http::Code>(451), "custom response intervention", _, _,
+                             "modsecurity_response_intervention"));
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, true),
+            Http::FilterHeadersStatus::StopIteration);
+  EXPECT_EQ(stats_->response_interventions_.value(), 1);
   filter_->onDestroy();
 }
 
@@ -707,13 +767,21 @@ TEST_F(FilterTest, NativeMemoryExhaustionIgnoresFailureModeAllow) {
 }
 
 TEST(RouteConfigTest, AppliesIndependentRequestAndResponseOverrides) {
-  const EffectiveSettings base{32, 16, false, Http::Code::InternalServerError};
+  const EffectiveSettings base{
+      32,
+      16,
+      false,
+      Http::Code::InternalServerError,
+      std::make_shared<const std::string>("request blocked by ModSecurity"),
+      std::make_shared<const std::string>("response blocked by ModSecurity")};
 
   const RouteConfig replace(false, 64, RouteConfig::ResponseOverride::Replace, 128);
   const EffectiveSettings replaced = replace.apply(base);
   EXPECT_EQ(replaced.request_body_max_bytes, 64);
   ASSERT_TRUE(replaced.response_body_max_bytes.has_value());
   EXPECT_EQ(*replaced.response_body_max_bytes, 128);
+  EXPECT_EQ(replaced.request_intervention_body, base.request_intervention_body);
+  EXPECT_EQ(replaced.response_intervention_body, base.response_intervention_body);
   EXPECT_FALSE(replace.disabled());
 
   const RouteConfig disable(false, std::nullopt, RouteConfig::ResponseOverride::Disable,

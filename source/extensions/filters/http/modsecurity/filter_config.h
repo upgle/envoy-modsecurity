@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "envoy/common/time.h"
 #include "envoy/http/codes.h"
@@ -21,6 +22,8 @@ struct EffectiveSettings {
   std::optional<uint64_t> response_body_max_bytes;
   bool failure_mode_allow;
   Http::Code status_on_error;
+  std::shared_ptr<const std::string> request_intervention_body;
+  std::shared_ptr<const std::string> response_intervention_body;
 };
 
 // Shared by all streams created from one filter configuration. The counter limits admitted body

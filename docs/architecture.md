@@ -123,6 +123,13 @@ Phase 5 is attempted at most once after the last configured inspection phase or 
 transaction completes or is destroyed. Runtime-error and overflow paths release the transaction
 without phase 5. Disruptive interventions stop iteration and send one local reply.
 
+Request- and response-path intervention bodies are immutable filter-configuration values. An ECDS
+replacement applies new bodies only to new streams; an existing stream retains the bodies captured
+with its filter configuration. Body data sources are loaded during candidate construction, are not
+watched, and never perform filesystem work from an Envoy worker callback. The intervention remains
+authoritative for the HTTP status and redirect location, while HTTP connection manager local-reply
+mapping may further rewrite the downstream response.
+
 Whole-body inspection is incompatible with an unbounded stream. Known protocol shapes therefore
 use explicit protocol-specific behavior:
 

@@ -412,7 +412,7 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
     def test_blocks_phase_one_before_upstream(self):
         before = self._upstream.request_count()
         self.assertResponse(
-            "GET", "/request-blocked/resource", 418, b"request blocked by ModSecurity"
+            "GET", "/request-blocked/resource", 418, b"custom request blocked response"
         )
         self.assertEqual(before, self._upstream.request_count())
         event = self._wait_for_security_event("/request-blocked/resource")
@@ -425,7 +425,7 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
     def test_blocks_phase_two_before_upstream(self):
         before = self._upstream.request_count()
         self.assertResponse(
-            "POST", "/submit", 406, b"request blocked by ModSecurity", "value=attack-token"
+            "POST", "/submit", 406, b"custom request blocked response", "value=attack-token"
         )
         self.assertEqual(before, self._upstream.request_count())
 
@@ -445,7 +445,7 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
             "/submit", ["value=att", "ack-to", "ken"], {"x-checksum": "complete"}
         )
         self.assertEqual(406, status, self._envoy_logs())
-        self.assertIn(b"request blocked by ModSecurity", response_body, self._envoy_logs())
+        self.assertIn(b"custom request blocked response", response_body, self._envoy_logs())
         self.assertEqual(before, self._upstream.request_count())
 
     def test_grpc_stream_is_header_only_and_not_buffered(self):
@@ -508,14 +508,14 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
     def test_blocks_phase_four_upstream_response(self):
         before = self._upstream.request_count()
         self.assertResponse(
-            "GET", "/response-blocked", 451, b"response blocked by ModSecurity"
+            "GET", "/response-blocked", 451, b"custom response blocked response"
         )
         self.assertEqual(before + 1, self._upstream.request_count())
 
     def test_response_chunks_and_trailers_are_finalized_together(self):
         before = self._upstream.request_count()
         self.assertResponse(
-            "GET", "/chunked-response", 451, b"response blocked by ModSecurity"
+            "GET", "/chunked-response", 451, b"custom response blocked response"
         )
         self.assertEqual(before + 1, self._upstream.request_count())
 

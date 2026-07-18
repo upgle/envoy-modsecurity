@@ -26,6 +26,7 @@ The filter configuration controls:
 - per-stream request and response body limits;
 - the aggregate active-body memory budget;
 - whether response phases run;
+- local-reply bodies for disruptive request and response interventions;
 - runtime engine failure behavior and its local-reply status;
 - per-route buffering overrides.
 
@@ -59,6 +60,11 @@ typed_config:
   failure_mode_allow: false
   status_on_error:
     code: InternalServerError
+  intervention_response:
+    request_body:
+      inline_string: request rejected by security policy
+    response_body:
+      inline_string: upstream response rejected by security policy
   stat_prefix: edge_waf
 ```
 
@@ -77,6 +83,28 @@ For ECDS configuration and update-generation semantics, see
 
 ECDS carries inline text directly. A `filename` carries only a path, and every Envoy host reads its
 own local file while constructing the candidate configuration.
+
+## Intervention responses
+
+`intervention_response.request_body` and `intervention_response.response_body` customize the
+downstream local-reply body selected when a disruptive intervention occurs during request or
+response inspection. They do not replace the request or response body being inspected. When a
+field is absent, the filter retains its built-in `request blocked by ModSecurity` or
+`response blocked by ModSecurity` body. An explicitly configured empty inline string produces an
+empty local-reply body.
+
+Each body uses Envoy's `DataSource` and is resolved once while constructing the immutable filter
+configuration. The loaded content is limited to 4 KiB. `watched_directory` is rejected: changing a
+body requires a new static configuration or ECDS resource, and no filesystem work occurs in an
+Envoy worker callback. A missing or unreadable source rejects startup configuration or NACKs an
+ECDS candidate without replacing the last-good configuration.
+
+The ModSecurity intervention remains authoritative for the HTTP status and redirect `Location`.
+The filter still emits the stable `modsecurity_request_intervention` and
+`modsecurity_response_intervention` response details. For gRPC requests, Envoy maps the selected
+text to `grpc-message` rather than an HTTP response payload. Use the HTTP connection manager's
+`local_reply_config` when content type, headers, conditional mapping, or structured body formatting
+must also be changed; its mapper runs after the filter supplies this base body.
 
 ## Structured security events
 
@@ -140,7 +168,7 @@ whose rule list reached the bound. `logging_errors` remains the phase-5 error si
 | Event | Required behavior |
 | --- | --- |
 | Invalid proto or rule parse/load failure | Reject configuration at startup or NACK the xDS update. Never replace a valid generation with the failed candidate. |
-| Disruptive ModSecurity intervention | Stop iteration and honor the valid intervention status or redirect. `failure_mode_allow` does not apply. |
+| Disruptive ModSecurity intervention | Stop iteration, select the configured request- or response-path body, and honor the valid intervention status or redirect. `failure_mode_allow` does not apply. |
 | Request exceeds `request_body.max_bytes` | Return HTTP 413 before phase 2; never process a partial request body. |
 | Response exceeds `response.body.max_bytes` | Discard the buffered upstream response and return `status_on_error`, default HTTP 500. |
 | Aggregate active-body budget is exhausted | Return `status_on_error`; `failure_mode_allow` does not override the memory bound. |
@@ -163,9 +191,9 @@ while their arrival completes a pending body phase. Dedicated statistics expose 
 ## Per-route policy
 
 `ModSecurityPerRoute` may disable the filter or change request/response buffering. It cannot replace
-rules, change `failure_mode_allow`, alter `status_on_error`, or replace the aggregate budget. This
-keeps rules filter-wide and prevents a route update from silently weakening the global failure
-policy.
+rules, change `failure_mode_allow`, alter `status_on_error` or `intervention_response`, or replace
+the aggregate budget. This keeps rules and local-reply policy filter-wide and prevents a route
+update from silently weakening the global failure policy.
 
 ```yaml
 typed_per_filter_config:

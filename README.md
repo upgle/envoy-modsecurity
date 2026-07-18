@@ -54,6 +54,7 @@ Its primary fields are:
 | `max_active_body_bytes` | Aggregate admitted body budget for one accepted filter configuration; defaults to 64 MiB. |
 | `failure_mode_allow` | Continues the stream after runtime engine or transaction errors other than resource exhaustion. Resource-exhaustion errors always fail closed. |
 | `status_on_error` | Local-reply status for runtime errors, response overflow, and body-budget exhaustion; defaults to 500. |
+| `intervention_response` | Optional request- and response-path local-reply bodies for disruptive interventions; each configured body is limited to 4 KiB. |
 | `stat_prefix` | Optional suffix for distinguishing filter-instance statistics. |
 
 `ModSecurityPerRoute` may disable the filter or override request/response buffering. It cannot
@@ -86,6 +87,11 @@ http_filters:
             value: 524288
       max_active_body_bytes:
         value: 67108864
+      intervention_response:
+        request_body:
+          inline_string: request rejected by security policy
+        response_body:
+          inline_string: upstream response rejected by security policy
       failure_mode_allow: false
       stat_prefix: edge_waf
   - name: envoy.filters.http.router

@@ -59,6 +59,11 @@ static_resources:
                         body:
                           max_bytes:
                             value: 1048576
+                      intervention_response:
+                        request_body:
+                          inline_string: custom request blocked response
+                        response_body:
+                          inline_string: custom response blocked response
                       failure_mode_allow: false
                       stat_prefix: integration
                       max_active_body_bytes:

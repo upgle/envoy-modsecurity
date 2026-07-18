@@ -187,11 +187,11 @@ void Filter::sendIntervention(const Engine::Intervention& intervention, Path pat
 
   if (path == Path::Request) {
     stats_->request_interventions_.inc();
-    decoder_callbacks_->sendLocalReply(code, "request blocked by ModSecurity", modify_headers,
+    decoder_callbacks_->sendLocalReply(code, *settings_.request_intervention_body, modify_headers,
                                        std::nullopt, "modsecurity_request_intervention");
   } else {
     stats_->response_interventions_.inc();
-    encoder_callbacks_->sendLocalReply(code, "response blocked by ModSecurity", modify_headers,
+    encoder_callbacks_->sendLocalReply(code, *settings_.response_intervention_body, modify_headers,
                                        std::nullopt, "modsecurity_response_intervention");
   }
   releaseResources();

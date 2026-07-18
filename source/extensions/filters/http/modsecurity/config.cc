@@ -10,8 +10,11 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "envoy/api/api.h"
 #include "envoy/registry/registry.h"
 #include "envoy/singleton/manager.h"
+#include "source/common/config/datasource.h"
 #include "source/engine/exception.h"
 #include "source/engine/rules.h"
 #include "source/extensions/filters/http/modsecurity/filter.h"
@@ -24,6 +27,9 @@ namespace ModSecurityFilter {
 namespace {
 
 constexpr uint64_t DefaultMaxActiveBodyBytes = 64 * 1024 * 1024;
+constexpr uint64_t MaxInterventionResponseBodyBytes = 4 * 1024;
+constexpr absl::string_view DefaultRequestInterventionBody = "request blocked by ModSecurity";
+constexpr absl::string_view DefaultResponseInterventionBody = "response blocked by ModSecurity";
 
 class RuntimeSingleton final : public Singleton::Instance {
  public:
@@ -48,6 +54,31 @@ std::string statsPrefix(const std::string& context_prefix, const std::string& in
     prefix.append(instance_prefix);
   }
   return prefix;
+}
+
+absl::StatusOr<std::shared_ptr<const std::string>>
+interventionResponseBody(const envoy::config::core::v3::DataSource* source,
+                         absl::string_view default_body, absl::string_view field_name,
+                         Api::Api& api) {
+  if (source == nullptr) {
+    return std::make_shared<const std::string>(std::string(default_body));
+  }
+  if (source->has_watched_directory()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(field_name, " does not support watched_directory"));
+  }
+
+  auto body = Config::DataSource::read(*source, true, api, MaxInterventionResponseBodyBytes);
+  if (!body.ok()) {
+    return absl::Status(body.status().code(),
+                        absl::StrCat(field_name, ": ", body.status().message()));
+  }
+  if (body->size() > MaxInterventionResponseBodyBytes) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(field_name, " is ", body->size(), " bytes; maximum is ",
+                     MaxInterventionResponseBodyBytes));
+  }
+  return std::make_shared<const std::string>(std::move(*body));
 }
 
 absl::StatusOr<std::vector<Engine::RuleSource>> ruleSources(const Proto::ModSecurity& proto) {
@@ -89,12 +120,27 @@ absl::StatusOr<std::vector<Engine::RuleSource>> ruleSources(const Proto::ModSecu
 absl::StatusOr<FilterConfigSharedPtr> makeConfig(const Proto::ModSecurity& proto,
                                                  const std::string& context_stats_prefix,
                                                  Singleton::Manager& singleton_manager,
-                                                 Stats::Scope& scope, TimeSource& time_source) {
+                                                 Stats::Scope& scope, TimeSource& time_source,
+                                                 Api::Api& api) {
   const int configured_status = proto.has_status_on_error()
                                     ? static_cast<int>(proto.status_on_error().code())
                                     : static_cast<int>(Http::Code::InternalServerError);
   if (configured_status < 400 || configured_status > 599) {
     return absl::InvalidArgumentError("status_on_error must be a 4xx or 5xx HTTP status");
+  }
+
+  const Proto::InterventionResponse& intervention_response = proto.intervention_response();
+  auto request_intervention_body = interventionResponseBody(
+      intervention_response.has_request_body() ? &intervention_response.request_body() : nullptr,
+      DefaultRequestInterventionBody, "intervention_response.request_body", api);
+  if (!request_intervention_body.ok()) {
+    return request_intervention_body.status();
+  }
+  auto response_intervention_body = interventionResponseBody(
+      intervention_response.has_response_body() ? &intervention_response.response_body() : nullptr,
+      DefaultResponseInterventionBody, "intervention_response.response_body", api);
+  if (!response_intervention_body.ok()) {
+    return response_intervention_body.status();
   }
 
   auto singleton = singleton_manager.getTyped<RuntimeSingleton>(
@@ -115,7 +161,8 @@ absl::StatusOr<FilterConfigSharedPtr> makeConfig(const Proto::ModSecurity& proto
       proto.request_body().max_bytes().value(),
       proto.has_response() ? std::optional<uint64_t>(proto.response().body().max_bytes().value())
                            : std::nullopt,
-      proto.failure_mode_allow(), static_cast<Http::Code>(configured_status)};
+      proto.failure_mode_allow(), static_cast<Http::Code>(configured_status),
+      std::move(*request_intervention_body), std::move(*response_intervention_body)};
   const uint64_t max_active_body_bytes = proto.has_max_active_body_bytes()
                                              ? proto.max_active_body_bytes().value()
                                              : DefaultMaxActiveBodyBytes;
@@ -145,8 +192,8 @@ absl::StatusOr<Http::FilterFactoryCb> makeFilterFactory(const Proto::ModSecurity
                                                         const std::string& stats_prefix,
                                                         Singleton::Manager& singleton_manager,
                                                         Stats::Scope& scope,
-                                                        TimeSource& time_source) {
-  auto config = makeConfig(proto, stats_prefix, singleton_manager, scope, time_source);
+                                                        TimeSource& time_source, Api::Api& api) {
+  auto config = makeConfig(proto, stats_prefix, singleton_manager, scope, time_source, api);
   if (!config.ok()) {
     return config.status();
   }
@@ -188,14 +235,15 @@ absl::StatusOr<Http::FilterFactoryCb> FilterFactory::createFilterFactoryFromProt
     Server::Configuration::FactoryContext& context) {
   return makeFilterFactory(proto_config, stats_prefix,
                            context.serverFactoryContext().singletonManager(), context.scope(),
-                           context.serverFactoryContext().timeSource());
+                           context.serverFactoryContext().timeSource(),
+                           context.serverFactoryContext().api());
 }
 
 absl::StatusOr<Http::FilterFactoryCb> FilterFactory::createHttpFilterFactoryFromProtoTyped(
     const Proto::ModSecurity& proto_config, const std::string& stats_prefix,
     Server::Configuration::ServerFactoryContext& context) {
   return makeFilterFactory(proto_config, stats_prefix, context.singletonManager(), context.scope(),
-                           context.timeSource());
+                           context.timeSource(), context.api());
 }
 
 absl::StatusOr<Router::RouteSpecificFilterConfigConstSharedPtr>
