@@ -1,6 +1,6 @@
 load("@envoy_api//bazel:api_build_system.bzl", "api_proto_package")
 
-licenses(["notice"])  # Apache 2
+licenses(["notice"])  # Apache-2.0 OR MIT
 
 api_proto_package(
     deps = [

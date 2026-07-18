@@ -30,3 +30,10 @@ chore: update Envoy to v1.39.1
 Envoy, ModSecurity, and OWASP CRS are security-sensitive build inputs. Update the submodule and
 its entry in `DEPENDENCIES.lock` in the same commit, then run the compatibility and regression
 test suites described in `docs/development.md`.
+
+## Contribution license
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+this project by you, as defined in the Apache License 2.0, is licensed under
+`Apache-2.0 OR MIT`, at the recipient's option, without any additional terms or conditions. By
+submitting a contribution, you represent that you have the right to license it on those terms.

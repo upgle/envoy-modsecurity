@@ -12,6 +12,8 @@
 
 ## Verification
 
+- [ ] I have the right to submit this contribution and agree that it is licensed under
+      `Apache-2.0 OR MIT`, at the recipient's option.
 - [ ] `make check` (API build plus engine, filter, and custom-Envoy HTTP tests)
 - [ ] OWASP CRS regression tests, when applicable
 - [ ] Compatibility documentation updated, when applicable

@@ -129,4 +129,8 @@ to run only the HTTP suite.
 
 ## License
 
-Apache License 2.0. Pinned third-party sources remain governed by their own license files.
+Except where otherwise noted, project-owned code and documentation are licensed under either the
+[Apache License 2.0](LICENSE-APACHE) or the [MIT License](LICENSE-MIT), at your option.
+
+Pinned third-party sources and dependencies are not covered by this choice and remain governed by
+their respective license and notice files.

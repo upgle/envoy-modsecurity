@@ -5,7 +5,7 @@ load(
     "envoy_extension_package",
 )
 
-licenses(["notice"])  # Apache 2
+licenses(["notice"])  # Apache-2.0 OR MIT
 
 envoy_extension_package(default_visibility = ["//visibility:public"])
 
