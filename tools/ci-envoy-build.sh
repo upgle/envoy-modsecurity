@@ -36,9 +36,12 @@ buildbuddy_bazelrc="${HOME}/.bazelrc"
 if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
   previous_umask="$(umask)"
   umask 077
+  # Keep BuildBuddy telemetry best-effort so a backend acknowledgement failure cannot override a
+  # successful build or test result. Remote cache operations remain synchronous and independent.
   printf '%s\n' \
     'build --bes_results_url=https://app.buildbuddy.io/invocation/' \
     'build --bes_backend=grpcs://remote.buildbuddy.io' \
+    'build --bes_upload_mode=fully_async' \
     'common --remote_cache=grpcs://remote.buildbuddy.io' \
     "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" \
     'common --remote_cache_compression' \
