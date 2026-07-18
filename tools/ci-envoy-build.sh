@@ -84,17 +84,19 @@ run_qa() {
 
 preserve_sanitizer_logs() {
   local sanitizer_name="$1"
+  local target
   local test_log
   local relative_path
+  shift
 
-  for test_log in \
-    bazel-testlogs/test/engine/engine_integration_test/test.log \
-    bazel-testlogs/test/integration/filter_ecds_integration_test/test.log \
-    bazel-testlogs/test/integration/filter_protocol_integration_test/test.log \
-    bazel-testlogs/test/unit/config_test/test.log \
-    bazel-testlogs/test/unit/filter_test/test.log; do
+  for target in "$@"; do
+    if [[ "${target}" != //*:* ]]; then
+      continue
+    fi
+    relative_path="${target#//}"
+    relative_path="${relative_path%%:*}/${relative_path#*:}/test.log"
+    test_log="bazel-testlogs/${relative_path}"
     if [[ -f "${test_log}" ]]; then
-      relative_path="${test_log#bazel-testlogs/}"
       mkdir -p "artifacts/sanitizers/${sanitizer_name}/$(dirname "${relative_path}")"
       cp "${test_log}" "artifacts/sanitizers/${sanitizer_name}/${relative_path}"
     fi
@@ -107,7 +109,7 @@ run_sanitizer_suite() {
   shift
 
   bazel test "$@" || status=$?
-  preserve_sanitizer_logs "${sanitizer_name}"
+  preserve_sanitizer_logs "${sanitizer_name}" "$@"
   return "${status}"
 }
 
