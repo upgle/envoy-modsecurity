@@ -10,6 +10,26 @@ Envoy binary, and HTTP integration tests. It is pre-release and is not yet suppo
 use. OWASP CRS regression coverage, sanitizer and concurrency testing, performance baselines, and
 release packaging are still required.
 
+## Quick start
+
+The fastest way to try the filter is the loopback-only OWASP CRS web lab. Install the
+[development prerequisites](docs/development.md#prerequisites), then run:
+
+```shell
+git clone --recurse-submodules https://github.com/upgle/envoy-modsecurity.git
+cd envoy-modsecurity
+make owasp-lab
+```
+
+Open `http://127.0.0.1:8080/` and select a clean or attack preset. A clean request should reach the
+local upstream with HTTP 200. Attack presets should be blocked with HTTP 403 and show the matched
+CRS rule IDs and available anomaly scores. The UI, Envoy listener, upstream, and admin endpoint all
+remain on loopback.
+
+If the repository was cloned without submodules, run `make bootstrap` first. See the
+[web lab guide](docs/development.md#local-owasp-crs-web-lab) for automatic port selection, retained
+logs, prebuilt binaries, and other runtime options.
+
 ## Packaging
 
 The initial distribution model is a custom Envoy binary with the filter statically linked. Envoy
@@ -131,16 +151,6 @@ make bootstrap
 make build
 ./bazel-bin/envoy-modsecurity -c /path/to/envoy.yaml
 ```
-
-To build the custom Envoy binary and explore the pinned OWASP CRS through a loopback-only web UI,
-run:
-
-```shell
-make owasp-lab
-```
-
-See the [local OWASP CRS web lab guide](docs/development.md#local-owasp-crs-web-lab) for runtime
-options and security boundaries.
 
 Envoy builds are resource intensive. Bazel reuses its output base across these targets; the pinned
 submodules do not need to be installed system-wide. CI and release qualification target Linux.
