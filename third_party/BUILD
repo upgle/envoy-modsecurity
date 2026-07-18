@@ -50,8 +50,7 @@ configure_make(
         ],
         "//conditions:default": [],
     }),
-    # rules_foreign_cc maps Bazel's Darwin static-link tool to Apple's libtool. Autoconf expects
-    # AR to implement the traditional ar interface, so let configure discover /usr/bin/ar.
+    # On Darwin, let configure discover /usr/bin/ar because Bazel's static-link tool is libtool.
     env = select({
         "@platforms//os:macos": {"AR": ""},
         "//conditions:default": {},
