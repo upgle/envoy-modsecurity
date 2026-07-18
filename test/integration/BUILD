@@ -1,6 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_test")
 
-licenses(["notice"])  # Apache 2
+licenses(["notice"])  # Apache-2.0 OR MIT
 
 py_test(
     name = "envoy_http_integration_test",

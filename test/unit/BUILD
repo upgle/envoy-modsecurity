@@ -1,6 +1,6 @@
 load("@envoy//bazel:envoy_build_system.bzl", "envoy_cc_test", "envoy_package")
 
-licenses(["notice"])  # Apache 2
+licenses(["notice"])  # Apache-2.0 OR MIT
 
 envoy_package()
 
