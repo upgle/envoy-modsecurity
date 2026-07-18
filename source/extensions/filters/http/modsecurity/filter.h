@@ -72,6 +72,7 @@ class Filter final : public Http::StreamFilter {
   uint64_t bodyLimit(Path path) const;
   Stats::Histogram& bodyDurationHistogram(Path path) const;
   void finishLogging();
+  void recordCrsThresholdStats(const Engine::LoggingResult& logging_result);
   void setSecurityOutcome(absl::string_view outcome, absl::string_view reason, Path path,
                           std::optional<uint32_t> status = std::nullopt);
   void publishSecurityEvent(const Engine::LoggingResult* logging_result,
@@ -95,6 +96,7 @@ class Filter final : public Http::StreamFilter {
   StreamKind stream_kind_{StreamKind::Regular};
   uint64_t charged_body_bytes_{0};
   uint64_t rule_generation_id_{0};
+  const Engine::RuleEngineMode rule_engine_mode_;
   std::string security_outcome_{"allowed"};
   std::string security_reason_;
   std::string security_phase_{"complete"};

@@ -117,7 +117,8 @@ class FakeTransaction final : public Engine::Transaction {
 
 class FakeGeneration final : public Engine::RuleGeneration {
  public:
-  explicit FakeGeneration(std::shared_ptr<TransactionState> state) : state_(std::move(state)) {}
+  FakeGeneration(std::shared_ptr<TransactionState> state, Engine::RuleEngineMode rule_engine_mode)
+      : state_(std::move(state)), rule_engine_mode_(rule_engine_mode) {}
 
   absl::StatusOr<std::unique_ptr<Engine::Transaction>> createTransaction() const override {
     return std::unique_ptr<Engine::Transaction>(new FakeTransaction(state_));
@@ -125,9 +126,11 @@ class FakeGeneration final : public Engine::RuleGeneration {
   uint64_t generationId() const override { return 7; }
   uint64_t loadedRuleCount() const override { return 1; }
   uint64_t sourceCount() const override { return 1; }
+  Engine::RuleEngineMode ruleEngineMode() const override { return rule_engine_mode_; }
 
  private:
   const std::shared_ptr<TransactionState> state_;
+  const Engine::RuleEngineMode rule_engine_mode_;
 };
 
 class FilterTest : public testing::Test {
@@ -136,9 +139,10 @@ class FilterTest : public testing::Test {
                   std::optional<uint64_t> response_limit = std::nullopt,
                   bool failure_mode_allow = false, uint64_t active_body_limit = 64,
                   std::string request_intervention_body = "request blocked by ModSecurity",
-                  std::string response_intervention_body = "response blocked by ModSecurity") {
+                  std::string response_intervention_body = "response blocked by ModSecurity",
+                  Engine::RuleEngineMode rule_engine_mode = Engine::RuleEngineMode::Enabled) {
     state_ = std::make_shared<TransactionState>();
-    generation_ = std::make_shared<FakeGeneration>(state_);
+    generation_ = std::make_shared<FakeGeneration>(state_, rule_engine_mode);
     stats_ = std::make_shared<FilterStats>(
         FilterStats::generate("test.modsecurity", *store_.rootScope()));
     body_memory_budget_ = std::make_shared<BodyMemoryBudget>(active_body_limit);
@@ -253,6 +257,7 @@ TEST_F(FilterTest, PublishesBoundedDetectionMetadataWithoutMatchedValues) {
   EXPECT_EQ(fields.at("reason").string_value(), "rule_match");
   EXPECT_EQ(fields.at("phase").string_value(), "complete");
   EXPECT_EQ(fields.at("rule_generation").string_value(), "7");
+  EXPECT_EQ(fields.at("rule_engine_mode").string_value(), "enabled");
   EXPECT_EQ(fields.at("blocking_inbound_anomaly_score").number_value(), 7);
   EXPECT_EQ(fields.at("detection_inbound_anomaly_score").number_value(), 12);
   EXPECT_EQ(fields.at("inbound_anomaly_score_threshold").number_value(), 5);
@@ -264,6 +269,37 @@ TEST_F(FilterTest, PublishesBoundedDetectionMetadataWithoutMatchedValues) {
   EXPECT_TRUE(fields.at("rules_truncated").bool_value());
   EXPECT_EQ(stats_->security_events_.value(), 1);
   EXPECT_EQ(stats_->security_event_rule_truncations_.value(), 1);
+  EXPECT_EQ(stats_->crs_inbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->detection_only_crs_inbound_anomaly_score_threshold_exceeded_.value(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, SeparatesDetectionOnlyCrsThresholdCounters) {
+  initialize(32, std::nullopt, false, 64, "request blocked by ModSecurity",
+             "response blocked by ModSecurity", Engine::RuleEngineMode::DetectionOnly);
+  state_->logging_result.blocking_inbound_anomaly_score = 5;
+  state_->logging_result.inbound_anomaly_score_threshold = 5;
+  state_->logging_result.blocking_outbound_anomaly_score = 9;
+  state_->logging_result.outbound_anomaly_score_threshold = 5;
+
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
+
+  EXPECT_EQ(metadata.fields().at("rule_engine_mode").string_value(), "detection_only");
+  EXPECT_EQ(stats_->crs_inbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->crs_outbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->detection_only_crs_inbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->detection_only_crs_outbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->request_interventions_.value(), 0);
+  EXPECT_EQ(stats_->response_interventions_.value(), 0);
+
+  filter_->onStreamComplete();
+  EXPECT_EQ(stats_->detection_only_crs_inbound_anomaly_score_threshold_exceeded_.value(), 1);
+  EXPECT_EQ(stats_->detection_only_crs_outbound_anomaly_score_threshold_exceeded_.value(), 1);
   filter_->onDestroy();
 }
 

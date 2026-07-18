@@ -22,6 +22,20 @@ namespace {
 
 void discardServerLog(void*, const void*) {}
 
+RuleEngineMode ruleEngineMode(const modsecurity::RulesSet& rules) {
+  switch (rules.m_secRuleEngine) {
+    case modsecurity::RulesSet::EnabledRuleEngine:
+      return RuleEngineMode::Enabled;
+    case modsecurity::RulesSet::DetectionOnlyRuleEngine:
+      return RuleEngineMode::DetectionOnly;
+    case modsecurity::RulesSet::DisabledRuleEngine:
+      return RuleEngineMode::Disabled;
+    case modsecurity::RulesSet::PropertyNotSetRuleEngine:
+      return RuleEngineMode::Unspecified;
+  }
+  return RuleEngineMode::Unspecified;
+}
+
 class RuntimeImpl;
 
 class RuleGenerationImpl final : public RuleGeneration,
@@ -29,17 +43,19 @@ class RuleGenerationImpl final : public RuleGeneration,
  public:
   RuleGenerationImpl(std::shared_ptr<RuntimeImpl> runtime,
                      std::shared_ptr<modsecurity::RulesSet> rules, uint64_t loaded_rule_count,
-                     uint64_t source_count, uint64_t generation_id)
+                     uint64_t source_count, uint64_t generation_id, RuleEngineMode rule_engine_mode)
       : runtime_(std::move(runtime)),
         rules_(std::move(rules)),
         loaded_rule_count_(loaded_rule_count),
         source_count_(source_count),
-        generation_id_(generation_id) {}
+        generation_id_(generation_id),
+        rule_engine_mode_(rule_engine_mode) {}
 
   absl::StatusOr<std::unique_ptr<Transaction>> createTransaction() const override;
   uint64_t generationId() const override { return generation_id_; }
   uint64_t loadedRuleCount() const override { return loaded_rule_count_; }
   uint64_t sourceCount() const override { return source_count_; }
+  RuleEngineMode ruleEngineMode() const override { return rule_engine_mode_; }
 
  private:
   // Runtime must outlive every transaction because libmodsecurity transactions retain its pointer.
@@ -48,6 +64,7 @@ class RuleGenerationImpl final : public RuleGeneration,
   const uint64_t loaded_rule_count_;
   const uint64_t source_count_;
   const uint64_t generation_id_;
+  const RuleEngineMode rule_engine_mode_;
 };
 
 class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<RuntimeImpl> {
@@ -81,9 +98,10 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
             loaded_rule_count += static_cast<uint64_t>(loaded);
           }
 
+          const RuleEngineMode mode = ruleEngineMode(*candidate);
           return std::shared_ptr<const RuleGeneration>(new RuleGenerationImpl(
               shared_from_this(), std::move(candidate), loaded_rule_count, sources.size(),
-              next_generation_id_.fetch_add(1, std::memory_order_relaxed)));
+              next_generation_id_.fetch_add(1, std::memory_order_relaxed), mode));
         });
   }
 

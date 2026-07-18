@@ -18,6 +18,22 @@ namespace HttpFilters {
 namespace ModSecurityFilter {
 namespace Engine {
 
+enum class RuleEngineMode { Enabled, DetectionOnly, Disabled, Unspecified };
+
+inline absl::string_view ruleEngineModeName(RuleEngineMode mode) {
+  switch (mode) {
+    case RuleEngineMode::Enabled:
+      return "enabled";
+    case RuleEngineMode::DetectionOnly:
+      return "detection_only";
+    case RuleEngineMode::Disabled:
+      return "disabled";
+    case RuleEngineMode::Unspecified:
+      return "unspecified";
+  }
+  return "unspecified";
+}
+
 // Envoy-independent representation of the ordered SecLang sources in the filter proto.
 struct RuleSource {
   enum class Kind { File, Inline };
@@ -92,6 +108,7 @@ class RuleGeneration {
   virtual uint64_t generationId() const = 0;
   virtual uint64_t loadedRuleCount() const = 0;
   virtual uint64_t sourceCount() const = 0;
+  virtual RuleEngineMode ruleEngineMode() const = 0;
 };
 
 // One Runtime is shared by the Envoy process. Every compile creates a fresh candidate generation.
