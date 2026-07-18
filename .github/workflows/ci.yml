@@ -40,5 +40,5 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
 
-      - name: Build and test the API, engine, and filter
+      - name: Build API and run engine, filter, and custom Envoy HTTP tests
         run: make check

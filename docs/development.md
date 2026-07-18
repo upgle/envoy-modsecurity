@@ -24,31 +24,37 @@ against `DEPENDENCIES.lock`.
 not repin it in this repository; update it only by moving to an Envoy release that carries a new
 external lockfile.
 
-## Delivery sequence
+## Implementation status
 
-1. Add the engine abstraction and libmodsecurity build target.
-2. Load and validate rules during filter-config construction.
-3. Implement request headers and request-body phases with bounded buffering.
-4. Implement interventions and fail-open/fail-closed behavior.
-5. Add optional response phases and per-route configuration.
-6. Add the custom Envoy binary and runtime container.
-7. Gate the first release on the complete test matrix below.
+The repository currently includes:
 
-The filter factory and custom Envoy binary are deliberately deferred until the engine adapter is
-available. Registering a pass-through placeholder under the production filter name could make a
-deployment appear protected when no rules are being evaluated.
+- the Envoy-independent engine abstraction and real libmodsecurity adapter;
+- ordered file and inline rule loading with safe-profile validation;
+- statically registered filter factory and custom Envoy binary;
+- request, optional response, intervention, and logging phases;
+- per-route overrides, per-stream limits, aggregate body-memory budgeting, and early release;
+- explicit handling for gRPC/Connect streaming, WebSocket/CONNECT tunnels, event streams, chunks,
+  oversized payloads, and trailers;
+- engine, filter, and custom-Envoy HTTP integration suites.
+
+The first supported release remains gated on the missing qualification and packaging work below.
 
 ## Required tests
 
-- Engine unit tests that do not link Envoy.
-- Filter unit tests for headers, data, trailers, callbacks, limits, and destruction.
-- Envoy integration tests for HTTP/1.1, HTTP/2, local replies, resets, and route overrides.
-- OWASP CRS regression tests with an explicit, reviewed exclusion file.
-- ASAN and UBSAN builds.
-- Concurrency tests for shared engine and rules lifetimes.
-- Benchmarks for large JSON, form, multipart, and response payloads.
+- Engine unit and exception-boundary tests that do not link Envoy. Implemented.
+- Filter tests for headers, data, trailers, callbacks, limits, streaming bypass, and destruction.
+  Implemented.
+- Custom Envoy HTTP integration tests for allowed, blocked, chunked, oversized, streaming, upgrade,
+  and trailer paths. Implemented; expand to an explicit HTTP/2 and reset matrix before release.
+- OWASP CRS regression tests with an explicit, reviewed exclusion file. Required before release.
+- ASAN, UBSAN, and leak-sanitizer builds on Linux. Required before release.
+- Concurrency and update-churn tests for runtime, rule generations, budgets, and transaction
+  lifetimes. Required before release.
+- Benchmarks and memory profiles for large JSON, form, multipart, streaming, and response payloads.
+  Required before release.
 
 ## Release artifacts
 
 The release pipeline will produce multi-architecture Linux images, checksums, an SBOM, signatures,
-and a compatibility manifest. A standalone filter library is not an initial release artifact.
+and a compatibility manifest. Image creation is intentionally deferred until the qualification
+gates pass. A standalone filter library is not an initial release artifact.
