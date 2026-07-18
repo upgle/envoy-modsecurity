@@ -1,12 +1,19 @@
 # Test suites
 
-The test tree will be split by failure domain:
+The test tree is split by failure domain:
 
-- `test/engine`: Envoy-independent ModSecurity and SecLang behavior.
-- `test/unit`: Envoy filter callback and state-machine behavior.
-- `test/integration`: real Envoy binary and protocol behavior.
-- `test/ftw`: OWASP CRS regression configuration and reviewed exclusions.
-- `test/benchmark`: latency, throughput, and per-stream memory limits.
+- `test/engine`: Envoy-independent rule validation, exception boundaries, and real ModSecurity/
+  SecLang behavior.
+- `test/unit`: Envoy filter callbacks, state transitions, limits, lifetime, protocol classification,
+  memory budgets, and failure semantics.
+- `test/integration`: custom Envoy binary and HTTP behavior, including chunking, oversized bodies,
+  streaming protocols, upgrades, and trailers.
+
+The following release suites are not present yet:
+
+- `test/ftw`: OWASP CRS regression configuration and reviewed exclusions;
+- `test/benchmark`: latency, throughput, allocation, and concurrent-stream memory limits;
+- Linux sanitizer and update/concurrency stress coverage.
 
 Security-relevant exclusions must include a reason, owner, affected rule ID, and expiration or
 review date.

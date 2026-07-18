@@ -4,10 +4,11 @@
 
 | Filter | Envoy | ModSecurity | OWASP CRS | Status |
 | --- | --- | --- | --- | --- |
-| unreleased | 1.39.0 | 3.0.16 | 4.28.0 | project scaffold |
+| unreleased | 1.39.0 | 3.0.16 | 4.28.0 | pre-release implementation |
 
-Only combinations listed here are supported. A dependency update is released as a new filter
-version even when no project-owned C++ source changes.
+The row records the pinned build combination; it is not a production support declaration while the
+filter version remains unreleased. A dependency update will require a new filter release even when
+no project-owned C++ source changes.
 
 ## Update policy
 

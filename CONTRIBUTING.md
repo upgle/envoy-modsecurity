@@ -8,7 +8,11 @@
 4. Keep dependency updates separate from filter behavior changes.
 
 Changes that affect request blocking, failure mode, buffering, or rule evaluation must include
-integration tests and an update to the relevant design document.
+integration tests and an update to the relevant contract document:
+
+- `docs/architecture.md` for ownership, lifecycle, ECDS, protocol, security, memory, concurrency,
+  or performance behavior;
+- `docs/configuration-api.md` for protobuf and operator-visible semantics.
 
 ## Commit messages
 

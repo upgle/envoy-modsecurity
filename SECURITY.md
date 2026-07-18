@@ -11,5 +11,7 @@ reporting for the repository when available, and include:
 - a reproducer with sensitive data removed;
 - the expected and observed blocking behavior.
 
-Dependency support follows the compatibility table in `docs/compatibility.md`. Unsupported
-versions may not receive fixes.
+The project has no supported production release yet. The pinned combination and qualification
+status are tracked in [docs/compatibility.md](docs/compatibility.md); security reports against the
+pre-release implementation are still welcome. After the first release, only combinations
+explicitly marked supported there are eligible for fixes.
