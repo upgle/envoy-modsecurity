@@ -59,15 +59,32 @@ class RouteConfig final : public Router::RouteSpecificFilterConfig {
   const std::optional<uint64_t> response_body_max_bytes_;
 };
 
+// Couples one accepted rule generation to its operational lifetime metric. FilterConfig keeps the
+// handle alive while it can create streams, and each active Filter pins the same handle until its
+// native transaction is released.
+class RuleGenerationHandle {
+ public:
+  RuleGenerationHandle(std::shared_ptr<const Engine::RuleGeneration> generation,
+                       FilterStatsSharedPtr stats);
+  ~RuleGenerationHandle();
+
+  absl::StatusOr<std::unique_ptr<Engine::Transaction>> createTransaction() const;
+
+ private:
+  const std::shared_ptr<const Engine::RuleGeneration> generation_;
+  const FilterStatsSharedPtr stats_;
+};
+
+using RuleGenerationHandleSharedPtr = std::shared_ptr<const RuleGenerationHandle>;
+
 class FilterConfig {
  public:
   FilterConfig(EffectiveSettings settings, std::shared_ptr<const Engine::RuleGeneration> generation,
                FilterStatsSharedPtr stats, BodyMemoryBudgetSharedPtr body_memory_budget,
                TimeSource& time_source);
-  ~FilterConfig();
 
   const EffectiveSettings& settings() const { return settings_; }
-  const std::shared_ptr<const Engine::RuleGeneration>& generation() const { return generation_; }
+  const RuleGenerationHandleSharedPtr& generation() const { return generation_; }
   FilterStats& stats() const { return *stats_; }
   const FilterStatsSharedPtr& statsShared() const { return stats_; }
   const BodyMemoryBudgetSharedPtr& bodyMemoryBudget() const { return body_memory_budget_; }
@@ -75,8 +92,8 @@ class FilterConfig {
 
  private:
   const EffectiveSettings settings_;
-  const std::shared_ptr<const Engine::RuleGeneration> generation_;
   const FilterStatsSharedPtr stats_;
+  const RuleGenerationHandleSharedPtr generation_;
   const BodyMemoryBudgetSharedPtr body_memory_budget_;
   TimeSource& time_source_;
 };

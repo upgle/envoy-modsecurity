@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "modsecurity/intervention.h"
 #include "modsecurity/transaction.h"
@@ -17,7 +18,7 @@ namespace Engine {
 namespace {
 
 template <class Callback>
-absl::Status call(absl::string_view operation, Callback&& callback) {
+absl::Status callNativeOperation(absl::string_view operation, Callback&& callback) {
   return catchLibraryExceptions(operation, [&]() -> absl::Status {
     if (callback() == 1) {
       return absl::OkStatus();
@@ -50,7 +51,7 @@ absl::Status TransactionImpl::processConnection(absl::string_view client_address
                                                 uint32_t client_port,
                                                 absl::string_view server_address,
                                                 uint32_t server_port) {
-  return call("processConnection", [&] {
+  return callNativeOperation("processConnection", [&] {
     const std::string client(client_address);
     const std::string server(server_address);
     return transaction_->processConnection(client.c_str(), static_cast<int>(client_port),
@@ -59,18 +60,22 @@ absl::Status TransactionImpl::processConnection(absl::string_view client_address
 }
 
 absl::Status TransactionImpl::processUri(absl::string_view uri, absl::string_view method,
-                                         absl::string_view http_version) {
-  return call("processURI", [&] {
+                                         absl::string_view http_protocol) {
+  return callNativeOperation("processURI", [&] {
     const std::string uri_string(uri);
     const std::string method_string(method);
-    const std::string version_string(http_version);
+    constexpr absl::string_view protocol_prefix = "HTTP/";
+    if (absl::StartsWith(http_protocol, protocol_prefix)) {
+      http_protocol.remove_prefix(protocol_prefix.size());
+    }
+    const std::string version_string(http_protocol);
     return transaction_->processURI(uri_string.c_str(), method_string.c_str(),
                                     version_string.c_str());
   });
 }
 
 absl::Status TransactionImpl::addRequestHeader(absl::string_view name, absl::string_view value) {
-  return call("addRequestHeader", [&] {
+  return callNativeOperation("addRequestHeader", [&] {
     return transaction_->addRequestHeader(
         reinterpret_cast<const unsigned char*>(name.data()), name.size(),
         reinterpret_cast<const unsigned char*>(value.data()), value.size());
@@ -78,22 +83,24 @@ absl::Status TransactionImpl::addRequestHeader(absl::string_view name, absl::str
 }
 
 absl::Status TransactionImpl::processRequestHeaders() {
-  return call("processRequestHeaders", [&] { return transaction_->processRequestHeaders(); });
+  return callNativeOperation("processRequestHeaders",
+                             [&] { return transaction_->processRequestHeaders(); });
 }
 
 absl::Status TransactionImpl::appendRequestBody(absl::string_view data) {
-  return call("appendRequestBody", [&] {
+  return callNativeOperation("appendRequestBody", [&] {
     return transaction_->appendRequestBody(reinterpret_cast<const unsigned char*>(data.data()),
                                            data.size());
   });
 }
 
 absl::Status TransactionImpl::processRequestBody() {
-  return call("processRequestBody", [&] { return transaction_->processRequestBody(); });
+  return callNativeOperation("processRequestBody",
+                             [&] { return transaction_->processRequestBody(); });
 }
 
 absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::string_view value) {
-  return call("addResponseHeader", [&] {
+  return callNativeOperation("addResponseHeader", [&] {
     return transaction_->addResponseHeader(
         reinterpret_cast<const unsigned char*>(name.data()), name.size(),
         reinterpret_cast<const unsigned char*>(value.data()), value.size());
@@ -101,26 +108,27 @@ absl::Status TransactionImpl::addResponseHeader(absl::string_view name, absl::st
 }
 
 absl::Status TransactionImpl::processResponseHeaders(uint32_t status,
-                                                     absl::string_view http_version) {
-  return call("processResponseHeaders", [&] {
-    const std::string version(http_version);
-    return transaction_->processResponseHeaders(static_cast<int>(status), version);
+                                                     absl::string_view http_protocol) {
+  return callNativeOperation("processResponseHeaders", [&] {
+    const std::string protocol(http_protocol);
+    return transaction_->processResponseHeaders(static_cast<int>(status), protocol);
   });
 }
 
 absl::Status TransactionImpl::appendResponseBody(absl::string_view data) {
-  return call("appendResponseBody", [&] {
+  return callNativeOperation("appendResponseBody", [&] {
     return transaction_->appendResponseBody(reinterpret_cast<const unsigned char*>(data.data()),
                                             data.size());
   });
 }
 
 absl::Status TransactionImpl::processResponseBody() {
-  return call("processResponseBody", [&] { return transaction_->processResponseBody(); });
+  return callNativeOperation("processResponseBody",
+                             [&] { return transaction_->processResponseBody(); });
 }
 
 absl::Status TransactionImpl::processLogging() {
-  return call("processLogging", [&] { return transaction_->processLogging(); });
+  return callNativeOperation("processLogging", [&] { return transaction_->processLogging(); });
 }
 
 absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {

@@ -53,19 +53,28 @@ EffectiveSettings RouteConfig::apply(const EffectiveSettings& base) const {
   return result;
 }
 
-FilterConfig::FilterConfig(EffectiveSettings settings,
-                           std::shared_ptr<const Engine::RuleGeneration> generation,
-                           FilterStatsSharedPtr stats,
-                           BodyMemoryBudgetSharedPtr body_memory_budget, TimeSource& time_source)
-    : settings_(settings),
-      generation_(std::move(generation)),
-      stats_(std::move(stats)),
-      body_memory_budget_(std::move(body_memory_budget)),
-      time_source_(time_source) {
+RuleGenerationHandle::RuleGenerationHandle(std::shared_ptr<const Engine::RuleGeneration> generation,
+                                           FilterStatsSharedPtr stats)
+    : generation_(std::move(generation)), stats_(std::move(stats)) {
   stats_->active_rule_generations_.inc();
 }
 
-FilterConfig::~FilterConfig() { stats_->active_rule_generations_.dec(); }
+RuleGenerationHandle::~RuleGenerationHandle() { stats_->active_rule_generations_.dec(); }
+
+absl::StatusOr<std::unique_ptr<Engine::Transaction>> RuleGenerationHandle::createTransaction()
+    const {
+  return generation_->createTransaction();
+}
+
+FilterConfig::FilterConfig(EffectiveSettings settings,
+                           std::shared_ptr<const Engine::RuleGeneration> generation,
+                           FilterStatsSharedPtr stats, BodyMemoryBudgetSharedPtr body_memory_budget,
+                           TimeSource& time_source)
+    : settings_(settings),
+      stats_(std::move(stats)),
+      generation_(std::make_shared<RuleGenerationHandle>(std::move(generation), stats_)),
+      body_memory_budget_(std::move(body_memory_budget)),
+      time_source_(time_source) {}
 
 }  // namespace ModSecurityFilter
 }  // namespace HttpFilters

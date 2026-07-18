@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "absl/status/status.h"
-
 #include "gtest/gtest.h"
 
 namespace Envoy {
@@ -47,6 +46,16 @@ TEST(RuleValidationTest, IgnoresCommentedUnsafeToken) {
   EXPECT_TRUE(validateRuleSources(sources).ok());
 }
 
+TEST(RuleValidationTest, RejectsUnsafeTokenAfterQuotedHash) {
+  const std::vector<RuleSource> sources{RuleSource::inlineRules(
+      "quoted-hash.conf",
+      R"EOF(SecRule REQUEST_URI "@contains #" "id:1000004,phase:1,pass,exec:/tmp/hook")EOF")};
+
+  const absl::Status status = validateRuleSources(sources);
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(status.message().find("exec:"), std::string::npos);
+}
+
 TEST(RuleValidationTest, RequiresAbsoluteFilePath) {
   const absl::Status status = validateRuleSources({RuleSource::file("rules.conf")});
 
@@ -63,9 +72,9 @@ TEST(RuleValidationTest, RejectsExcessiveAggregateInlineContent) {
   EXPECT_NE(status.message().find("total inline rule content"), std::string::npos);
 }
 
-} // namespace
-} // namespace Engine
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace
+}  // namespace Engine
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy

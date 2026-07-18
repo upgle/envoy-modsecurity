@@ -5,6 +5,18 @@ licenses(["notice"])  # Apache-2.0 OR MIT
 envoy_package()
 
 envoy_cc_test(
+    name = "config_test",
+    repository = "@envoy",
+    srcs = ["config_test.cc"],
+    deps = [
+        "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_cc_proto",
+        "//source/engine:engine_interface",
+        "//source/extensions/filters/http/modsecurity:config_util_lib",
+        "@abseil-cpp//absl/status",
+    ],
+)
+
+envoy_cc_test(
     name = "filter_test",
     repository = "@envoy",
     srcs = ["filter_test.cc"],

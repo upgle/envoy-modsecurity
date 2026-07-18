@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "absl/status/status.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 
@@ -17,28 +18,45 @@ namespace {
 // The check is conservative: a false positive must be resolved by moving the trusted rule into the
 // read-only image rather than weakening the data-plane policy.
 constexpr absl::string_view UnsafeInlineTokens[] = {
-    "include",          "secremoterules", "secrulescript", "secdebuglog",
-    "secauditlog",      "secuploaddir",   "secuploadkeepfiles",
-    "sectmpdir",        "secdatadir",     "@inspectfile",  "exec:",
-    "initcol:",         "setuid",         "setsid",        "setrsc",
-    "setvar:global.",   "setvar:ip.",      "setvar:resource.",
-    "setvar:session.",  "setvar:user.",    "secxmlexternalentity on",
+    "include",
+    "secremoterules",
+    "secrulescript",
+    "secdebuglog",
+    "secauditlog",
+    "secuploaddir",
+    "secuploadkeepfiles",
+    "sectmpdir",
+    "secdatadir",
+    "@inspectfile",
+    "exec:",
+    "initcol:",
+    "setuid",
+    "setsid",
+    "setrsc",
+    "setvar:global.",
+    "setvar:ip.",
+    "setvar:resource.",
+    "setvar:session.",
+    "setvar:user.",
+    "secxmlexternalentity on",
 };
 
 absl::Status validateInlineSource(const RuleSource& source) {
   absl::string_view remaining = source.contents;
   while (!remaining.empty()) {
     const size_t newline = remaining.find('\n');
-    absl::string_view line = remaining.substr(0, newline);
-    const size_t comment = line.find('#');
-    if (comment != absl::string_view::npos) {
-      line.remove_suffix(line.size() - comment);
-    }
-    for (const absl::string_view token : UnsafeInlineTokens) {
-      if (absl::StrContainsIgnoreCase(line, token)) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("inline rule source '", source.name,
-                         "' uses a capability disabled by the initial safe profile: ", token));
+    const absl::string_view line = remaining.substr(0, newline);
+    // Treat only complete lines as comments. A '#' inside a quoted SecLang operator or action is
+    // data, and truncating there could hide a disabled capability later on the same line.
+    const absl::string_view trimmed_line = absl::StripAsciiWhitespace(line);
+    const bool full_line_comment = absl::StartsWith(trimmed_line, "#");
+    if (!full_line_comment) {
+      for (const absl::string_view token : UnsafeInlineTokens) {
+        if (absl::StrContainsIgnoreCase(line, token)) {
+          return absl::InvalidArgumentError(
+              absl::StrCat("inline rule source '", source.name,
+                           "' uses a capability disabled by the initial safe profile: ", token));
+        }
       }
     }
     if (newline == absl::string_view::npos) {
@@ -67,7 +85,17 @@ absl::Status validateFileSource(const RuleSource& source) {
   return absl::OkStatus();
 }
 
-} // namespace
+}  // namespace
+
+absl::Status accumulateInlineRuleBytes(uint64_t source_bytes, uint64_t& total_bytes) {
+  if (total_bytes > MaxTotalInlineRuleBytes ||
+      source_bytes > MaxTotalInlineRuleBytes - total_bytes) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("total inline rule content exceeds ", MaxTotalInlineRuleBytes, " bytes"));
+  }
+  total_bytes += source_bytes;
+  return absl::OkStatus();
+}
 
 absl::Status validateRuleSources(const std::vector<RuleSource>& sources) {
   if (sources.empty()) {
@@ -90,11 +118,11 @@ absl::Status validateRuleSources(const std::vector<RuleSource>& sources) {
       return absl::InvalidArgumentError(
           absl::StrCat("inline rule source '", source.name, "' must not be empty"));
     }
-    if (source.contents.size() > MaxTotalInlineRuleBytes - total_inline_rule_bytes) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("total inline rule content exceeds ", MaxTotalInlineRuleBytes, " bytes"));
+    const absl::Status byte_limit_status =
+        accumulateInlineRuleBytes(source.contents.size(), total_inline_rule_bytes);
+    if (!byte_limit_status.ok()) {
+      return byte_limit_status;
     }
-    total_inline_rule_bytes += source.contents.size();
     const absl::Status status = validateInlineSource(source);
     if (!status.ok()) {
       return status;
@@ -103,8 +131,8 @@ absl::Status validateRuleSources(const std::vector<RuleSource>& sources) {
   return absl::OkStatus();
 }
 
-} // namespace Engine
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace Engine
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy

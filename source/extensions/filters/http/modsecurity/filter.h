@@ -38,7 +38,9 @@ class Filter final : public Http::StreamFilter {
   void onDestroy() override;
 
  private:
-  enum class Path { Request, Response };
+  enum class MessageSide { Request, Response };
+  enum class InspectionOutcome { Continue, Bypass, LocalReply };
+  enum class StreamDisposition { Inspecting, Bypassed, LocalReply };
   enum class StreamKind { Regular, Grpc, ConnectStreaming, Tunnel };
   struct BodyState {
     uint64_t bytes{0};
@@ -46,33 +48,35 @@ class Filter final : public Http::StreamFilter {
   };
 
   void initializeSettings();
-  bool createTransaction();
-  bool evaluate(const absl::Status& status, Path path, bool check_intervention = true);
-  bool checkIntervention(Path path);
-  void sendIntervention(const Engine::Intervention& intervention, Path path);
-  void sendRuntimeError(Path path, absl::string_view details);
-  bool addHeaders(const Http::HeaderMap& headers, Path path, absl::string_view request_host = {});
-  bool inspectionEnabled(Path path) const;
-  Http::FilterHeadersStatus stoppedOrContinue() const;
-  Http::FilterDataStatus processData(Buffer::Instance& data, bool end_stream, Path path);
-  Http::FilterTrailersStatus processTrailers(Path path);
-  bool appendBody(Buffer::Instance& data, Path path);
-  bool finishBody(Path path);
-  void bypassBodyForStreaming(Path path);
+  InspectionOutcome createTransaction();
+  InspectionOutcome handleEngineResult(const absl::Status& status, MessageSide side,
+                                       bool check_intervention = true);
+  InspectionOutcome checkIntervention(MessageSide side);
+  void sendIntervention(const Engine::Intervention& intervention, MessageSide side);
+  void sendRuntimeError(MessageSide side, absl::string_view details);
+  InspectionOutcome addHeaders(const Http::HeaderMap& headers, MessageSide side,
+                               absl::string_view request_host = {});
+  bool bodyInspectionPending(MessageSide side) const;
+  static Http::FilterHeadersStatus headerStatusForOutcome(InspectionOutcome outcome);
+  Http::FilterDataStatus processData(Buffer::Instance& data, bool end_stream, MessageSide side);
+  Http::FilterTrailersStatus processTrailers(MessageSide side);
+  InspectionOutcome appendBody(Buffer::Instance& data, MessageSide side);
+  InspectionOutcome completeBodyInspection(MessageSide side);
+  void skipBodyInspectionForStreaming(MessageSide side);
   void classifyRequest(const Http::RequestHeaderMap& headers);
   bool shouldBypassResponseBody(const Http::ResponseHeaderMap& headers) const;
-  bool declaredBodyExceedsLimit(const Http::RequestOrResponseHeaderMap& headers, Path path) const;
-  void sendBodyOverflow(Path path);
-  void sendBodyMemoryBudgetExceeded(Path path);
-  void ensureBufferLimit(Path path);
-  BodyState& bodyState(Path path);
-  uint64_t bodyLimit(Path path) const;
-  Stats::Histogram& bodyDurationHistogram(Path path) const;
+  bool declaredBodyExceedsLimit(const Http::RequestOrResponseHeaderMap& headers,
+                                MessageSide side) const;
+  void sendBodyOverflow(MessageSide side);
+  void sendBodyMemoryBudgetExceeded(MessageSide side);
+  void ensureBufferLimit(MessageSide side);
+  BodyState& bodyState(MessageSide side);
+  uint64_t bodyLimit(MessageSide side) const;
+  Stats::Histogram& bodyDurationHistogram(MessageSide side) const;
   void finishLogging();
   bool reserveBodyBytes(uint64_t bytes);
   void releaseResources();
-  std::string httpVersion() const;
-  std::string modSecurityRequestVersion() const;
+  std::string httpProtocol() const;
 
   FilterConfigSharedPtr config_;
   EffectiveSettings settings_;
@@ -81,6 +85,7 @@ class Filter final : public Http::StreamFilter {
   BodyMemoryBudgetSharedPtr body_memory_budget_;
   Http::StreamDecoderFilterCallbacks* decoder_callbacks_{nullptr};
   Http::StreamEncoderFilterCallbacks* encoder_callbacks_{nullptr};
+  RuleGenerationHandleSharedPtr generation_;
   std::unique_ptr<Engine::Transaction> transaction_;
   Buffer::BufferMemoryAccountSharedPtr memory_account_;
   BodyState request_body_;
@@ -90,8 +95,7 @@ class Filter final : public Http::StreamFilter {
   bool connect_tunnel_{false};
   bool settings_initialized_{false};
   bool disabled_{false};
-  bool engine_bypassed_{false};
-  bool local_reply_{false};
+  StreamDisposition disposition_{StreamDisposition::Inspecting};
   bool response_headers_finished_{false};
   bool logging_finished_{false};
   bool resources_released_{false};

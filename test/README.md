@@ -4,8 +4,8 @@ The test tree is split by scope:
 
 - `test/engine`: rule validation, exception boundaries, and behavior against libmodsecurity and
   SecLang rules without running the HTTP filter.
-- `test/unit`: Envoy filter callbacks, state transitions, limits, lifetime, protocol classification,
-  memory budgets, and failure semantics.
+- `test/unit`: configuration conversion, Envoy filter callbacks, state transitions, limits,
+  lifetime, protocol classification, memory budgets, and failure semantics.
 - `test/integration`: black-box HTTP/1.1 tests against the custom Envoy binary, including chunked
   and oversized bodies, gRPC, SSE, WebSocket upgrades, trailers, and a pinned OWASP CRS paranoia
   level 1 smoke suite.

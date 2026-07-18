@@ -25,9 +25,9 @@ namespace {
 
 struct TransactionState {
   std::string request_body;
-  std::string request_http_version;
+  std::string request_http_protocol;
   std::string response_body;
-  std::string response_http_version;
+  std::string response_http_protocol;
   absl::Status request_headers_status{absl::OkStatus()};
   absl::Status request_body_status{absl::OkStatus()};
   absl::Status response_body_status{absl::OkStatus()};
@@ -52,8 +52,8 @@ class FakeTransaction final : public Engine::Transaction {
     return absl::OkStatus();
   }
   absl::Status processUri(absl::string_view, absl::string_view,
-                          absl::string_view http_version) override {
-    state_->request_http_version = http_version;
+                          absl::string_view http_protocol) override {
+    state_->request_http_protocol = http_protocol;
     return absl::OkStatus();
   }
   absl::Status addRequestHeader(absl::string_view, absl::string_view) override {
@@ -74,8 +74,8 @@ class FakeTransaction final : public Engine::Transaction {
   absl::Status addResponseHeader(absl::string_view, absl::string_view) override {
     return absl::OkStatus();
   }
-  absl::Status processResponseHeaders(uint32_t, absl::string_view http_version) override {
-    state_->response_http_version = http_version;
+  absl::Status processResponseHeaders(uint32_t, absl::string_view http_protocol) override {
+    state_->response_http_protocol = http_protocol;
     state_->response_headers_calls++;
     return absl::OkStatus();
   }
@@ -163,7 +163,7 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   EXPECT_EQ(filter_->decodeData(second, true), Http::FilterDataStatus::Continue);
 
   EXPECT_EQ(state_->request_body, "hello world");
-  EXPECT_EQ(state_->request_http_version, "1.1");
+  EXPECT_EQ(state_->request_http_protocol, "HTTP/1.1");
   EXPECT_EQ(state_->request_headers_calls, 1);
   EXPECT_EQ(state_->request_body_calls, 1);
   EXPECT_EQ(state_->logging_calls, 1);
@@ -176,6 +176,35 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   filter_->onStreamComplete();
   filter_->onDestroy();
   EXPECT_EQ(state_->logging_calls, 1);
+}
+
+TEST_F(FilterTest, ActiveRuleGenerationTracksInFlightTransactionAfterConfigRelease) {
+  initialize();
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 1);
+
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  config_.reset();
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 1);
+
+  Buffer::OwnedImpl body("complete");
+  EXPECT_EQ(filter_->decodeData(body, true), Http::FilterDataStatus::Continue);
+  EXPECT_EQ(stats_->active_rule_generations_.value(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, PassesCanonicalHttp2ProtocolToEngineInterface) {
+  initialize(32, 32);
+  decoder_callbacks_.stream_info_.protocol_ = Http::Protocol::Http2;
+
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(state_->request_http_protocol, "HTTP/2");
+
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, true), Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(state_->response_http_protocol, "HTTP/2");
+  filter_->onDestroy();
 }
 
 TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
@@ -217,8 +246,7 @@ TEST_F(FilterTest, RequestTrailersFinishBufferedBody) {
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
 
   Buffer::OwnedImpl body("chunk before trailers");
-  EXPECT_EQ(filter_->decodeData(body, false),
-            Http::FilterDataStatus::StopIterationAndBuffer);
+  EXPECT_EQ(filter_->decodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
   Http::TestRequestTrailerMapImpl trailers{{"x-checksum", "complete"}};
   EXPECT_EQ(filter_->decodeTrailers(trailers), Http::FilterTrailersStatus::Continue);
 
@@ -260,8 +288,7 @@ TEST_F(FilterTest, GrpcResponseUsesHeaderOnlyInspectionAndReleasesTransaction) {
 
   Http::TestResponseHeaderMapImpl response_headers{{":status", "200"},
                                                    {"content-type", "application/grpc"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl message("binary grpc response");
   EXPECT_EQ(filter_->encodeData(message, false), Http::FilterDataStatus::Continue);
 
@@ -301,11 +328,9 @@ TEST_F(FilterTest, WebSocketInspectsHandshakeWithoutBufferingTunnelData) {
                                                  {"upgrade", "websocket"}};
   EXPECT_EQ(filter_->decodeHeaders(request_headers, false), Http::FilterHeadersStatus::Continue);
 
-  Http::TestResponseHeaderMapImpl response_headers{{":status", "101"},
-                                                   {"connection", "Upgrade"},
-                                                   {"upgrade", "websocket"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  Http::TestResponseHeaderMapImpl response_headers{
+      {":status", "101"}, {"connection", "Upgrade"}, {"upgrade", "websocket"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl frame("websocket frame");
   EXPECT_EQ(filter_->decodeData(frame, false), Http::FilterDataStatus::Continue);
   EXPECT_EQ(filter_->encodeData(frame, false), Http::FilterDataStatus::Continue);
@@ -343,15 +368,13 @@ TEST_F(FilterTest, RejectedWebSocketUpgradeStillInspectsFiniteResponseBody) {
 
 TEST_F(FilterTest, ServerSentEventsResponseDoesNotWaitForEndStream) {
   initialize(32, 32);
-  Http::TestRequestHeaderMapImpl request_headers{{":method", "GET"},
-                                                 {":path", "/events"},
-                                                 {":authority", "example.test"}};
+  Http::TestRequestHeaderMapImpl request_headers{
+      {":method", "GET"}, {":path", "/events"}, {":authority", "example.test"}};
   EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
 
   Http::TestResponseHeaderMapImpl response_headers{
       {":status", "200"}, {"content-type", "text/event-stream; charset=utf-8"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl event("data: ready\n\n");
   EXPECT_EQ(filter_->encodeData(event, false), Http::FilterDataStatus::Continue);
 
@@ -373,7 +396,7 @@ TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
   Buffer::OwnedImpl response_body("safe response");
   EXPECT_EQ(filter_->encodeData(response_body, true), Http::FilterDataStatus::Continue);
   EXPECT_EQ(state_->response_body, "safe response");
-  EXPECT_EQ(state_->response_http_version, "HTTP/1.1");
+  EXPECT_EQ(state_->response_http_protocol, "HTTP/1.1");
   EXPECT_EQ(state_->response_headers_calls, 1);
   EXPECT_EQ(state_->response_body_calls, 1);
   EXPECT_EQ(state_->destroyed_transactions, 1);
@@ -469,8 +492,7 @@ TEST_F(FilterTest, RejectsDeclaredOversizedResponseBeforeBodyArrives) {
   initialize(32, 5);
   auto request_headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
-  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"},
-                                                   {"content-length", "6"}};
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}, {"content-length", "6"}};
 
   EXPECT_CALL(encoder_callbacks_, sendLocalReply(Http::Code::InternalServerError, _, _, _,
                                                  "modsecurity_response_body_overflow"));
@@ -491,8 +513,7 @@ TEST_F(FilterTest, ResponseTrailersFinishBufferedBody) {
             Http::FilterHeadersStatus::StopIteration);
 
   Buffer::OwnedImpl body("chunk before trailers");
-  EXPECT_EQ(filter_->encodeData(body, false),
-            Http::FilterDataStatus::StopIterationAndBuffer);
+  EXPECT_EQ(filter_->encodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
   Http::TestResponseTrailerMapImpl trailers{{"x-checksum", "complete"}};
   EXPECT_EQ(filter_->encodeTrailers(trailers), Http::FilterTrailersStatus::Continue);
 

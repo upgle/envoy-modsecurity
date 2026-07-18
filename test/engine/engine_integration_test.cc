@@ -30,7 +30,7 @@ absl::Status processRequestHeaders(Transaction& transaction, const std::string& 
   if (!status.ok()) {
     return status;
   }
-  status = transaction.processUri(uri, method, "1.1");
+  status = transaction.processUri(uri, method, "HTTP/1.1");
   if (!status.ok()) {
     return status;
   }
@@ -90,7 +90,7 @@ TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {
   std::unique_ptr<Transaction> transaction = createTransaction(*generation);
   ASSERT_NE(transaction, nullptr);
   ASSERT_TRUE(transaction->processConnection("192.0.2.10", 12345, "192.0.2.20", 8080).ok());
-  ASSERT_TRUE(transaction->processUri("/submit", "POST", "1.1").ok());
+  ASSERT_TRUE(transaction->processUri("/submit", "POST", "HTTP/1.1").ok());
   ASSERT_TRUE(transaction->addRequestHeader("host", "example.test").ok());
   ASSERT_TRUE(
       transaction->addRequestHeader("content-type", "application/x-www-form-urlencoded").ok());
@@ -126,6 +126,25 @@ TEST(EngineIntegrationTest, RejectsInvalidSecLang) {
   ASSERT_FALSE(generation.ok());
   EXPECT_EQ(generation.status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_NE(generation.status().message().find("invalid.conf"), std::string::npos);
+}
+
+TEST(EngineIntegrationTest, NormalizesCanonicalRequestProtocolAtNativeBoundary) {
+  constexpr char kProtocolRules[] = R"(
+SecRuleEngine On
+SecRule REQUEST_PROTOCOL "@streq HTTP/2" "id:1000004,phase:1,deny,status:419,nolog"
+)";
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("request-protocol.conf", kProtocolRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(transaction->processConnection("192.0.2.10", 12345, "192.0.2.20", 8080).ok());
+  ASSERT_TRUE(transaction->processUri("/protocol", "GET", "HTTP/2").ok());
+  ASSERT_TRUE(transaction->addRequestHeader("host", "example.test").ok());
+  ASSERT_TRUE(transaction->processRequestHeaders().ok());
+  expectIntervention(*transaction, 419);
 }
 
 TEST(EngineIntegrationTest, TransactionKeepsItsCompiledGenerationAlive) {

@@ -32,8 +32,10 @@ filter factory -- compile --> immutable RuleGeneration
 - Each enabled stream creates at most one native transaction. The transaction pins its generation,
   so an in-flight stream cannot switch rules during an ECDS update.
 - After transaction creation, the stream filter releases its `FilterConfig` reference. It keeps
-  copies or shared references to the effective settings, statistics, and body-memory budget; the
-  transaction keeps the runtime and rule generation alive.
+  copies or shared references to the effective settings, statistics, body-memory budget, and rule
+  generation lifetime handle; the native transaction keeps the runtime and compiled rules alive.
+  `active_rule_generations` therefore remains charged while either the accepted configuration or an
+  in-flight transaction still references that generation.
 - Request and response callbacks for a stream remain confined to its Envoy worker. No filter
   callback is invoked concurrently for that stream.
 

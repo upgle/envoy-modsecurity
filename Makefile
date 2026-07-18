@@ -18,6 +18,7 @@ test: verify-deps
 		//test/engine:exception_test \
 		//test/engine:rules_test \
 		//test/engine:engine_integration_test \
+		//test/unit:config_test \
 		//test/unit:filter_test
 
 integration-test: verify-deps
@@ -33,4 +34,5 @@ check: verify-deps
 		//test/engine:engine_integration_test \
 		//test/integration:envoy_http_integration_test \
 		//test/integration:owasp_crs_smoke_test \
+		//test/unit:config_test \
 		//test/unit:filter_test

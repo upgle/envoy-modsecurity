@@ -5,17 +5,18 @@ import http.client
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
-import threading
-import time
 import unittest
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+
+from test.integration.envoy_test_harness import (
+    REQUEST_TIMEOUT_SECONDS,
+    EnvoyProcess,
+    RecordingUpstream,
+)
 
 
-STARTUP_TIMEOUT_SECONDS = 30
-REQUEST_TIMEOUT_SECONDS = 5
 EXPECTED_CRS_RULE_FILE_COUNT = 27
 
 
@@ -40,23 +41,6 @@ def seclang_path(path):
     if any(character.isspace() for character in value) or "#" in value:
         raise ValueError(f"path cannot be represented safely in SecLang: {value!r}")
     return value
-
-
-class RecordingUpstream(ThreadingHTTPServer):
-    daemon_threads = True
-
-    def __init__(self):
-        super().__init__(("127.0.0.1", 0), UpstreamHandler)
-        self._requests = []
-        self._requests_lock = threading.Lock()
-
-    def record(self, method, path, body):
-        with self._requests_lock:
-            self._requests.append((method, path, body))
-
-    def request_count(self):
-        with self._requests_lock:
-            return len(self._requests)
 
 
 class UpstreamHandler(BaseHTTPRequestHandler):
@@ -91,11 +75,8 @@ class OwaspCrsSmokeTest(unittest.TestCase):
         )
         try:
             cls._workdir = Path(cls._tempdir.name)
-            cls._upstream = RecordingUpstream()
-            cls._upstream_thread = threading.Thread(
-                target=cls._upstream.serve_forever, daemon=True
-            )
-            cls._upstream_thread.start()
+            cls._upstream = RecordingUpstream(UpstreamHandler)
+            cls._upstream.start()
 
             cls._crs_config_path = cls._write_crs_config()
             bootstrap_template = Path(ARGS.config_template).read_text(encoding="utf-8")
@@ -104,42 +85,15 @@ class OwaspCrsSmokeTest(unittest.TestCase):
             ).replace("__CRS_ROOT_CONFIG__", json.dumps(str(cls._crs_config_path)))
             cls._config_path = cls._workdir / "bootstrap.yaml"
             cls._config_path.write_text(bootstrap, encoding="utf-8")
-            cls._admin_address_path = cls._workdir / "admin-address.txt"
-            cls._envoy_log_path = cls._workdir / "envoy.log"
-            cls._envoy_log = cls._envoy_log_path.open("w", encoding="utf-8")
-
-            validation = subprocess.run(
-                [ARGS.envoy_binary, "--mode", "validate", "-c", str(cls._config_path)],
-                capture_output=True,
-                check=False,
-                text=True,
-                timeout=STARTUP_TIMEOUT_SECONDS,
+            cls._envoy = EnvoyProcess(
+                ARGS.envoy_binary,
+                cls._config_path,
+                cls._workdir,
+                "owasp_crs_smoke_listener",
+                "the OWASP CRS smoke bootstrap",
             )
-            if validation.returncode != 0:
-                raise RuntimeError(
-                    "custom Envoy rejected the OWASP CRS smoke bootstrap:\n"
-                    f"stdout:\n{validation.stdout}\nstderr:\n{validation.stderr}"
-                )
-
-            cls._envoy = subprocess.Popen(
-                [
-                    ARGS.envoy_binary,
-                    "-c",
-                    str(cls._config_path),
-                    "--admin-address-path",
-                    str(cls._admin_address_path),
-                    "--concurrency",
-                    "1",
-                    "--disable-hot-restart",
-                    "--log-level",
-                    "warning",
-                ],
-                stdout=cls._envoy_log,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            cls._admin_host, cls._admin_port = cls._wait_for_admin()
-            cls._listener_port = cls._discover_listener_port()
+            cls._envoy.start()
+            cls._listener_port = cls._envoy.listener_port
         except Exception:
             cls._stop_envoy()
             cls._stop_upstream()
@@ -178,88 +132,19 @@ class OwaspCrsSmokeTest(unittest.TestCase):
     @classmethod
     def _stop_envoy(cls):
         envoy = getattr(cls, "_envoy", None)
-        if envoy is not None and envoy.poll() is None:
-            envoy.terminate()
-            try:
-                envoy.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                envoy.kill()
-                envoy.wait(timeout=5)
-        envoy_log = getattr(cls, "_envoy_log", None)
-        if envoy_log is not None and not envoy_log.closed:
-            envoy_log.close()
+        if envoy is not None:
+            envoy.stop()
 
     @classmethod
     def _stop_upstream(cls):
         upstream = getattr(cls, "_upstream", None)
         if upstream is not None:
-            upstream.shutdown()
-            upstream.server_close()
-        upstream_thread = getattr(cls, "_upstream_thread", None)
-        if upstream_thread is not None:
-            upstream_thread.join(timeout=5)
+            upstream.stop()
 
     @classmethod
     def _envoy_logs(cls):
-        envoy_log = getattr(cls, "_envoy_log", None)
-        if envoy_log is not None and not envoy_log.closed:
-            envoy_log.flush()
-        log_path = getattr(cls, "_envoy_log_path", None)
-        if log_path is None or not log_path.exists():
-            return "<no Envoy log>"
-        return log_path.read_text(encoding="utf-8")
-
-    @classmethod
-    def _wait_for_admin(cls):
-        deadline = time.monotonic() + STARTUP_TIMEOUT_SECONDS
-        last_error = None
-        while time.monotonic() < deadline:
-            if cls._envoy.poll() is not None:
-                raise RuntimeError(
-                    f"custom Envoy exited with {cls._envoy.returncode}:\n{cls._envoy_logs()}"
-                )
-            if cls._admin_address_path.exists():
-                address = cls._admin_address_path.read_text(encoding="utf-8").strip()
-                if address:
-                    try:
-                        host, port = address.rsplit(":", 1)
-                        host = host.strip("[]")
-                        status, _body = cls._admin_request(host, int(port), "/ready")
-                        if status == 200:
-                            return host, int(port)
-                    except (
-                        ConnectionError,
-                        OSError,
-                        ValueError,
-                        http.client.HTTPException,
-                    ) as error:
-                        last_error = error
-            time.sleep(0.05)
-        raise RuntimeError(
-            f"custom Envoy admin did not become ready: {last_error}\n{cls._envoy_logs()}"
-        )
-
-    @staticmethod
-    def _admin_request(host, port, path):
-        connection = http.client.HTTPConnection(host, port, timeout=REQUEST_TIMEOUT_SECONDS)
-        try:
-            connection.request("GET", path)
-            response = connection.getresponse()
-            return response.status, response.read()
-        finally:
-            connection.close()
-
-    @classmethod
-    def _discover_listener_port(cls):
-        status, body = cls._admin_request(
-            cls._admin_host, cls._admin_port, "/listeners?format=json"
-        )
-        if status != 200:
-            raise RuntimeError(f"listener discovery failed with HTTP {status}: {body!r}")
-        for listener in json.loads(body)["listener_statuses"]:
-            if listener["name"] == "owasp_crs_smoke_listener":
-                return listener["local_address"]["socket_address"]["port_value"]
-        raise RuntimeError("OWASP CRS smoke listener was not found")
+        envoy = getattr(cls, "_envoy", None)
+        return envoy.logs() if envoy is not None else "<no Envoy log>"
 
     @classmethod
     def _request(cls, method, path, body=None, headers=None):
@@ -370,31 +255,9 @@ class OwaspCrsSmokeTest(unittest.TestCase):
         self.assertBlocked("POST", "/deserialize", "value=java.lang.Runtime")
 
     def test_z_releases_native_transactions_and_body_accounting(self):
-        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
-        last_values = {}
-        while time.monotonic() < deadline:
-            status, body = self._admin_request(
-                self._admin_host,
-                self._admin_port,
-                "/stats?filter=modsecurity&format=json",
-            )
-            self.assertEqual(200, status)
-            stats = json.loads(body)["stats"]
-            last_values = {
-                suffix: [
-                    stat["value"]
-                    for stat in stats
-                    if stat.get("name", "").endswith(f".{suffix}")
-                ]
-                for suffix in ("active_transactions", "modsecurity_buffer_bytes")
-            }
-            if all(
-                values and all(value == 0 for value in values)
-                for values in last_values.values()
-            ):
-                return
-            time.sleep(0.05)
-        self.fail(f"ModSecurity gauges did not return to zero: {last_values}")
+        self._envoy.wait_for_zero_modsecurity_gauges(
+            "active_transactions", "modsecurity_buffer_bytes"
+        )
 
 
 if __name__ == "__main__":

@@ -39,6 +39,23 @@ envoy_cc_library(
     ],
 )
 
+envoy_cc_library(
+    name = "config_util_lib",
+    repository = "@envoy",
+    srcs = ["config_util.cc"],
+    hdrs = ["config_util.h"],
+    deps = [
+        ":filter_lib",
+        "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_cc_proto",
+        "//source/engine:engine_interface",
+        "//source/engine:exception_lib",
+        "//source/engine:rules_lib",
+        "@envoy//envoy/http:codes_interface",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
 envoy_cc_extension(
     name = "config",
     repository = "@envoy",
@@ -47,10 +64,9 @@ envoy_cc_extension(
     hdrs = ["config.h"],
     deps = [
         ":filter_lib",
+        ":config_util_lib",
         "//api/envoy_modsecurity/extensions/filters/http/modsecurity/v3:pkg_cc_proto",
         "//source/engine:engine_lib",
-        "//source/engine:exception_lib",
-        "//source/engine:rules_lib",
         "@envoy//envoy/registry",
         "@envoy//envoy/server:factory_context_interface",
         "@envoy//envoy/singleton:manager_interface",

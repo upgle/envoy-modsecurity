@@ -1,6 +1,11 @@
-load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 licenses(["notice"])  # Apache-2.0 OR MIT
+
+py_library(
+    name = "envoy_test_harness",
+    srcs = ["envoy_test_harness.py"],
+)
 
 py_test(
     name = "envoy_http_integration_test",
@@ -14,6 +19,7 @@ py_test(
         ":modsecurity_bootstrap.yaml.tmpl",
         "//:envoy-modsecurity",
     ],
+    deps = [":envoy_test_harness"],
     tags = [
         "integration",
         "nocoverage",
@@ -42,6 +48,7 @@ py_test(
         "//third_party:owasp_crs_rules_marker",
         "//third_party:owasp_crs_setup",
     ],
+    deps = [":envoy_test_harness"],
     tags = [
         "integration",
         "nocoverage",
