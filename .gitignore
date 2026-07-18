@@ -3,6 +3,7 @@
 .deps/
 .idea/
 .vscode/
+artifacts/
 bazel-*
 build/
 compile_commands.json

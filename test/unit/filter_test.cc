@@ -16,6 +16,7 @@
 
 using testing::_;
 using testing::NiceMock;
+using testing::SaveArg;
 
 namespace Envoy {
 namespace Extensions {
@@ -26,11 +27,15 @@ namespace {
 struct TransactionState {
   std::string request_body;
   std::string request_http_version;
+  std::string request_method;
+  std::string request_uri;
   std::string response_body;
   std::string response_http_version;
   absl::Status request_headers_status{absl::OkStatus()};
   absl::Status request_body_status{absl::OkStatus()};
   absl::Status response_body_status{absl::OkStatus()};
+  absl::Status logging_status{absl::OkStatus()};
+  Engine::LoggingResult logging_result;
   int request_headers_calls{0};
   int request_body_calls{0};
   int response_headers_calls{0};
@@ -51,8 +56,10 @@ class FakeTransaction final : public Engine::Transaction {
                                  uint32_t) override {
     return absl::OkStatus();
   }
-  absl::Status processUri(absl::string_view, absl::string_view,
+  absl::Status processUri(absl::string_view uri, absl::string_view method,
                           absl::string_view http_version) override {
+    state_->request_uri = uri;
+    state_->request_method = method;
     state_->request_http_version = http_version;
     return absl::OkStatus();
   }
@@ -87,9 +94,12 @@ class FakeTransaction final : public Engine::Transaction {
     state_->response_body_calls++;
     return state_->response_body_status;
   }
-  absl::Status processLogging() override {
+  absl::StatusOr<Engine::LoggingResult> processLogging() override {
     state_->logging_calls++;
-    return absl::OkStatus();
+    if (!state_->logging_status.ok()) {
+      return state_->logging_status;
+    }
+    return state_->logging_result;
   }
   absl::StatusOr<std::optional<Engine::Intervention>> intervention() override {
     state_->intervention_calls++;
@@ -110,6 +120,7 @@ class FakeGeneration final : public Engine::RuleGeneration {
   absl::StatusOr<std::unique_ptr<Engine::Transaction>> createTransaction() const override {
     return std::unique_ptr<Engine::Transaction>(new FakeTransaction(state_));
   }
+  uint64_t generationId() const override { return 7; }
   uint64_t loadedRuleCount() const override { return 1; }
   uint64_t sourceCount() const override { return 1; }
 
@@ -154,6 +165,9 @@ class FilterTest : public testing::Test {
 
 TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   initialize();
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .Times(0);
   auto headers = requestHeaders();
 
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
@@ -178,8 +192,118 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   EXPECT_EQ(state_->logging_calls, 1);
 }
 
+TEST_F(FilterTest, UsesAuthorityFormTargetForStandardConnect) {
+  initialize();
+  Http::TestRequestHeaderMapImpl headers{{":method", "CONNECT"},
+                                         {":authority", "proxy.example:443"}};
+
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::Continue);
+
+  EXPECT_EQ(state_->request_method, "CONNECT");
+  EXPECT_EQ(state_->request_uri, "proxy.example:443");
+  EXPECT_EQ(state_->request_headers_calls, 1);
+  EXPECT_EQ(stats_->request_body_bypassed_.value(), 1);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, PreservesPathTargetForExtendedConnect) {
+  initialize();
+  Http::TestRequestHeaderMapImpl headers{{":method", "CONNECT"},
+                                         {":protocol", "websocket"},
+                                         {":scheme", "https"},
+                                         {":path", "/chat"},
+                                         {":authority", "example.test"}};
+
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::Continue);
+
+  EXPECT_EQ(state_->request_method, "CONNECT");
+  EXPECT_EQ(state_->request_uri, "/chat");
+  EXPECT_EQ(state_->request_headers_calls, 1);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, PublishesBoundedDetectionMetadataWithoutMatchedValues) {
+  initialize();
+  for (size_t i = 0; i < Engine::LoggingResult::MaxRuleEvents; ++i) {
+    state_->logging_result.rules.push_back({static_cast<int64_t>(942000 + i), 2, false});
+  }
+  state_->logging_result.rules_truncated = true;
+  state_->logging_result.blocking_inbound_anomaly_score = 7;
+  state_->logging_result.detection_inbound_anomaly_score = 12;
+  state_->logging_result.inbound_anomaly_score_threshold = 5;
+
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
+
+  const auto& fields = metadata.fields();
+  EXPECT_EQ(fields.at("schema_version").number_value(), 1);
+  EXPECT_EQ(fields.at("outcome").string_value(), "allowed");
+  EXPECT_EQ(fields.at("reason").string_value(), "rule_match");
+  EXPECT_EQ(fields.at("phase").string_value(), "complete");
+  EXPECT_EQ(fields.at("rule_generation").string_value(), "7");
+  EXPECT_EQ(fields.at("blocking_inbound_anomaly_score").number_value(), 7);
+  EXPECT_EQ(fields.at("detection_inbound_anomaly_score").number_value(), 12);
+  EXPECT_EQ(fields.at("inbound_anomaly_score_threshold").number_value(), 5);
+  ASSERT_EQ(fields.at("rules").list_value().values_size(), Engine::LoggingResult::MaxRuleEvents);
+  const Protobuf::Struct& first_rule = fields.at("rules").list_value().values(0).struct_value();
+  EXPECT_EQ(first_rule.fields().at("id").string_value(), "942000");
+  EXPECT_EQ(first_rule.fields().at("phase").number_value(), 2);
+  EXPECT_FALSE(first_rule.fields().at("disruptive").bool_value());
+  EXPECT_TRUE(fields.at("rules_truncated").bool_value());
+  EXPECT_EQ(stats_->security_events_.value(), 1);
+  EXPECT_EQ(stats_->security_event_rule_truncations_.value(), 1);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, LoggingFailurePublishesLossSignalWithoutChangingTrafficOutcome) {
+  initialize();
+  state_->logging_status = absl::InternalError("logging unavailable");
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
+
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
+
+  EXPECT_EQ(metadata.fields().at("outcome").string_value(), "allowed");
+  EXPECT_EQ(metadata.fields().at("reason").string_value(), "logging_error");
+  EXPECT_TRUE(metadata.fields().at("logging_error").bool_value());
+  EXPECT_EQ(stats_->logging_errors_.value(), 1);
+  EXPECT_EQ(stats_->security_events_.value(), 1);
+  filter_->onDestroy();
+  EXPECT_EQ(state_->logging_calls, 1);
+}
+
+TEST_F(FilterTest, DestroyedActiveStreamPublishesIncompleteEventOnce) {
+  initialize(32, 32);
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
+
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(state_->destroyed_transactions, 0);
+  filter_->onDestroy();
+
+  EXPECT_EQ(metadata.fields().at("outcome").string_value(), "incomplete");
+  EXPECT_EQ(metadata.fields().at("reason").string_value(), "stream_destroyed");
+  EXPECT_EQ(state_->logging_calls, 1);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->security_events_.value(), 1);
+}
+
 TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
   initialize(5);
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
 
@@ -189,6 +313,9 @@ TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
   EXPECT_EQ(filter_->decodeData(body, true), Http::FilterDataStatus::StopIterationNoBuffer);
   EXPECT_TRUE(state_->request_body.empty());
   EXPECT_EQ(stats_->request_body_overflow_.value(), 1);
+  EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
+  EXPECT_EQ(metadata.fields().at("reason").string_value(), "body_overflow");
+  EXPECT_EQ(metadata.fields().at("http_status").number_value(), 413);
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
   filter_->onDestroy();
@@ -217,8 +344,7 @@ TEST_F(FilterTest, RequestTrailersFinishBufferedBody) {
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
 
   Buffer::OwnedImpl body("chunk before trailers");
-  EXPECT_EQ(filter_->decodeData(body, false),
-            Http::FilterDataStatus::StopIterationAndBuffer);
+  EXPECT_EQ(filter_->decodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
   Http::TestRequestTrailerMapImpl trailers{{"x-checksum", "complete"}};
   EXPECT_EQ(filter_->decodeTrailers(trailers), Http::FilterTrailersStatus::Continue);
 
@@ -260,8 +386,7 @@ TEST_F(FilterTest, GrpcResponseUsesHeaderOnlyInspectionAndReleasesTransaction) {
 
   Http::TestResponseHeaderMapImpl response_headers{{":status", "200"},
                                                    {"content-type", "application/grpc"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl message("binary grpc response");
   EXPECT_EQ(filter_->encodeData(message, false), Http::FilterDataStatus::Continue);
 
@@ -301,11 +426,9 @@ TEST_F(FilterTest, WebSocketInspectsHandshakeWithoutBufferingTunnelData) {
                                                  {"upgrade", "websocket"}};
   EXPECT_EQ(filter_->decodeHeaders(request_headers, false), Http::FilterHeadersStatus::Continue);
 
-  Http::TestResponseHeaderMapImpl response_headers{{":status", "101"},
-                                                   {"connection", "Upgrade"},
-                                                   {"upgrade", "websocket"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  Http::TestResponseHeaderMapImpl response_headers{
+      {":status", "101"}, {"connection", "Upgrade"}, {"upgrade", "websocket"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl frame("websocket frame");
   EXPECT_EQ(filter_->decodeData(frame, false), Http::FilterDataStatus::Continue);
   EXPECT_EQ(filter_->encodeData(frame, false), Http::FilterDataStatus::Continue);
@@ -343,15 +466,13 @@ TEST_F(FilterTest, RejectedWebSocketUpgradeStillInspectsFiniteResponseBody) {
 
 TEST_F(FilterTest, ServerSentEventsResponseDoesNotWaitForEndStream) {
   initialize(32, 32);
-  Http::TestRequestHeaderMapImpl request_headers{{":method", "GET"},
-                                                 {":path", "/events"},
-                                                 {":authority", "example.test"}};
+  Http::TestRequestHeaderMapImpl request_headers{
+      {":method", "GET"}, {":path", "/events"}, {":authority", "example.test"}};
   EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
 
   Http::TestResponseHeaderMapImpl response_headers{
       {":status", "200"}, {"content-type", "text/event-stream; charset=utf-8"}};
-  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
-            Http::FilterHeadersStatus::Continue);
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false), Http::FilterHeadersStatus::Continue);
   Buffer::OwnedImpl event("data: ready\n\n");
   EXPECT_EQ(filter_->encodeData(event, false), Http::FilterDataStatus::Continue);
 
@@ -386,11 +507,18 @@ TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
 TEST_F(FilterTest, RuntimeFailureCanFailOpen) {
   initialize(32, std::nullopt, true);
   state_->request_headers_status = absl::InternalError("engine unavailable");
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
 
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::Continue);
   EXPECT_EQ(stats_->runtime_errors_.value(), 1);
   EXPECT_EQ(stats_->failure_mode_allowed_.value(), 1);
+  EXPECT_EQ(metadata.fields().at("outcome").string_value(), "bypassed");
+  EXPECT_EQ(metadata.fields().at("reason").string_value(), "runtime_error");
+  EXPECT_EQ(metadata.fields().at("phase").string_value(), "request");
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
   Buffer::OwnedImpl body("not inspected after failure");
@@ -435,12 +563,33 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   initialize();
   state_->intervene_on_call = 3;
   state_->intervention = Engine::Intervention{403, {}};
+  state_->logging_result.rules = {{942100, 2, false}, {949110, 2, true}};
+  state_->logging_result.blocking_inbound_anomaly_score = 5;
+  state_->logging_result.inbound_anomaly_score_threshold = 5;
+  Protobuf::Struct metadata;
+  EXPECT_CALL(decoder_callbacks_.stream_info_,
+              setDynamicMetadata("envoy.filters.http.modsecurity", _))
+      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
 
   EXPECT_CALL(decoder_callbacks_,
               sendLocalReply(Http::Code::Forbidden, _, _, _, "modsecurity_request_intervention"));
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
   EXPECT_EQ(stats_->request_interventions_.value(), 1);
+  EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
+  EXPECT_EQ(metadata.fields().at("reason").string_value(), "rule_intervention");
+  EXPECT_EQ(metadata.fields().at("phase").string_value(), "request");
+  EXPECT_EQ(metadata.fields().at("http_status").number_value(), 403);
+  EXPECT_EQ(metadata.fields().at("blocking_inbound_anomaly_score").number_value(), 5);
+  ASSERT_EQ(metadata.fields().at("rules").list_value().values_size(), 2);
+  EXPECT_TRUE(metadata.fields()
+                  .at("rules")
+                  .list_value()
+                  .values(1)
+                  .struct_value()
+                  .fields()
+                  .at("disruptive")
+                  .bool_value());
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
   filter_->onDestroy();
@@ -469,8 +618,7 @@ TEST_F(FilterTest, RejectsDeclaredOversizedResponseBeforeBodyArrives) {
   initialize(32, 5);
   auto request_headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
-  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"},
-                                                   {"content-length", "6"}};
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}, {"content-length", "6"}};
 
   EXPECT_CALL(encoder_callbacks_, sendLocalReply(Http::Code::InternalServerError, _, _, _,
                                                  "modsecurity_response_body_overflow"));
@@ -491,8 +639,7 @@ TEST_F(FilterTest, ResponseTrailersFinishBufferedBody) {
             Http::FilterHeadersStatus::StopIteration);
 
   Buffer::OwnedImpl body("chunk before trailers");
-  EXPECT_EQ(filter_->encodeData(body, false),
-            Http::FilterDataStatus::StopIterationAndBuffer);
+  EXPECT_EQ(filter_->encodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
   Http::TestResponseTrailerMapImpl trailers{{"x-checksum", "complete"}};
   EXPECT_EQ(filter_->encodeTrailers(trailers), Http::FilterTrailersStatus::Continue);
 

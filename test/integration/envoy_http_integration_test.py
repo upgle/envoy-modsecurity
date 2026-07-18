@@ -175,6 +175,8 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
                     "--disable-hot-restart",
                     "--log-level",
                     "warning",
+                    "--file-flush-interval-msec",
+                    "10",
                 ],
                 stdout=cls._envoy_log,
                 stderr=subprocess.STDOUT,
@@ -227,6 +229,31 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
         if log_path is None or not log_path.exists():
             return "<no Envoy log>"
         return log_path.read_text(encoding="utf-8")
+
+    @classmethod
+    def _access_log_entries(cls):
+        entries = []
+        for line in cls._envoy_logs().splitlines():
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(entry, dict) and "path" in entry:
+                entries.append(entry)
+        return entries
+
+    def _wait_for_security_event(self, path):
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            matching = [
+                entry
+                for entry in self._access_log_entries()
+                if entry.get("path") == path and isinstance(entry.get("modsecurity"), dict)
+            ]
+            if matching:
+                return matching[-1]["modsecurity"]
+            time.sleep(0.01)
+        self.fail(f"no ModSecurity access-log metadata for {path}:\n{self._envoy_logs()}")
 
     @classmethod
     def _wait_for_admin(cls):
@@ -388,6 +415,12 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
             "GET", "/request-blocked/resource", 418, b"request blocked by ModSecurity"
         )
         self.assertEqual(before, self._upstream.request_count())
+        event = self._wait_for_security_event("/request-blocked/resource")
+        self.assertEqual("blocked", event["outcome"])
+        self.assertEqual("rule_intervention", event["reason"])
+        self.assertEqual(418, event["http_status"])
+        self.assertEqual("9100001", event["rules"][0]["id"])
+        self.assertTrue(event["rules"][0]["disruptive"])
 
     def test_blocks_phase_two_before_upstream(self):
         before = self._upstream.request_count()

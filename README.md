@@ -32,6 +32,9 @@ and [docs/development.md](docs/development.md) for the remaining release work.
   fail-closed handling for overflow and budget exhaustion.
 - Disruptive intervention handling, configurable fail-open handling for non-resource-exhaustion
   runtime errors, and fixed-name counters, gauges, and latency histograms.
+- Bounded structured security-event dynamic metadata with rule IDs, phases, disruptive status,
+  CRS anomaly scores, stable outcomes, and process-local rule-generation correlation. Native audit
+  file logging can remain disabled.
 - Header-phase inspection with explicit body-bypass counters for recognized gRPC requests, Connect
   streaming requests, Upgrade/CONNECT tunnels, and event-stream responses.
 

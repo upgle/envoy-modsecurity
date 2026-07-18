@@ -2,7 +2,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 
+#include "absl/strings/string_view.h"
 #include "envoy/buffer/buffer.h"
 #include "envoy/http/filter.h"
 #include "source/extensions/filters/http/modsecurity/filter_config.h"
@@ -69,6 +72,10 @@ class Filter final : public Http::StreamFilter {
   uint64_t bodyLimit(Path path) const;
   Stats::Histogram& bodyDurationHistogram(Path path) const;
   void finishLogging();
+  void setSecurityOutcome(absl::string_view outcome, absl::string_view reason, Path path,
+                          std::optional<uint32_t> status = std::nullopt);
+  void publishSecurityEvent(const Engine::LoggingResult* logging_result,
+                            bool logging_error = false);
   bool reserveBodyBytes(uint64_t bytes);
   void releaseResources();
   std::string httpVersion() const;
@@ -87,6 +94,11 @@ class Filter final : public Http::StreamFilter {
   BodyState response_body_;
   StreamKind stream_kind_{StreamKind::Regular};
   uint64_t charged_body_bytes_{0};
+  uint64_t rule_generation_id_{0};
+  std::string security_outcome_{"allowed"};
+  std::string security_reason_;
+  std::string security_phase_{"complete"};
+  std::optional<uint32_t> security_status_;
   bool connect_tunnel_{false};
   bool settings_initialized_{false};
   bool disabled_{false};
@@ -94,6 +106,7 @@ class Filter final : public Http::StreamFilter {
   bool local_reply_{false};
   bool response_headers_finished_{false};
   bool logging_finished_{false};
+  bool security_event_published_{false};
   bool resources_released_{false};
 };
 

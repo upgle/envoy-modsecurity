@@ -34,6 +34,7 @@ envoy_cc_library(
         "@envoy//source/common/grpc:common_lib",
         "@envoy//source/common/http:header_utility_lib",
         "@envoy//source/common/http:utility_lib",
+        "@envoy//source/common/protobuf",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],

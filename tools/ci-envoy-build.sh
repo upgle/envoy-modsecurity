@@ -3,7 +3,16 @@
 set -euo pipefail
 
 apt-get update
-apt-get install --yes autoconf automake libpcre2-dev libtool libyajl-dev make pkg-config
+apt-get install --yes \
+  autoconf \
+  automake \
+  curl \
+  libpcre2-dev \
+  libtool \
+  libxml2-dev \
+  libyajl-dev \
+  make \
+  pkg-config
 
 # The native ModSecurity build consumes packages from the container sysroot. Include the pinned
 # image and installed package versions in every action key so remote results cannot cross sysroots.
@@ -11,7 +20,7 @@ export CI_SYSROOT_FINGERPRINT="$({
   printf '%s\n' "${ENVOY_BUILD_IMAGE:?ENVOY_BUILD_IMAGE must be set}"
   dpkg-query --show \
     --showformat='${binary:Package}=${Version}\n' \
-    autoconf automake libpcre2-dev libtool libyajl-dev make pkg-config
+    autoconf automake libpcre2-dev libtool libxml2-dev libyajl-dev make pkg-config
 } | sha256sum | cut --delimiter=' ' --fields=1)"
 
 buildbuddy_bazelrc="${HOME}/.bazelrc"
@@ -37,11 +46,12 @@ git config --global --add safe.directory "${PWD}/envoy"
 git config --global --add safe.directory "${PWD}/third_party/modsecurity"
 git config --global --add safe.directory "${PWD}/third_party/coreruleset"
 
-# ModSecurity uses distro PCRE2 and YAJL packages, so compile all Linux targets against the same
-# container sysroot instead of mixing those libraries with Envoy's hermetic glibc.
+# ModSecurity uses distro PCRE2, LibXML2, and YAJL packages, so compile all Linux targets against
+# the same container sysroot instead of mixing those libraries with Envoy's hermetic glibc.
 export BAZEL_USE_HOST_SYSROOT=True
 
 bazel --version
 df --human-readable
 bazel build //third_party:libmodsecurity
 make check
+./tools/run-crs-compatibility.sh

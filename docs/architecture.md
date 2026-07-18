@@ -27,6 +27,8 @@ filter factory -- compile --> immutable RuleGeneration
 
 - One process-wide `Runtime` singleton owns the native `modsecurity::ModSecurity` instance.
 - Every accepted filter configuration owns a newly compiled, immutable `RuleGeneration`.
+- Every successfully compiled generation receives a process-local monotonic identifier for
+  correlating stream security events. The identifier can have gaps and resets on process restart.
 - `FilterConfig` owns the effective settings, statistics, aggregate body-memory budget, and the
   generation used to create new streams.
 - Each enabled stream creates at most one native transaction. The transaction pins its generation,
@@ -41,7 +43,8 @@ The adapter itself does not initiate filesystem, network, or subprocess work fro
 callbacks. Filename-based sources are not subject to the inline-rule denylist and may use any
 capability enabled in this libmodsecurity build, including directives that perform logging,
 persistent storage, or external work. Because rule evaluation is synchronous, deployments must
-review those directives for worker blocking and contention.
+review those directives for worker blocking and contention. The supported production profile uses
+structured dynamic metadata and disables native audit/debug file logging.
 
 The engine adapter does not expose Envoy header maps or buffers, so it can be tested against
 libmodsecurity without running the custom Envoy binary.
@@ -134,6 +137,25 @@ use explicit protocol-specific behavior:
 Dedicated counters expose body bypass and uninspected trailers. Routes with unrecognized unbounded
 request streams must disable the filter. Routes with unrecognized unbounded responses must disable
 response inspection or use a separate bounded inspection design.
+
+## Security-event boundary
+
+After phase 5, the engine adapter copies at most 32 log-selected `RuleMessage` records into a
+connector-owned result. Each record contains only rule ID, phase, and disruptive status. It also
+reads the fixed CRS TX variables for blocking/detection inbound/outbound anomaly scores and their
+thresholds. Integer parsing rejects malformed or out-of-range values. No free-form rule message,
+matched value, header, body, URI, or network address crosses this boundary.
+
+The HTTP filter combines this result with a stable outcome and reason, then stores it as dynamic
+metadata in the `envoy.filters.http.modsecurity` namespace. Envoy access-log configuration decides
+whether and where to export it. The filter performs no security-event filesystem or network I/O,
+and emits nothing for a clean allowed stream. Runtime errors and overflow paths cannot safely run
+phase 5, so they publish the stable outcome and reason without rule records or anomaly scores.
+
+Native server-log output remains discarded. `processLogging()` remains mandatory to execute phase
+5 even when `SecAuditEngine Off` prevents native audit-file output. Filename-based sources can
+still enable native logging because they are trusted and retain the full SecLang surface, but doing
+so reintroduces synchronous worker I/O and is outside the supported production profile.
 
 ## Buffering and memory control
 

@@ -32,7 +32,7 @@ class TransactionImpl final : public Transaction {
   absl::Status processResponseHeaders(uint32_t status, absl::string_view http_version) override;
   absl::Status appendResponseBody(absl::string_view data) override;
   absl::Status processResponseBody() override;
-  absl::Status processLogging() override;
+  absl::StatusOr<LoggingResult> processLogging() override;
   absl::StatusOr<std::optional<Intervention>> intervention() override;
 
  private:

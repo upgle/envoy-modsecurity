@@ -24,6 +24,28 @@ SecRequestBodyAccess On
 SecRule REQUEST_BODY "@contains attack-token" "id:1000002,phase:2,deny,status:406,nolog"
 )";
 
+constexpr char kStructuredEventRules[] = R"(
+SecRuleEngine On
+SecAuditEngine Off
+SecAction "id:1000100,phase:1,pass,nolog,setvar:tx.blocking_inbound_anomaly_score=7,setvar:tx.detection_inbound_anomaly_score=12,setvar:tx.inbound_anomaly_score_threshold=5"
+SecRule REQUEST_URI "@contains /signal" "id:1000101,phase:1,pass,log,msg:'request signal'"
+SecAction "id:1000102,phase:5,pass,log,msg:'logging signal'"
+)";
+
+constexpr char kJsonParserRules[] = R"(
+SecRuleEngine On
+SecRequestBodyAccess On
+SecRule REQUEST_HEADERS:Content-Type "@streq application/json" "id:1000200,phase:1,pass,nolog,ctl:requestBodyProcessor=JSON"
+SecRule ARGS:json.query "@streq attack-token" "id:1000201,phase:2,deny,status:422,nolog"
+)";
+
+constexpr char kXmlParserRules[] = R"(
+SecRuleEngine On
+SecRequestBodyAccess On
+SecRule REQUEST_HEADERS:Content-Type "@streq application/xml" "id:1000300,phase:1,pass,nolog,ctl:requestBodyProcessor=XML"
+SecRule XML:/* "@contains attack-token" "id:1000301,phase:2,deny,status:423,nolog"
+)";
+
 absl::Status processRequestHeaders(Transaction& transaction, const std::string& uri,
                                    const std::string& method = "GET") {
   absl::Status status = transaction.processConnection("192.0.2.10", 12345, "192.0.2.20", 8080);
@@ -64,6 +86,18 @@ void expectIntervention(Transaction& transaction, int expected_status) {
   EXPECT_EQ(intervention->value().status, expected_status);
 }
 
+void processStructuredRequestBody(Transaction& transaction, absl::string_view content_type,
+                                  absl::string_view body) {
+  ASSERT_TRUE(transaction.processConnection("192.0.2.10", 12345, "192.0.2.20", 8080).ok());
+  ASSERT_TRUE(transaction.processUri("/structured", "POST", "1.1").ok());
+  ASSERT_TRUE(transaction.addRequestHeader("host", "example.test").ok());
+  ASSERT_TRUE(transaction.addRequestHeader("content-type", content_type).ok());
+  ASSERT_TRUE(transaction.addRequestHeader("content-length", std::to_string(body.size())).ok());
+  ASSERT_TRUE(transaction.processRequestHeaders().ok());
+  ASSERT_TRUE(transaction.appendRequestBody(body).ok());
+  ASSERT_TRUE(transaction.processRequestBody().ok());
+}
+
 TEST(EngineIntegrationTest, CompilesInlineRulesAndExecutesPhaseOne) {
   const std::shared_ptr<Runtime> runtime = createRuntime();
   auto generation = runtime->compile({RuleSource::inlineRules("phase-one.conf", kPhaseOneRules)});
@@ -101,6 +135,64 @@ TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {
   ASSERT_TRUE(transaction->appendRequestBody("value=contains-attack-token").ok());
   ASSERT_TRUE(transaction->processRequestBody().ok());
   expectIntervention(*transaction, 406);
+}
+
+TEST(EngineIntegrationTest, ParsesJsonAndXmlRequestBodies) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+
+  auto json_generation =
+      runtime->compile({RuleSource::inlineRules("json-parser.conf", kJsonParserRules)});
+  ASSERT_TRUE(json_generation.ok()) << json_generation.status();
+  std::unique_ptr<Transaction> json_transaction = createTransaction(*json_generation);
+  ASSERT_NE(json_transaction, nullptr);
+  processStructuredRequestBody(*json_transaction, "application/json",
+                               R"({"query":"attack-token"})");
+  expectIntervention(*json_transaction, 422);
+
+  auto xml_generation =
+      runtime->compile({RuleSource::inlineRules("xml-parser.conf", kXmlParserRules)});
+  ASSERT_TRUE(xml_generation.ok()) << xml_generation.status();
+  std::unique_ptr<Transaction> xml_transaction = createTransaction(*xml_generation);
+  ASSERT_NE(xml_transaction, nullptr);
+  processStructuredRequestBody(*xml_transaction, "application/xml",
+                               "<request>attack-token</request>");
+  expectIntervention(*xml_transaction, 423);
+}
+
+TEST(EngineIntegrationTest, ReturnsStructuredPhaseFiveResultWithNativeAuditDisabled) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("structured-event.conf", kStructuredEventRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/signal").ok());
+  expectNoIntervention(*transaction);
+
+  auto result = transaction->processLogging();
+  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_EQ(result->rules.size(), 2);
+  EXPECT_EQ(result->rules[0].id, 1000101);
+  EXPECT_EQ(result->rules[0].phase, 1);
+  EXPECT_FALSE(result->rules[0].disruptive);
+  EXPECT_EQ(result->rules[1].id, 1000102);
+  EXPECT_EQ(result->rules[1].phase, 5);
+  EXPECT_FALSE(result->rules[1].disruptive);
+  EXPECT_FALSE(result->rules_truncated);
+  EXPECT_EQ(result->blocking_inbound_anomaly_score, 7);
+  EXPECT_EQ(result->detection_inbound_anomaly_score, 12);
+  EXPECT_EQ(result->inbound_anomaly_score_threshold, 5);
+  EXPECT_FALSE(result->blocking_outbound_anomaly_score.has_value());
+}
+
+TEST(EngineIntegrationTest, AssignsIncreasingProcessLocalGenerationIds) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto first = runtime->compile({RuleSource::inlineRules("first.conf", kPhaseOneRules)});
+  auto second = runtime->compile({RuleSource::inlineRules("second.conf", kPhaseOneRules)});
+  ASSERT_TRUE(first.ok()) << first.status();
+  ASSERT_TRUE(second.ok()) << second.status();
+  EXPECT_GT((*second)->generationId(), (*first)->generationId());
 }
 
 TEST(EngineIntegrationTest, LoadsRulesFromFile) {

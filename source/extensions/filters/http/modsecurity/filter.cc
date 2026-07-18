@@ -13,12 +13,15 @@
 #include "source/common/grpc/common.h"
 #include "source/common/http/header_utility.h"
 #include "source/common/http/utility.h"
+#include "source/common/protobuf/protobuf.h"
 
 namespace Envoy {
 namespace Extensions {
 namespace HttpFilters {
 namespace ModSecurityFilter {
 namespace {
+
+constexpr absl::string_view SecurityMetadataNamespace = "envoy.filters.http.modsecurity";
 
 struct IpEndpoint {
   std::string address{"0.0.0.0"};
@@ -61,6 +64,15 @@ class ScopedHistogramTimer {
   bool completed_{false};
 };
 
+bool nonZero(const std::optional<int64_t>& value) { return value.has_value() && *value != 0; }
+
+void setOptionalNumber(Protobuf::Struct& metadata, absl::string_view name,
+                       const std::optional<int64_t>& value) {
+  if (value.has_value()) {
+    (*metadata.mutable_fields())[std::string(name)].set_number_value(static_cast<double>(*value));
+  }
+}
+
 }  // namespace
 
 Filter::Filter(FilterConfigSharedPtr config)
@@ -96,6 +108,7 @@ void Filter::initializeSettings() {
 }
 
 bool Filter::createTransaction() {
+  rule_generation_id_ = config_->generation()->generationId();
   auto transaction = config_->generation()->createTransaction();
   config_.reset();
   if (!transaction.ok()) {
@@ -125,9 +138,13 @@ bool Filter::evaluate(const absl::Status& status, Path path, bool check_interven
     if (settings_.failure_mode_allow && status.code() != absl::StatusCode::kResourceExhausted) {
       stats_->failure_mode_allowed_.inc();
       engine_bypassed_ = true;
+      setSecurityOutcome("bypassed", "runtime_error", path);
+      publishSecurityEvent(nullptr);
       releaseResources();
       return false;
     }
+    setSecurityOutcome("error", "runtime_error", path,
+                       static_cast<uint32_t>(settings_.status_on_error));
     sendRuntimeError(path, "modsecurity_runtime_error");
     return false;
   }
@@ -156,12 +173,17 @@ void Filter::sendIntervention(const Engine::Intervention& intervention, Path pat
 
   local_reply_ = true;
   const auto code = static_cast<Http::Code>(status);
+  setSecurityOutcome("blocked", "rule_intervention", path, static_cast<uint32_t>(status));
   const std::string redirect_url = intervention.redirect_url;
   auto modify_headers = [redirect_url](Http::ResponseHeaderMap& headers) {
     if (!redirect_url.empty()) {
       headers.setLocation(redirect_url);
     }
   };
+
+  // A local reply can complete the stream and run access loggers synchronously, so publish the
+  // phase-5 result before handing the reply to Envoy.
+  finishLogging();
 
   if (path == Path::Request) {
     stats_->request_interventions_.inc();
@@ -172,12 +194,12 @@ void Filter::sendIntervention(const Engine::Intervention& intervention, Path pat
     encoder_callbacks_->sendLocalReply(code, "response blocked by ModSecurity", modify_headers,
                                        std::nullopt, "modsecurity_response_intervention");
   }
-  finishLogging();
   releaseResources();
 }
 
 void Filter::sendRuntimeError(Path path, absl::string_view details) {
   local_reply_ = true;
+  publishSecurityEvent(nullptr);
   if (path == Path::Response && encoder_callbacks_ != nullptr) {
     encoder_callbacks_->sendLocalReply(settings_.status_on_error, "ModSecurity inspection error",
                                        nullptr, std::nullopt, details);
@@ -250,10 +272,12 @@ Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers,
           Path::Request)) {
     return stoppedOrContinue();
   }
-  if (!evaluate(
-          transaction_->processUri(headers.getPathValue(), headers.getMethodValue(),
-                                   modSecurityRequestVersion()),
-          Path::Request) ||
+  const absl::string_view request_target = Http::HeaderUtility::isStandardConnectRequest(headers)
+                                               ? headers.getHostValue()
+                                               : headers.getPathValue();
+  if (!evaluate(transaction_->processUri(request_target, headers.getMethodValue(),
+                                         modSecurityRequestVersion()),
+                Path::Request) ||
       !addHeaders(headers, Path::Request, headers.getHostValue())) {
     return stoppedOrContinue();
   }
@@ -327,8 +351,7 @@ bool Filter::shouldBypassResponseBody(const Http::ResponseHeaderMap& headers) co
   }
   const uint64_t status = Http::Utility::getResponseStatus(headers);
   if (stream_kind_ == StreamKind::Tunnel &&
-      ((connect_tunnel_ && status >= 200 && status < 300) ||
-       (!connect_tunnel_ && status == 101))) {
+      ((connect_tunnel_ && status >= 200 && status < 300) || (!connect_tunnel_ && status == 101))) {
     return true;
   }
   return absl::StartsWithIgnoreCase(headers.getContentTypeValue(), "text/event-stream");
@@ -357,6 +380,9 @@ void Filter::sendBodyOverflow(Path path) {
   local_reply_ = true;
   if (path == Path::Request) {
     stats_->request_body_overflow_.inc();
+    setSecurityOutcome("blocked", "body_overflow", path,
+                       static_cast<uint32_t>(Http::Code::PayloadTooLarge));
+    publishSecurityEvent(nullptr);
     decoder_callbacks_->sendLocalReply(Http::Code::PayloadTooLarge,
                                        "request body exceeds ModSecurity inspection limit", nullptr,
                                        std::nullopt, "modsecurity_request_body_overflow");
@@ -365,11 +391,15 @@ void Filter::sendBodyOverflow(Path path) {
   }
 
   stats_->response_body_overflow_.inc();
+  setSecurityOutcome("error", "body_overflow", path,
+                     static_cast<uint32_t>(settings_.status_on_error));
   sendRuntimeError(Path::Response, "modsecurity_response_body_overflow");
 }
 
 void Filter::sendBodyMemoryBudgetExceeded(Path path) {
   stats_->body_memory_budget_exceeded_.inc();
+  setSecurityOutcome("error", "body_memory_budget_exceeded", path,
+                     static_cast<uint32_t>(settings_.status_on_error));
   sendRuntimeError(path, "modsecurity_body_memory_budget_exceeded");
 }
 
@@ -477,8 +507,8 @@ Http::FilterTrailersStatus Filter::decodeTrailers(Http::RequestTrailerMap&) {
 }
 
 Http::FilterHeadersStatus Filter::encodeHeaders(Http::ResponseHeaderMap& headers, bool end_stream) {
-  if (disabled_ || engine_bypassed_ || local_reply_ ||
-      transaction_ == nullptr || !settings_.response_body_max_bytes.has_value()) {
+  if (disabled_ || engine_bypassed_ || local_reply_ || transaction_ == nullptr ||
+      !settings_.response_body_max_bytes.has_value()) {
     return Http::FilterHeadersStatus::Continue;
   }
 
@@ -525,9 +555,88 @@ void Filter::finishLogging() {
   }
   logging_finished_ = true;
   ScopedHistogramTimer timer(stats_->logging_duration_us_, time_source_);
-  if (!transaction_->processLogging().ok()) {
+  auto result = transaction_->processLogging();
+  if (!result.ok()) {
     stats_->logging_errors_.inc();
+    publishSecurityEvent(nullptr, true);
+    return;
   }
+  publishSecurityEvent(&*result);
+}
+
+void Filter::setSecurityOutcome(absl::string_view outcome, absl::string_view reason, Path path,
+                                std::optional<uint32_t> status) {
+  security_outcome_ = std::string(outcome);
+  security_reason_ = std::string(reason);
+  security_phase_ = path == Path::Request ? "request" : "response";
+  security_status_ = status;
+}
+
+void Filter::publishSecurityEvent(const Engine::LoggingResult* result, bool logging_error) {
+  if (security_event_published_ || decoder_callbacks_ == nullptr) {
+    return;
+  }
+
+  const bool has_rule_events = result != nullptr && !result->rules.empty();
+  const bool has_anomaly_signal =
+      result != nullptr && (nonZero(result->blocking_inbound_anomaly_score) ||
+                            nonZero(result->detection_inbound_anomaly_score) ||
+                            nonZero(result->blocking_outbound_anomaly_score) ||
+                            nonZero(result->detection_outbound_anomaly_score));
+  if (security_outcome_ == "allowed" && !has_rule_events && !has_anomaly_signal && !logging_error) {
+    return;
+  }
+
+  security_event_published_ = true;
+  Protobuf::Struct metadata;
+  auto& fields = *metadata.mutable_fields();
+  fields["schema_version"].set_number_value(1);
+  fields["outcome"].set_string_value(security_outcome_);
+  fields["reason"].set_string_value(security_reason_.empty()
+                                        ? (logging_error ? "logging_error" : "rule_match")
+                                        : security_reason_);
+  fields["phase"].set_string_value(security_phase_);
+  fields["rule_generation"].set_string_value(std::to_string(rule_generation_id_));
+  if (security_status_.has_value()) {
+    fields["http_status"].set_number_value(static_cast<double>(*security_status_));
+  }
+  if (logging_error) {
+    fields["logging_error"].set_bool_value(true);
+  }
+
+  if (result != nullptr) {
+    Protobuf::Value rules;
+    for (const Engine::RuleEvent& event : result->rules) {
+      Protobuf::Struct* rule = rules.mutable_list_value()->add_values()->mutable_struct_value();
+      auto& rule_fields = *rule->mutable_fields();
+      rule_fields["id"].set_string_value(std::to_string(event.id));
+      rule_fields["phase"].set_number_value(event.phase);
+      rule_fields["disruptive"].set_bool_value(event.disruptive);
+    }
+    if (!result->rules.empty()) {
+      fields["rules"] = std::move(rules);
+    }
+    fields["rules_truncated"].set_bool_value(result->rules_truncated);
+    setOptionalNumber(metadata, "blocking_inbound_anomaly_score",
+                      result->blocking_inbound_anomaly_score);
+    setOptionalNumber(metadata, "detection_inbound_anomaly_score",
+                      result->detection_inbound_anomaly_score);
+    setOptionalNumber(metadata, "inbound_anomaly_score_threshold",
+                      result->inbound_anomaly_score_threshold);
+    setOptionalNumber(metadata, "blocking_outbound_anomaly_score",
+                      result->blocking_outbound_anomaly_score);
+    setOptionalNumber(metadata, "detection_outbound_anomaly_score",
+                      result->detection_outbound_anomaly_score);
+    setOptionalNumber(metadata, "outbound_anomaly_score_threshold",
+                      result->outbound_anomaly_score_threshold);
+    if (result->rules_truncated) {
+      stats_->security_event_rule_truncations_.inc();
+    }
+  }
+
+  decoder_callbacks_->streamInfo().setDynamicMetadata(std::string(SecurityMetadataNamespace),
+                                                      metadata);
+  stats_->security_events_.inc();
 }
 
 void Filter::onStreamComplete() { finishLogging(); }
@@ -553,6 +662,10 @@ void Filter::releaseResources() {
 }
 
 void Filter::onDestroy() {
+  if (transaction_ != nullptr && !logging_finished_ && security_outcome_ == "allowed") {
+    setSecurityOutcome("incomplete", "stream_destroyed",
+                       response_headers_finished_ ? Path::Response : Path::Request);
+  }
   finishLogging();
   releaseResources();
 }

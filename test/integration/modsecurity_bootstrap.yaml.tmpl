@@ -17,6 +17,14 @@ static_resources:
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: integration_http
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        json_format:
+                          path: "%REQ(:PATH)%"
+                          modsecurity: "%DYNAMIC_METADATA(envoy.filters.http.modsecurity)%"
                 route_config:
                   name: integration_routes
                   virtual_hosts:
@@ -41,9 +49,9 @@ static_resources:
                               SecRequestBodyAccess On
                               SecResponseBodyAccess On
                               SecResponseBodyMimeType text/plain
-                              SecRule REQUEST_URI "@rx ^/request-blocked" "id:9100001,phase:1,deny,status:418,nolog"
-                              SecRule REQUEST_BODY "@contains attack-token" "id:9100002,phase:2,deny,status:406,nolog"
-                              SecRule RESPONSE_BODY "@contains upstream-secret" "id:9100003,phase:4,deny,status:451,nolog"
+                              SecRule REQUEST_URI "@rx ^/request-blocked" "id:9100001,phase:1,deny,status:418,log,msg:'phase one integration block'"
+                              SecRule REQUEST_BODY "@contains attack-token" "id:9100002,phase:2,deny,status:406,log,msg:'phase two integration block'"
+                              SecRule RESPONSE_BODY "@contains upstream-secret" "id:9100003,phase:4,deny,status:451,log,msg:'phase four integration block'"
                       request_body:
                         max_bytes:
                           value: 1048576

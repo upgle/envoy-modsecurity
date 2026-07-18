@@ -32,6 +32,8 @@ The filter configuration controls:
 SecLang controls `SecRuleEngine`, CRS includes, request/response MIME selection, rule exclusions,
 and ModSecurity's internal body limits. Trusted filename sources may also configure audit and debug
 logging; inline sources reject those directives. The protobuf does not duplicate these settings.
+The supported production profile keeps native audit and debug file logging disabled and exports
+bounded security-event metadata through Envoy instead.
 
 ## Static example
 
@@ -75,6 +77,63 @@ For ECDS configuration and update-generation semantics, see
 
 ECDS carries inline text directly. A `filename` carries only a path, and every Envoy host reads its
 own local file while constructing the candidate configuration.
+
+## Structured security events
+
+The filter attaches a bounded `google.protobuf.Struct` to the stream's dynamic metadata under the
+`envoy.filters.http.modsecurity` namespace. It performs no filesystem or network I/O while doing
+so. Configure an Envoy access logger, preferably an asynchronous ALS or OpenTelemetry sink, to
+export the metadata. For example, a stream access logger can include the complete object with:
+
+```yaml
+access_log:
+  - name: envoy.access_loggers.stdout
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+      log_format:
+        json_format:
+          response_code: "%RESPONSE_CODE%"
+          response_code_details: "%RESPONSE_CODE_DETAILS%"
+          modsecurity: "%DYNAMIC_METADATA(envoy.filters.http.modsecurity)%"
+```
+
+Metadata is emitted for rule messages, non-zero CRS anomaly scores, interventions, inspection
+errors, fail-open bypass, body overflow, memory-budget exhaustion, logging failure, and destruction
+of an active transaction. A clean allowed stream produces no ModSecurity metadata. The schema is:
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | Event schema version, currently `1`. |
+| `outcome` | `allowed`, `blocked`, `bypassed`, `error`, or `incomplete`. |
+| `reason` | Stable bounded reason such as `rule_match`, `rule_intervention`, `runtime_error`, `body_overflow`, `body_memory_budget_exceeded`, `logging_error`, or `stream_destroyed`. |
+| `phase` | `request`, `response`, or `complete`. Individual rule records carry their native SecLang phase. |
+| `http_status` | Local-reply status when the filter selected one. |
+| `rule_generation` | Process-local monotonically increasing compiled-generation identifier, encoded as a string. It is not stable across restarts and is not an ECDS version. |
+| `rules` | At most 32 log-selected records containing only string `id`, numeric `phase`, and Boolean `disruptive`. |
+| `rules_truncated` | True when additional log-selected records were omitted. |
+| anomaly score fields | Integer CRS TX values when defined: blocking/detection inbound/outbound scores and their thresholds. |
+| `logging_error` | True when phase 5 failed; traffic outcome is unchanged. |
+
+Rule records follow libmodsecurity's `RuleMessage` selection semantics. They do not claim to contain
+every rule that evaluated or matched; rules using `nolog` are absent. The filter deliberately omits
+free-form messages, matched values, headers, bodies, URI, and client/server addresses. Correlate the
+event with the surrounding Envoy access-log entry rather than adding those values to the metadata.
+
+`processLogging()` remains enabled because it executes phase 5 and makes final CRS scores
+available. Native audit-file output is independent and is not required for structured events. A
+production rule configuration can therefore use:
+
+```apache
+SecAuditEngine Off
+SecDebugLogLevel 0
+```
+
+and omit `SecAuditLog`, `SecAuditLogParts`, `SecAuditLogType`, and `SecDebugLog`. A deployment that
+requires full transaction evidence for compliance or forensics needs a separately reviewed audit
+design; the bounded metadata intentionally does not contain headers or bodies.
+
+`security_events` counts metadata publications and `security_event_rule_truncations` counts events
+whose rule list reached the bound. `logging_errors` remains the phase-5 error signal.
 
 ## Failure and buffering semantics
 

@@ -1,11 +1,14 @@
 #include "source/engine/transaction.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "modsecurity/intervention.h"
+#include "modsecurity/rule_message.h"
 #include "modsecurity/transaction.h"
 #include "source/engine/exception.h"
 
@@ -37,6 +40,44 @@ class NativeIntervention {
  private:
   modsecurity::ModSecurityIntervention value_;
 };
+
+std::optional<int64_t> transactionInteger(const modsecurity::Transaction& transaction,
+                                          absl::string_view name) {
+  const std::unique_ptr<std::string> value =
+      transaction.m_collections.m_tx_collection->resolveFirst(std::string(name));
+  int64_t parsed = 0;
+  if (value == nullptr || !absl::SimpleAtoi(*value, &parsed)) {
+    return std::nullopt;
+  }
+  return parsed;
+}
+
+LoggingResult loggingResult(const modsecurity::Transaction& transaction) {
+  LoggingResult result;
+  result.rules.reserve(std::min(transaction.m_rulesMessages.size(), LoggingResult::MaxRuleEvents));
+  for (const modsecurity::RuleMessage& message : transaction.m_rulesMessages) {
+    if (result.rules.size() == LoggingResult::MaxRuleEvents) {
+      result.rules_truncated = true;
+      break;
+    }
+    result.rules.push_back({message.m_rule.m_ruleId, static_cast<uint32_t>(message.getPhase()),
+                            message.m_isDisruptive});
+  }
+
+  result.blocking_inbound_anomaly_score =
+      transactionInteger(transaction, "blocking_inbound_anomaly_score");
+  result.detection_inbound_anomaly_score =
+      transactionInteger(transaction, "detection_inbound_anomaly_score");
+  result.inbound_anomaly_score_threshold =
+      transactionInteger(transaction, "inbound_anomaly_score_threshold");
+  result.blocking_outbound_anomaly_score =
+      transactionInteger(transaction, "blocking_outbound_anomaly_score");
+  result.detection_outbound_anomaly_score =
+      transactionInteger(transaction, "detection_outbound_anomaly_score");
+  result.outbound_anomaly_score_threshold =
+      transactionInteger(transaction, "outbound_anomaly_score_threshold");
+  return result;
+}
 
 }  // namespace
 
@@ -119,8 +160,13 @@ absl::Status TransactionImpl::processResponseBody() {
   return call("processResponseBody", [&] { return transaction_->processResponseBody(); });
 }
 
-absl::Status TransactionImpl::processLogging() {
-  return call("processLogging", [&] { return transaction_->processLogging(); });
+absl::StatusOr<LoggingResult> TransactionImpl::processLogging() {
+  return catchLibraryExceptions("processLogging", [&]() -> absl::StatusOr<LoggingResult> {
+    if (transaction_->processLogging() != 1) {
+      return absl::InternalError("libmodsecurity operation failed: processLogging");
+    }
+    return loggingResult(*transaction_);
+  });
 }
 
 absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {

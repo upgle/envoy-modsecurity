@@ -24,9 +24,9 @@ filegroup(
     srcs = ["modsecurity/unicode.mapping"],
 )
 
-# Builds the pinned ModSecurity source and its pinned libinjection/mbedtls submodules. Optional
-# parsers are discovered by configure from the build image; the release image installs PCRE2 and
-# YAJL development packages so CRS regular expressions and JSON request bodies are supported.
+# Builds the pinned ModSecurity source and its pinned libinjection/mbedtls submodules. Structured
+# request-body parsers are mandatory: configure must fail instead of silently producing a reduced
+# libmodsecurity when YAJL or LibXML2 is unavailable.
 configure_make(
     name = "libmodsecurity",
     autogen = True,
@@ -43,16 +43,32 @@ configure_make(
         "--without-ssdeep",
     ] + select({
         "@platforms//os:macos": [
+            "--with-libxml=/opt/homebrew/opt/libxml2",
             "--with-pcre2=/opt/homebrew/opt/pcre2",
+            "--with-yajl=/opt/homebrew/opt/yajl",
             "ARFLAGS=cr",
             "AR_FLAGS=cr",
             "RANLIB=/usr/bin/ranlib",
         ],
-        "//conditions:default": [],
+        "//conditions:default": [
+            "--with-libxml=yes",
+            "--with-yajl=yes",
+        ],
     }),
     # On Darwin, let configure discover /usr/bin/ar because Bazel's static-link tool is libtool.
     env = select({
-        "@platforms//os:macos": {"AR": ""},
+        "@platforms//os:linux": {
+            # rules_foreign_cc builds pkg-config with an isolated prefix, so it does not discover
+            # Debian's system package metadata by default. The pinned CI image is linux/amd64.
+            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
+        },
+        "@platforms//os:macos": {
+            "AR": "",
+            # Homebrew's keg-only LibXML2 pkg-config file has a private zlib requirement. The
+            # foreign_cc pkg-config wrapper needs Homebrew's deployment-target metadata to resolve
+            # that requirement during the mandatory configure check.
+            "PKG_CONFIG_PATH": "/opt/homebrew/Library/Homebrew/os/mac/pkgconfig/10.15",
+        },
         "//conditions:default": {},
     }),
     lib_source = "@modsecurity_source//:all",
@@ -60,12 +76,17 @@ configure_make(
     # must be propagated to every Bazel consumer.
     linkopts = select({
         "@platforms//os:linux": [
+            "-lxml2",
             "-lpcre2-8",
             "-lyajl",
         ],
         "@platforms//os:macos": [
+            "-L/opt/homebrew/opt/libxml2/lib",
+            "-L/opt/homebrew/opt/yajl/lib",
             "-L/opt/homebrew/opt/pcre2/lib",
+            "-lxml2",
             "-lpcre2-8",
+            "-lyajl",
         ],
         "//conditions:default": ["-lpcre2-8"],
     }),

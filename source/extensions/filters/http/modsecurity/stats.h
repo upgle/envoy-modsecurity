@@ -11,26 +11,28 @@ namespace Extensions {
 namespace HttpFilters {
 namespace ModSecurityFilter {
 
-#define ALL_MODSECURITY_FILTER_STATS(COUNTER, GAUGE, HISTOGRAM)                                   \
-  COUNTER(body_memory_budget_exceeded)                                                            \
-  COUNTER(failure_mode_allowed)                                                                   \
-  COUNTER(logging_errors)                                                                         \
-  COUNTER(request_body_bypassed)                                                                  \
-  COUNTER(request_body_overflow)                                                                  \
-  COUNTER(request_interventions)                                                                  \
-  COUNTER(request_trailers_uninspected)                                                           \
-  COUNTER(response_body_bypassed)                                                                 \
-  COUNTER(response_body_overflow)                                                                 \
-  COUNTER(response_interventions)                                                                 \
-  COUNTER(response_trailers_uninspected)                                                          \
-  COUNTER(runtime_errors)                                                                         \
-  GAUGE(active_rule_generations, Accumulate)                                                      \
-  GAUGE(active_transactions, Accumulate)                                                          \
-  GAUGE(modsecurity_buffer_bytes, Accumulate)                                                     \
-  HISTOGRAM(logging_duration_us, Microseconds)                                                    \
-  HISTOGRAM(request_body_duration_us, Microseconds)                                               \
-  HISTOGRAM(request_headers_duration_us, Microseconds)                                            \
-  HISTOGRAM(response_body_duration_us, Microseconds)                                              \
+#define ALL_MODSECURITY_FILTER_STATS(COUNTER, GAUGE, HISTOGRAM) \
+  COUNTER(body_memory_budget_exceeded)                          \
+  COUNTER(failure_mode_allowed)                                 \
+  COUNTER(logging_errors)                                       \
+  COUNTER(request_body_bypassed)                                \
+  COUNTER(request_body_overflow)                                \
+  COUNTER(request_interventions)                                \
+  COUNTER(request_trailers_uninspected)                         \
+  COUNTER(response_body_bypassed)                               \
+  COUNTER(response_body_overflow)                               \
+  COUNTER(response_interventions)                               \
+  COUNTER(response_trailers_uninspected)                        \
+  COUNTER(runtime_errors)                                       \
+  COUNTER(security_event_rule_truncations)                      \
+  COUNTER(security_events)                                      \
+  GAUGE(active_rule_generations, Accumulate)                    \
+  GAUGE(active_transactions, Accumulate)                        \
+  GAUGE(modsecurity_buffer_bytes, Accumulate)                   \
+  HISTOGRAM(logging_duration_us, Microseconds)                  \
+  HISTOGRAM(request_body_duration_us, Microseconds)             \
+  HISTOGRAM(request_headers_duration_us, Microseconds)          \
+  HISTOGRAM(response_body_duration_us, Microseconds)            \
   HISTOGRAM(response_headers_duration_us, Microseconds)
 
 struct FilterStats {
@@ -46,7 +48,7 @@ struct FilterStats {
 
 using FilterStatsSharedPtr = std::shared_ptr<FilterStats>;
 
-} // namespace ModSecurityFilter
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}  // namespace ModSecurityFilter
+}  // namespace HttpFilters
+}  // namespace Extensions
+}  // namespace Envoy

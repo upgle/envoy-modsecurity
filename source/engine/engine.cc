@@ -1,5 +1,6 @@
 #include "source/engine/engine.h"
 
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -28,13 +29,15 @@ class RuleGenerationImpl final : public RuleGeneration,
  public:
   RuleGenerationImpl(std::shared_ptr<RuntimeImpl> runtime,
                      std::shared_ptr<modsecurity::RulesSet> rules, uint64_t loaded_rule_count,
-                     uint64_t source_count)
+                     uint64_t source_count, uint64_t generation_id)
       : runtime_(std::move(runtime)),
         rules_(std::move(rules)),
         loaded_rule_count_(loaded_rule_count),
-        source_count_(source_count) {}
+        source_count_(source_count),
+        generation_id_(generation_id) {}
 
   absl::StatusOr<std::unique_ptr<Transaction>> createTransaction() const override;
+  uint64_t generationId() const override { return generation_id_; }
   uint64_t loadedRuleCount() const override { return loaded_rule_count_; }
   uint64_t sourceCount() const override { return source_count_; }
 
@@ -44,14 +47,15 @@ class RuleGenerationImpl final : public RuleGeneration,
   const std::shared_ptr<modsecurity::RulesSet> rules_;
   const uint64_t loaded_rule_count_;
   const uint64_t source_count_;
+  const uint64_t generation_id_;
 };
 
 class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<RuntimeImpl> {
  public:
   RuntimeImpl() : modsecurity_(std::make_unique<modsecurity::ModSecurity>()) {
     modsecurity_->setConnectorInformation("envoy-modsecurity v0.1.0");
-    // Native synchronous server logging is deliberately disabled. Interventions and Envoy stats
-    // provide bounded observability without serializing worker callbacks on a shared log sink.
+    // Native synchronous server logging is deliberately disabled. Structured stream metadata and
+    // Envoy stats provide bounded observability without a shared log sink in worker callbacks.
     modsecurity_->setServerLogCb(discardServerLog);
   }
 
@@ -78,7 +82,8 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
           }
 
           return std::shared_ptr<const RuleGeneration>(new RuleGenerationImpl(
-              shared_from_this(), std::move(candidate), loaded_rule_count, sources.size()));
+              shared_from_this(), std::move(candidate), loaded_rule_count, sources.size(),
+              next_generation_id_.fetch_add(1, std::memory_order_relaxed)));
         });
   }
 
@@ -86,6 +91,7 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
 
  private:
   std::unique_ptr<modsecurity::ModSecurity> modsecurity_;
+  std::atomic<uint64_t> next_generation_id_{1};
 };
 
 absl::StatusOr<std::unique_ptr<Transaction>> RuleGenerationImpl::createTransaction() const {
