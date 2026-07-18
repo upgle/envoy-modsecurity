@@ -1,14 +1,14 @@
 # Architecture
 
-## Status and packaging decision
+## Packaging model
 
 The project builds a custom Envoy binary with a statically registered native C++ HTTP filter.
-The filter source and release automation stay in this repository while Envoy remains an
-unmodified, pinned upstream submodule.
+The filter source and its build and test configuration stay in this repository while Envoy remains
+an unmodified, pinned upstream submodule.
 
 The root `//:envoy-modsecurity` target links the filter factory and the Envoy executable libraries
-needed by the pinned release. This preserves Envoy's native filter API and predictable
-libmodsecurity integration without copying the extension into Envoy core.
+needed by the pinned release. This uses Envoy's native filter API without copying the extension
+into Envoy core.
 
 ## Component and ownership boundaries
 
@@ -29,48 +29,54 @@ filter factory -- compile --> immutable RuleGeneration
 - Every accepted filter configuration owns a newly compiled, immutable `RuleGeneration`.
 - `FilterConfig` owns the effective settings, statistics, aggregate body-memory budget, and the
   generation used to create new streams.
-- Each HTTP stream owns exactly one native transaction. The transaction pins its generation, so
-  an in-flight stream cannot switch rules during an ECDS update.
-- After transaction creation, the stream filter releases its `FilterConfig` reference. This lets
-  obsolete configurations and budgets be reclaimed without waiting for unrelated long-lived
-  streams; the transaction retains only the runtime and rules it needs.
+- Each enabled stream creates at most one native transaction. The transaction pins its generation,
+  so an in-flight stream cannot switch rules during an ECDS update.
+- After transaction creation, the stream filter releases its `FilterConfig` reference. It keeps
+  copies or shared references to the effective settings, statistics, and body-memory budget; the
+  transaction keeps the runtime and rule generation alive.
 - Request and response callbacks for a stream remain confined to its Envoy worker. No filter
-  callback performs filesystem, network, or subprocess work.
+  callback is invoked concurrently for that stream.
 
-The engine adapter does not expose Envoy header maps or buffers. It can therefore be tested with
-real libmodsecurity independently of a full Envoy binary and can be reused by a future packaging
-adapter.
+The adapter itself does not initiate filesystem, network, or subprocess work from worker
+callbacks. Filename-based sources are not subject to the inline-rule denylist and may use any
+capability enabled in this libmodsecurity build, including directives that perform logging,
+persistent storage, or external work. Because rule evaluation is synchronous, deployments must
+review those directives for worker blocking and contention.
+
+The engine adapter does not expose Envoy header maps or buffers, so it can be tested against
+libmodsecurity without running the custom Envoy binary.
 
 ## Rule sources and load order
 
 The top-level configuration contains an ordered list of sources. Both forms may be mixed:
 
-- `filename` loads SecLang from a local file through libmodsecurity. Production deployments should
-  use absolute paths in an immutable image or read-only mounted configuration.
+- `filename` must be an absolute path to a regular file loaded through libmodsecurity. Production
+  deployments should provide it through an immutable image or read-only mounted configuration.
 - `inline_rules` carries bounded SecLang text and a stable diagnostic name. It is intended for
-  small exclusions, emergency rules, and tests rather than an entire CRS distribution.
+  small exclusions, emergency rules, and tests rather than an entire CRS distribution. Its
+  capability denylist is defense in depth, not a sandbox; the xDS control plane remains trusted.
 
 SecLang remains responsible for `SecRuleEngine`, `Include`, CRS setup, body inspection directives,
 audit/debug logging, and rule exclusions. The protobuf controls Envoy integration, ordering,
 buffering, failure policy, and dynamic delivery.
 
-A typical production order is:
+A typical source order is:
 
 1. baseline ModSecurity configuration;
 2. CRS setup;
-3. dynamic pre-CRS exclusions;
+3. pre-CRS exclusions;
 4. CRS rules;
-5. dynamic post-CRS exclusions;
+5. post-CRS exclusions;
 6. emergency blocking rules.
 
 Order is significant because later SecLang sources may update or remove rules from earlier sources.
-Files named by a configuration are read only while that configuration is being constructed. File
-contents must therefore be immutable for the lifetime of a deployment revision; changing a file
-in place is not a supported update mechanism.
+Files are read when the configuration is constructed and are not reread afterward. Their contents
+must therefore be immutable for the lifetime of a deployment revision; changing a file in place is
+not a supported update mechanism.
 
 ## Dynamic configuration with ECDS
 
-The first dynamic-update mechanism is Envoy Extension Config Discovery Service (ECDS):
+Dynamic filter configuration uses Envoy Extension Config Discovery Service (ECDS):
 
 ```yaml
 http_filters:
@@ -87,20 +93,21 @@ http_filters:
 ```
 
 Every update carries the complete `ModSecurity` message, including unchanged filenames and all
-inline sources. ECDS replaces the complete extension resource; Delta xDS changes transport
-delivery, not protobuf field-level merge semantics.
+inline sources. A filename remains a path on the Envoy host; ECDS does not transfer that file's
+contents. ECDS replaces the complete extension resource, and Delta xDS does not change the
+protobuf's replacement semantics.
 
-For an update, Envoy and the exception-free filter factory:
+For each update, the filter factory performs these steps:
 
-1. validate the typed resource and protobuf constraints;
-2. create a fresh rule set and load every source in order;
-3. construct a new immutable filter configuration and generation;
-4. publish it for new streams and ACK the resource.
+1. Validates the typed resource and protobuf constraints.
+2. Creates a fresh rule set and loads every source in order.
+3. Constructs a new immutable filter configuration and generation.
+4. Publishes it for new streams and ACKs the resource.
 
-If validation, file loading, or SecLang parsing fails, the factory returns an error. Envoy NACKs
-the update and keeps the previously accepted callback and rule generation active. Existing streams
-continue with the generation pinned by their transaction; new streams use the newly accepted
-generation only after publication.
+Native exceptions are converted to status errors. If validation, file loading, or SecLang parsing
+fails, the factory returns an error. Envoy NACKs the update and keeps the previously accepted
+callback and rule generation active. Existing streams continue with the generation pinned by their
+transaction; new streams use the newly accepted generation only after publication.
 
 Do not configure an empty or weaker default through `apply_default_config_without_warming` for a
 security filter. A listener should wait for a valid ECDS resource, or fail activation according to
@@ -108,34 +115,39 @@ the deployment's control-plane policy.
 
 ## Request, response, and streaming behavior
 
-A regular finite request follows ModSecurity phases 1 and 2. Response phases 3 and 4 are opt-in;
-phase 5 logging is finalized exactly once on completion, local reply, reset, or destruction.
-Disruptive interventions stop iteration and send one local reply.
+A regular finite request follows ModSecurity phases 1 and 2. Response phases 3 and 4 are opt-in.
+Phase 5 is attempted at most once after the last configured inspection phase or when an active
+transaction completes or is destroyed. Runtime-error and overflow paths release the transaction
+without phase 5. Disruptive interventions stop iteration and send one local reply.
 
 Whole-body inspection is incompatible with an unbounded stream. Known protocol shapes therefore
-use explicit bounded behavior:
+use explicit protocol-specific behavior:
 
-- gRPC and Connect streaming requests receive header-phase inspection and bypass body buffering;
-- Upgrade and CONNECT tunnels receive header-phase inspection and bypass tunnel data;
+- all recognized gRPC requests, including unary calls, and recognized Connect streaming requests
+  receive header-phase inspection and bypass body buffering;
+- Upgrade and CONNECT requests receive header-phase inspection. Response data bypasses buffering
+  after a successful tunnel handshake; rejected responses can still be inspected;
 - `text/event-stream` responses bypass response-body buffering;
 - HTTP trailers end a pending body phase, but trailer fields themselves are not inspected because
   libmodsecurity has no trailer phase.
 
-Dedicated counters expose body bypass and uninspected trailers. Generic application streams that
-cannot be identified from headers must disable this filter or response inspection on their route,
-or use a separate bounded inspection architecture.
+Dedicated counters expose body bypass and uninspected trailers. Routes with unrecognized unbounded
+request streams must disable the filter. Routes with unrecognized unbounded responses must disable
+response inspection or use a separate bounded inspection design.
 
 ## Buffering and memory control
 
 The request and response limits are independent, with a protobuf upper bound of 32 MiB per body.
-The default aggregate `max_active_body_bytes` budget is 64 MiB per accepted filter configuration
-and must be at least the largest per-body limit. Operators should use substantially smaller limits
-when possible because Envoy and libmodsecurity may retain multiple body representations and parser
-state.
+The default aggregate `max_active_body_bytes` budget is 64 MiB per accepted filter configuration.
+Validation requires it to cover the filter-level request and response limits. A per-route override
+can be larger than the aggregate budget, in which case reservation fails closed before the route
+limit is reached. Overlapping ECDS generations retain separate budgets, so this value is neither a
+process-wide limit nor an RSS bound. Operators should use smaller limits when possible because
+Envoy and libmodsecurity may retain multiple body representations and parser state.
 
 The filter:
 
-- checks declared `Content-Length` before admitting a body;
+- checks a valid declared `Content-Length` before admitting a body;
 - charges admitted bytes to a shared atomic budget;
 - associates buffered bytes with Envoy's stream memory account for overload-manager selection;
 - releases body charges, configuration references, and native transactions on all terminal paths;
@@ -154,20 +166,15 @@ determines the representation seen during response inspection.
 | Request body exceeds its limit | Return HTTP 413; never inspect a partial request body. |
 | Response body exceeds its limit | Discard the buffered response and return `status_on_error`. |
 | Aggregate body budget exhausted | Return `status_on_error`; `failure_mode_allow` does not override memory safety. |
-| Runtime engine or transaction error | Return `status_on_error`, unless `failure_mode_allow` is explicitly enabled. |
-| Response inspection absent | Skip phases 3 and 4; still finalize logging. |
+| Runtime engine or transaction error | Return `status_on_error`, unless `failure_mode_allow` is enabled and the error is not resource exhaustion. |
+| Runtime resource exhaustion | Return `status_on_error`; `failure_mode_allow` does not apply. |
+| Response inspection absent | Skip phases 3 and 4; attempt phase 5 after request inspection completes. |
 
-Rule-load failures, body limits, and interventions are always fail-closed. `failure_mode_allow`
-applies only to runtime engine/transaction errors.
+Rule-load failures, body limits, resource exhaustion, and interventions are always fail-closed.
+`failure_mode_allow` applies only to other runtime engine or transaction errors.
 
-## Deferred scope and alternatives
+## Non-goals
 
-The initial protocol deliberately excludes a rules-only custom xDS resource, field patches, file
-watching, remote rule downloads, independently mutable filename contents, and per-route ruleset
-replacement. If frequent full ECDS resources become operationally expensive, a future dedicated
-`RuleSet` resource may reference versioned immutable bundles while preserving generation pinning
-and atomic validation.
-
-Dynamic Modules remain a future packaging option and require feature parity, an Envoy-minor ABI
-matrix, load-failure tests, and equivalent performance and CRS results. An `ext_proc` deployment is
-a separate choice for operators who prioritize process isolation over in-process latency.
+The current protocol does not provide a rules-only xDS resource, field patches, file watching,
+remote rule downloads, mutable file reloads, or per-route ruleset replacement. Dynamic Modules and
+`ext_proc` packaging are also outside the current implementation.

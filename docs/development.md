@@ -5,10 +5,17 @@
 - Git with submodule support
 - Bazelisk or Bazel 8.7.0
 - A Linux C++20 toolchain compatible with the pinned Envoy release
-- Build prerequisites for ModSecurity v3 when working on the engine adapter
+- Autoconf, Automake, GNU Libtool, `pkg-config`, and development headers for PCRE2 and YAJL
 
-The CI environment is the reference environment. macOS may be used for API and source work, but a
-release must be produced and tested on Linux.
+On Ubuntu, the native dependencies used by CI can be installed with:
+
+```shell
+sudo apt-get update
+sudo apt-get install autoconf automake libpcre2-dev libtool libyajl-dev pkg-config
+```
+
+Ubuntu 24.04 CI is the reference environment. macOS builds are best-effort and are not CI-qualified;
+release qualification must run on Linux.
 
 ## Setup
 
@@ -28,33 +35,35 @@ external lockfile.
 
 The repository currently includes:
 
-- the Envoy-independent engine abstraction and real libmodsecurity adapter;
-- ordered file and inline rule loading with safe-profile validation;
+- the Envoy-independent engine abstraction and native libmodsecurity adapter;
+- ordered file and inline rule loading with an inline-rule capability denylist;
 - statically registered filter factory and custom Envoy binary;
 - request, optional response, intervention, and logging phases;
 - per-route overrides, per-stream limits, aggregate body-memory budgeting, and early release;
-- explicit handling for gRPC/Connect streaming, WebSocket/CONNECT tunnels, event streams, chunks,
-  oversized payloads, and trailers;
+- explicit handling for gRPC requests, Connect streaming, WebSocket/CONNECT tunnels, event streams,
+  chunked bodies, oversized payloads, and trailers;
 - engine, filter, and custom-Envoy HTTP integration suites.
 
-The first supported release remains gated on the missing qualification and packaging work below.
+The missing qualification and packaging items below block a supported release.
 
-## Required tests
+## Verification status
 
-- Engine unit and exception-boundary tests that do not link Envoy. Implemented.
-- Filter tests for headers, data, trailers, callbacks, limits, streaming bypass, and destruction.
-  Implemented.
-- Custom Envoy HTTP integration tests for allowed, blocked, chunked, oversized, streaming, upgrade,
-  and trailer paths. Implemented; expand to an explicit HTTP/2 and reset matrix before release.
-- OWASP CRS regression tests with an explicit, reviewed exclusion file. Required before release.
-- ASAN, UBSAN, and leak-sanitizer builds on Linux. Required before release.
-- Concurrency and update-churn tests for runtime, rule generations, budgets, and transaction
-  lifetimes. Required before release.
-- Benchmarks and memory profiles for large JSON, form, multipart, streaming, and response payloads.
-  Required before release.
+| Scope | Status | Command or remaining work |
+| --- | --- | --- |
+| API, engine layer, HTTP filter, and custom Envoy HTTP/1.1 | Available | `make check` |
+| Explicit HTTP/2 and stream-reset matrix | Missing | Required before a supported release |
+| OWASP CRS regression with reviewed exclusions | Missing | Required before a supported release |
+| ASAN, UBSAN, and leak detection on Linux | Missing | Required before a supported release |
+| Concurrent ECDS updates and transaction-lifetime stress | Missing | Required before a supported release |
+| Latency and memory profiles for representative payloads | Missing | Required before a supported release |
 
-## Release artifacts
+The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
+without running the HTTP filter or custom Envoy binary.
 
-The release pipeline will produce multi-architecture Linux images, checksums, an SBOM, signatures,
-and a compatibility manifest. Image creation is intentionally deferred until the qualification
-gates pass. A standalone filter library is not an initial release artifact.
+## Planned release artifacts
+
+No release pipeline is implemented yet. A supported release is expected to include
+multi-architecture Linux images, checksums, an SBOM, signatures, a compatibility manifest, and all
+third-party license and notice material required by Envoy, ModSecurity, OWASP CRS, and their bundled
+dependencies. Image creation remains deferred until the qualification gates pass. A standalone
+filter library is not planned as an initial release artifact.

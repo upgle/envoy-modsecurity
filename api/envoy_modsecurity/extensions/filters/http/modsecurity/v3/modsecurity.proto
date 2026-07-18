@@ -16,7 +16,7 @@ option java_package = "io.envoymodsecurity.extensions.filters.http.modsecurity.v
 option java_outer_classname = "ModSecurityProto";
 option java_multiple_files = true;
 option go_package =
-    "github.com/envoy-modsecurity/envoy-modsecurity/api/envoy_modsecurity/extensions/filters/http/modsecurity/v3;modsecurityv3";
+    "github.com/upgle/envoy-modsecurity/api/envoy_modsecurity/extensions/filters/http/modsecurity/v3;modsecurityv3";
 option (udpa.annotations.file_status).package_version_status = ACTIVE;
 option (xds.annotations.v3.file_status).work_in_progress = true;
 
@@ -28,19 +28,21 @@ option (xds.annotations.v3.file_status).work_in_progress = true;
 // Rule loading and request inspection are mandatory. Response inspection is opt-in because it
 // buffers upstream response data and adds latency to the response path.
 //
-// Known long-lived protocols cannot use whole-body inspection without stalling the stream. gRPC,
-// Connect streaming, HTTP Upgrade/CONNECT tunnels, and ``text/event-stream`` responses receive
-// header-phase inspection only; their body bytes pass through without buffering. HTTP trailer
-// fields are also passed through uninspected because libmodsecurity has no trailer phase. Dedicated
-// counters expose both behaviors. Generic streaming routes must disable this filter or response
-// inspection explicitly when they cannot tolerate bounded whole-body buffering.
+// Unbounded streams cannot use whole-body inspection without stalling. All recognized gRPC
+// requests, including unary calls, and recognized Connect streaming requests receive request-header
+// inspection while their bodies bypass buffering. Upgrade and CONNECT request bodies also bypass
+// buffering; response bodies bypass only after a successful tunnel handshake.
+// ``text/event-stream`` response bodies bypass buffering. HTTP trailer fields pass through
+// uninspected because libmodsecurity has no trailer phase. Dedicated counters expose these cases.
+// Other streaming routes must disable this filter for unbounded requests or disable response
+// inspection for unbounded responses.
 // [#next-free-field: 8]
 message ModSecurity {
   // Ordered SecLang sources loaded into one immutable ModSecurity rule set during filter-config
   // construction. The order is significant: later sources may update or remove rules loaded by
   // earlier sources. At least one source is required.
   //
-  // A production configuration will normally load one root file that includes the recommended
+  // A production configuration will normally load one root file that includes the deployment's
   // ModSecurity configuration, OWASP CRS setup, CRS rules, and local exclusions.
   repeated RuleSource rules = 1
       [(validate.rules).repeated = {min_items: 1 max_items: 64}];
@@ -56,15 +58,16 @@ message ModSecurity {
   // response bodies ModSecurity inspects.
   ResponseInspection response = 3;
 
-  // When true, a runtime failure in the ModSecurity engine allows the stream to continue and emits
-  // an error counter. Defaults to false (fail closed).
+  // When true, the stream continues after a runtime engine or transaction error other than
+  // resource exhaustion, and the filter emits an error counter. Defaults to false.
   //
   // This setting never applies to rule-load failures, invalid configuration, body-buffer limits,
   // or disruptive rule interventions.
   bool failure_mode_allow = 4;
 
-  // HTTP status returned for a fail-closed runtime error or a response body that exceeds its Envoy
-  // buffer bound. Defaults to HTTP 500. The implementation accepts only 4xx and 5xx values.
+  // HTTP status returned for a fail-closed runtime error, aggregate body-budget exhaustion, or a
+  // response body that exceeds its Envoy buffer bound. Defaults to HTTP 500. The implementation
+  // accepts only 4xx and 5xx values.
   envoy.type.v3.HttpStatus status_on_error = 5;
 
   // Optional additional statistics prefix for distinguishing multiple filter instances. The base
@@ -79,18 +82,20 @@ message ModSecurity {
       [(validate.rules).uint64 = {gt: 0 lte: 1073741824}];
 }
 
-// A SecLang source. Sources are intentionally local or inline; remote rule fetching is not part of
-// the data-plane filter contract.
+// A SecLang source. Sources are local files or inline text; the data-plane filter does not fetch
+// remote rules.
 message RuleSource {
   oneof source {
     option (validate.required) = true;
 
-    // Path to a SecLang file loaded with ``RulesSet::loadFromUri``. Use an absolute path in
-    // production. SecLang ``Include`` directives are resolved by libmodsecurity.
+    // Absolute path to a regular SecLang file loaded with ``RulesSet::loadFromUri``. SecLang
+    // ``Include`` directives are resolved by libmodsecurity.
     string filename = 1 [(validate.rules).string = {min_len: 1 max_bytes: 4096}];
 
     // SecLang embedded in the typed configuration. This is intended for small local exclusions and
-    // tests; filename-based sources are preferred for a production CRS deployment.
+    // tests; filename-based sources are preferred for a production CRS deployment. Inline sources
+    // pass through a capability denylist that provides defense in depth, not a sandbox. The
+    // configuration source must be trusted.
     InlineRules inline_rules = 2 [(validate.rules).message = {required: true}];
   }
 }
@@ -139,7 +144,7 @@ message ModSecurityPerRoute {
   }
 }
 
-// Narrow per-route overrides. Unset fields inherit the filter-level configuration.
+// Per-route overrides. Unset fields inherit the filter-level configuration.
 message ModSecurityPerRouteOverrides {
   // Overrides the request body buffer bound for this route.
   BodyBufferSettings request_body = 1;
