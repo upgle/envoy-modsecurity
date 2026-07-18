@@ -1,0 +1,25 @@
+# Minimal test-only ModSecurity configuration for the pinned OWASP CRS.
+# Native server logging is disabled by the connector and audit logging stays
+# off, so request processing does not add filesystem I/O to Envoy workers.
+SecRuleEngine On
+SecRequestBodyAccess On
+SecRequestBodyLimit 1048576
+SecRequestBodyNoFilesLimit 1048576
+SecRequestBodyLimitAction Reject
+SecRequestBodyJsonDepthLimit 64
+SecArgumentsLimit 1000
+SecResponseBodyAccess Off
+SecAuditEngine Off
+SecUnicodeMapFile __UNICODE_MAPPING__ 20127
+
+# Pin the smoke policy even if the upstream default changes in a future CRS update.
+SecAction \
+    "id:900000,phase:1,pass,t:none,nolog,tag:'OWASP_CRS',setvar:tx.blocking_paranoia_level=1"
+
+# The JSON processor is normally enabled by the deployment's base
+# modsecurity.conf. The smoke suite supplies that production prerequisite.
+SecRule REQUEST_HEADERS:Content-Type "^application/json(?:\\s*;|$)" \
+    "id:200001,phase:1,t:none,t:lowercase,pass,nolog,ctl:requestBodyProcessor=JSON"
+
+Include __CRS_SETUP__
+__CRS_RULE_INCLUDES__

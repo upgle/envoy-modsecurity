@@ -6,8 +6,9 @@
 | --- | --- | --- | --- | --- |
 | unreleased | 1.39.0 | 3.0.16 | 4.28.0 | pre-release; not supported |
 
-This row records the combination pinned by the current repository. Envoy and ModSecurity are built
-and exercised by the current test suite; OWASP CRS regression coverage is still missing. See
+This row records the combination pinned by the current repository. Envoy, ModSecurity, and a PL1
+smoke selection from the pinned OWASP CRS are exercised by the current test suite. Complete OWASP
+CRS regression coverage with exact rule-ID assertions is still missing. See
 [development.md](development.md#verification-status) for the current qualification scope. This is
 not a production support declaration. Each future supported dependency combination will have its
 own filter release and compatibility row.

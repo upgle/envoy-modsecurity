@@ -42,7 +42,7 @@ The repository currently includes:
 - per-route overrides, per-stream limits, aggregate body-memory budgeting, and early release;
 - explicit handling for gRPC requests, Connect streaming, WebSocket/CONNECT tunnels, event streams,
   chunked bodies, oversized payloads, and trailers;
-- engine, filter, and custom-Envoy HTTP integration suites.
+- engine, filter, custom-Envoy HTTP integration, and pinned OWASP CRS PL1 smoke suites.
 
 The missing qualification and packaging items below block a supported release.
 
@@ -51,8 +51,9 @@ The missing qualification and packaging items below block a supported release.
 | Scope | Status | Command or remaining work |
 | --- | --- | --- |
 | API, engine layer, HTTP filter, and custom Envoy HTTP/1.1 | Available | `make check` |
+| OWASP CRS PL1 smoke against custom Envoy | Available | `make integration-test` |
 | Explicit HTTP/2 and stream-reset matrix | Missing | Required before a supported release |
-| OWASP CRS regression with reviewed exclusions | Missing | Required before a supported release |
+| Complete OWASP CRS regression with exact rule IDs and reviewed exclusions | Missing | Required before a supported release |
 | ASAN, UBSAN, and leak detection on Linux | Missing | Required before a supported release |
 | Concurrent ECDS updates and transaction-lifetime stress | Missing | Required before a supported release |
 | Latency and memory profiles for representative payloads | Missing | Required before a supported release |

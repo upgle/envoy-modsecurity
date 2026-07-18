@@ -7,7 +7,8 @@ The test tree is split by scope:
 - `test/unit`: Envoy filter callbacks, state transitions, limits, lifetime, protocol classification,
   memory budgets, and failure semantics.
 - `test/integration`: black-box HTTP/1.1 tests against the custom Envoy binary, including chunked
-  and oversized bodies, gRPC, SSE, WebSocket upgrades, and trailers.
+  and oversized bodies, gRPC, SSE, WebSocket upgrades, trailers, and a pinned OWASP CRS paranoia
+  level 1 smoke suite.
 
 Run the suites from the repository root:
 
@@ -21,7 +22,8 @@ See [docs/development.md](../docs/development.md) for prerequisites and release-
 
 The following release suites are not present yet:
 
-- `test/ftw`: OWASP CRS regression configuration and reviewed exclusions;
+- `test/ftw`: the complete OWASP CRS regression corpus with exact rule-ID assertions and reviewed
+  exclusions;
 - `test/benchmark`: latency, throughput, allocation, and concurrent-stream memory limits;
 - Linux sanitizer and update/concurrency stress coverage.
 

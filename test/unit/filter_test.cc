@@ -25,7 +25,9 @@ namespace {
 
 struct TransactionState {
   std::string request_body;
+  std::string request_http_version;
   std::string response_body;
+  std::string response_http_version;
   absl::Status request_headers_status{absl::OkStatus()};
   absl::Status request_body_status{absl::OkStatus()};
   absl::Status response_body_status{absl::OkStatus()};
@@ -49,7 +51,9 @@ class FakeTransaction final : public Engine::Transaction {
                                  uint32_t) override {
     return absl::OkStatus();
   }
-  absl::Status processUri(absl::string_view, absl::string_view, absl::string_view) override {
+  absl::Status processUri(absl::string_view, absl::string_view,
+                          absl::string_view http_version) override {
+    state_->request_http_version = http_version;
     return absl::OkStatus();
   }
   absl::Status addRequestHeader(absl::string_view, absl::string_view) override {
@@ -70,7 +74,8 @@ class FakeTransaction final : public Engine::Transaction {
   absl::Status addResponseHeader(absl::string_view, absl::string_view) override {
     return absl::OkStatus();
   }
-  absl::Status processResponseHeaders(uint32_t, absl::string_view) override {
+  absl::Status processResponseHeaders(uint32_t, absl::string_view http_version) override {
+    state_->response_http_version = http_version;
     state_->response_headers_calls++;
     return absl::OkStatus();
   }
@@ -158,6 +163,7 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   EXPECT_EQ(filter_->decodeData(second, true), Http::FilterDataStatus::Continue);
 
   EXPECT_EQ(state_->request_body, "hello world");
+  EXPECT_EQ(state_->request_http_version, "1.1");
   EXPECT_EQ(state_->request_headers_calls, 1);
   EXPECT_EQ(state_->request_body_calls, 1);
   EXPECT_EQ(state_->logging_calls, 1);
@@ -367,6 +373,7 @@ TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
   Buffer::OwnedImpl response_body("safe response");
   EXPECT_EQ(filter_->encodeData(response_body, true), Http::FilterDataStatus::Continue);
   EXPECT_EQ(state_->response_body, "safe response");
+  EXPECT_EQ(state_->response_http_version, "HTTP/1.1");
   EXPECT_EQ(state_->response_headers_calls, 1);
   EXPECT_EQ(state_->response_body_calls, 1);
   EXPECT_EQ(state_->destroyed_transactions, 1);
