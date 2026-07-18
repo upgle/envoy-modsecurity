@@ -71,6 +71,30 @@ The missing qualification and packaging items below block a supported release.
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
 without running the HTTP filter or custom Envoy binary.
 
+## Local OWASP CRS web lab
+
+Run the loopback-only web lab to build the current custom Envoy binary and send controlled requests
+through the filter with the pinned OWASP CRS in paranoia-level-1 blocking mode:
+
+```shell
+make owasp-lab
+```
+
+Open `http://127.0.0.1:8080/` and choose a clean or attack preset. The result view shows whether the
+request reached the local echo upstream, the HTTP response, bounded rule IDs, and available CRS
+anomaly scores from the filter's dynamic metadata. The generated bootstrap, root rule file, and
+Envoy log live in a temporary directory printed at startup and are removed when the lab stops.
+
+The UI, upstream, Envoy listener, and admin endpoint all bind to loopback. The web API targets only
+the lab-managed Envoy listener, rejects hop-by-hop headers, limits request and response bodies to 1
+MiB, and uses a per-process token for request submission. To select an available UI port
+automatically or retain generated files, run:
+
+```shell
+./tools/run-owasp-crs-lab.sh --ui-port 0
+./tools/run-owasp-crs-lab.sh --work-directory /tmp/envoy-modsecurity-crs-lab
+```
+
 ## Full OWASP CRS compatibility report
 
 Run the complete pinned CRS go-ftw corpus against the custom Envoy binary with:

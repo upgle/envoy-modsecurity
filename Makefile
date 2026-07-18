@@ -1,4 +1,4 @@
-.PHONY: bootstrap build build-api check integration-test test verify-deps
+.PHONY: bootstrap build build-api check integration-test owasp-lab test verify-deps
 
 bootstrap:
 	git submodule update --init --recursive --depth 1
@@ -24,6 +24,9 @@ integration-test: verify-deps
 	bazel test \
 		//test/integration:envoy_http_integration_test \
 		//test/integration:owasp_crs_smoke_test
+
+owasp-lab: verify-deps
+	./tools/run-owasp-crs-lab.sh
 
 check: verify-deps
 	bazel build //:api_bindings //source/extensions/filters/http/modsecurity:config
