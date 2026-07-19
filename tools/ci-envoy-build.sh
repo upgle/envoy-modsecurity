@@ -4,9 +4,9 @@ set -euo pipefail
 
 ci_mode="${1:-all}"
 case "${ci_mode}" in
-  all | build | qa | sanitizers | stress) ;;
+  all | build | qa | sanitizers) ;;
   *)
-    echo "Usage: $0 [all|build|qa|sanitizers|stress]" >&2
+    echo "Usage: $0 [all|build|qa|sanitizers]" >&2
     exit 2
     ;;
 esac
@@ -80,10 +80,6 @@ run_qa() {
   make check
   ./tools/run-crs-compatibility.sh --apply-platform-overrides --fail-on-test-failure
   ./tools/run-qualification-benchmark.sh --enforce
-}
-
-run_stress() {
-  bazel build //:envoy-modsecurity
   make body-pressure-stress
 }
 
@@ -148,9 +144,6 @@ case "${ci_mode}" in
     ;;
   sanitizers)
     run_sanitizers
-    ;;
-  stress)
-    run_stress
     ;;
   all)
     run_build

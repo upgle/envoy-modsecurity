@@ -40,11 +40,11 @@ CI compiles the normal binary in a `build` job, then runs `qa` and `sanitizers` 
 Each job has an independent 180-minute timeout. The sanitizer job recompiles its targets because
 instrumented objects cannot reuse the normal build artifacts.
 
-The separate daily and manually dispatched `body-pressure stress` workflow runs concurrent 1 MiB
-request and response workloads and repeated 256 KiB body waves. It uploads throughput, latency,
-CPU, sampled peak RSS, and terminal-gauge evidence without adding the longer profile to every pull
-request. Functional expectations and terminal gauges fail the job immediately; performance and RSS
-thresholds are diagnostic until a reviewed Linux baseline is recorded.
+Every pull request runs the body-pressure profile at the end of the existing QA job, reusing the
+already-built custom Envoy binary for concurrent 1 MiB request and response workloads and repeated
+256 KiB body waves. It uploads throughput, latency, CPU, sampled peak RSS, and terminal-gauge
+evidence. Functional expectations and terminal gauges fail the job immediately; performance and
+RSS thresholds are diagnostic until a reviewed Linux baseline is recorded.
 
 Any project-specific CRS exclusion added in the future must record its reason, affected rule ID,
 responsible maintainer or tracking issue, and expiration or review date. Unreviewed failures and

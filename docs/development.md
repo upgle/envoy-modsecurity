@@ -59,7 +59,7 @@ The repository currently includes:
 - multi-worker ECDS ACK/NACK, last-good retention, generation pinning, and update-churn tests;
 - Linux ASAN/LSan/UBSAN and TSAN CI gates; and
 - a thresholded latency, throughput, pathological-regex CPU, and RSS qualification benchmark plus
-  a scheduled body-pressure stress profile.
+  a pull-request body-pressure stress profile.
 
 These gates must pass for the exact release candidate. Their presence alone is not release evidence,
 and packaging and operational qualification still block a supported release.
@@ -68,14 +68,14 @@ The GitHub Actions workflow separates release verification into three jobs. The 
 compiles the normal custom Envoy binary and publishes reusable Bazel outputs to the configured
 remote cache. After it succeeds, the `qa` and `sanitizers` jobs run in parallel with independent
 180-minute timeouts. QA runs the normal suites, complete CRS corpus, and qualification benchmark;
-the sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN and TSAN instrumentation.
+QA then reuses the same binary for concurrent 1 MiB requests and responses plus repeated 256 KiB
+body waves. The sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN and TSAN
+instrumentation. The body-pressure profile records sampled peak RSS and uploads its report for 30
+days on every pull request. Request failures, unexpected statuses, timeouts, and non-zero terminal
+gauges fail QA. Performance and RSS thresholds remain diagnostic until a reviewed Linux baseline
+is available.
 Sanitizer actions may reuse compilation outputs, but their test-result cache is disabled so every
 release-gate run executes the instrumented binaries.
-The separate `body-pressure stress` workflow runs daily and on manual dispatch. It exercises
-concurrent 1 MiB requests and responses plus repeated 256 KiB body waves, records sampled peak RSS,
-and uploads its report for 30 days without extending every pull-request run. Request failures,
-unexpected statuses, timeouts, and non-zero terminal gauges fail the workflow. Performance and RSS
-thresholds remain diagnostic until a reviewed Linux baseline is available.
 
 ## Verification status
 
@@ -89,7 +89,7 @@ thresholds remain diagnostic until a reviewed Linux baseline is available.
 | Data-race detection | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs engine, budget, and multi-worker ECDS churn with `--config=tsan` |
 | Concurrent ECDS updates and transaction-lifetime stress | Required TSAN gate | `//test/integration:filter_ecds_integration_test` overlaps requests on four exactly balanced workers with accepted configuration updates |
 | Latency, CPU, throughput, and RSS profile | Required CI gate | `make qualification-benchmark` |
-| Concurrent large-body pressure and longer RSS sampling | Scheduled CI evidence; functional gate | `make body-pressure-stress` |
+| Concurrent large-body pressure and longer RSS sampling | Required PR CI evidence; functional gate | `make body-pressure-stress` |
 
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
 without running the HTTP filter or custom Envoy binary.
@@ -190,7 +190,7 @@ traffic, 1 second p99 and 250 ms of Envoy CPU per pathological request, and no m
 sampled peak RSS growth. CI fails when a threshold or request expectation is violated and uploads
 the report for 30 days.
 
-Run the scheduled profile locally with:
+Run the pull-request stress profile locally with:
 
 ```shell
 make body-pressure-stress
@@ -198,10 +198,11 @@ make body-pressure-stress
 
 This profile adds 96 requests and 96 responses at the 1 MiB inspection limit, uses client
 concurrency 48, and performs twelve 250-request waves with 256 KiB bodies. The profile is intended
-to expose memory amplification and tail-latency regressions on GitHub-hosted runners; it remains a
-portable regression floor rather than a production capacity claim. Its request expectations and
-terminal gauges are enforced immediately. Review the first stable Linux runs before enabling its
-performance and RSS thresholds with `--enforce`.
+to expose memory amplification and tail-latency regressions on every pull request; it remains a
+portable regression floor rather than a production capacity claim. QA reuses its already-built
+custom Envoy binary, so the workload does not add another build job. Its request expectations and
+terminal gauges are enforced immediately. Review stable Linux runs before enabling its performance
+and RSS thresholds with `--enforce`.
 
 These values are repository qualification floors, not a deployment SLO. A deployment must rerun
 the workload with its release binary, production CRS and exclusions, target hardware, body-size
