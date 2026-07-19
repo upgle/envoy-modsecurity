@@ -81,6 +81,8 @@ mkdir --parents "${raw_profile_directory}" "${output_directory}"
 common_build_flags=(
   --compilation_mode=opt
   --strip=always
+  --fission=no
+  --features=-per_object_debug_info
   '--per_file_copt=.*@-flto=thin'
   --linkopt=-flto=thin
   --nocheck_visibility
