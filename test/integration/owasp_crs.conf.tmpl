@@ -14,7 +14,7 @@ SecUnicodeMapFile __UNICODE_MAPPING__ 20127
 
 # Pin the smoke policy even if the upstream default changes in a future CRS update.
 SecAction \
-    "id:900000,phase:1,pass,t:none,nolog,tag:'OWASP_CRS',setvar:tx.blocking_paranoia_level=1"
+    "id:900000,phase:1,pass,t:none,nolog,tag:'OWASP_CRS',setvar:tx.blocking_paranoia_level=1,setvar:tx.detection_paranoia_level=4"
 
 # The JSON processor is normally enabled by the deployment's base
 # modsecurity.conf. The smoke suite supplies that production prerequisite.

@@ -6,7 +6,7 @@ admin:
 
 static_resources:
   listeners:
-    - name: owasp_crs_smoke_listener
+    - name: modsecurity_qualification_listener
       address:
         socket_address:
           address: 127.0.0.1
@@ -16,26 +16,17 @@ static_resources:
             - name: envoy.filters.network.http_connection_manager
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                stat_prefix: owasp_crs_smoke_http
-                access_log:
-                  - name: envoy.access_loggers.stdout
-                    typed_config:
-                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-                      log_format:
-                        json_format:
-                          path: "%REQ(:PATH)%"
-                          status: "%RESPONSE_CODE%"
-                          modsecurity: "%DYNAMIC_METADATA(envoy.filters.http.modsecurity)%"
+                stat_prefix: qualification_http
                 route_config:
-                  name: owasp_crs_smoke_routes
+                  name: qualification_routes
                   virtual_hosts:
-                    - name: owasp_crs_smoke_service
+                    - name: qualification_service
                       domains: ["*"]
                       routes:
                         - match:
                             prefix: "/"
                           route:
-                            cluster: owasp_crs_smoke_upstream
+                            cluster: qualification_upstream
                 http_filters:
                   - name: envoy.filters.http.modsecurity
                     typed_config:
@@ -46,19 +37,19 @@ static_resources:
                         max_bytes:
                           value: 1048576
                       failure_mode_allow: false
-                      stat_prefix: owasp_crs_smoke
+                      stat_prefix: qualification
                       max_active_body_bytes:
-                        value: 2097152
+                        value: 67108864
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-    - name: owasp_crs_smoke_upstream
+    - name: qualification_upstream
       connect_timeout: 1s
       type: STATIC
       load_assignment:
-        cluster_name: owasp_crs_smoke_upstream
+        cluster_name: qualification_upstream
         endpoints:
           - lb_endpoints:
               - endpoint:

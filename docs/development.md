@@ -52,9 +52,21 @@ The repository currently includes:
 - per-route overrides, per-stream limits, aggregate body-memory budgeting, and early release;
 - explicit handling for gRPC requests, Connect streaming, WebSocket/CONNECT tunnels, event streams,
   chunked bodies, oversized payloads, and trailers;
-- engine, filter, custom-Envoy HTTP integration, and pinned OWASP CRS PL1 smoke suites.
+- engine, filter, custom-Envoy HTTP integration, and pinned OWASP CRS PL1 smoke suites;
+- HTTP/1.1 and HTTP/2 boundary, trailer, downstream-reset, upstream-reset, multiplexing, and
+  explicit unbounded-route tests;
+- multi-worker ECDS ACK/NACK, last-good retention, generation pinning, and update-churn tests;
+- Linux ASAN/LSan/UBSAN and TSAN CI gates; and
+- a thresholded latency, throughput, pathological-regex CPU, and RSS qualification benchmark.
 
-The missing qualification and packaging items below block a supported release.
+These gates must pass for the exact release candidate. Their presence alone is not release evidence,
+and packaging and operational qualification still block a supported release.
+
+The GitHub Actions workflow separates release verification into three jobs. The `build` job first
+compiles the normal custom Envoy binary and publishes reusable Bazel outputs to the configured
+remote cache. After it succeeds, the `qa` and `sanitizers` jobs run in parallel with independent
+180-minute timeouts. QA runs the normal suites, complete CRS corpus, and qualification benchmark;
+the sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN and TSAN instrumentation.
 
 ## Verification status
 
@@ -62,11 +74,12 @@ The missing qualification and packaging items below block a supported release.
 | --- | --- | --- |
 | API, engine layer, HTTP filter, and custom Envoy HTTP/1.1 | Available | `make check` |
 | OWASP CRS PL1 smoke against custom Envoy | Available | `make integration-test` |
-| Explicit HTTP/2 and stream-reset matrix | Missing | Required before a supported release |
-| Complete OWASP CRS regression with exact rule IDs and reviewed exclusions | Harness available | Run `./tools/run-crs-compatibility.sh`; a reviewed Linux baseline is still required |
-| ASAN, UBSAN, and leak detection on Linux | Missing | Required before a supported release |
-| Concurrent ECDS updates and transaction-lifetime stress | Missing | Required before a supported release |
-| Latency and memory profiles for representative payloads | Missing | Required before a supported release |
+| Explicit HTTP/2 and stream-reset matrix | Gate implemented | `//test/integration:filter_protocol_integration_test` |
+| Complete OWASP CRS regression with exact rule IDs and reviewed exclusions | Required CI gate | `./tools/run-crs-compatibility.sh --apply-platform-overrides --fail-on-test-failure` |
+| ASAN, UBSAN, and leak detection on Linux | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs the in-process lifetime suites with `--config=asan` |
+| Data-race detection | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs generation and budget contention with `--config=tsan` |
+| Concurrent ECDS updates and transaction-lifetime stress | Gate implemented | `//test/integration:filter_ecds_integration_test` and `//test/engine:engine_integration_test` |
+| Latency, CPU, throughput, and RSS profile | Required CI gate | `make qualification-benchmark` |
 
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
 without running the HTTP filter or custom Envoy binary.
@@ -121,15 +134,22 @@ results under `artifacts/`. Set `CRS_GO_FTW_BINARY` and `CRS_ALBEDO_BINARY` to u
 tools instead. Additional arguments are passed to the Python runner; for example,
 `--include '^942100-'` limits a diagnostic run to one rule ID.
 
-CI runs the complete corpus after the normal Linux checks and uploads
-`crs-compatibility-linux-amd64` as a 30-day workflow artifact. Regression mismatches are recorded
-without failing the job while the baseline is under review; runner, configuration, or process
-failures still fail CI.
+CI runs the complete corpus after the normal Linux and sanitizer checks and uploads
+`crs-compatibility-linux-amd64` as a 30-day workflow artifact. The project-owned
+Envoy/libmodsecurity3 overrides account only for reviewed codec normalization, native audit
+behavior, and connector differences. Each entry records its alternative rejection, sanitization,
+or exact-rule signal; the smoke and protocol suites verify those alternative security controls.
+Any remaining failed or forced test fails CI. Passed, failed, ignored, and forced results
+remain separate in the report; an override cannot silently disappear from the evidence. The runner
+also fails unless the actual ignored set exactly equals its reviewed list. The sole current entry,
+`920430-5`, records its owner, go-ftw limitation, and 2026-10-18 review date in the runner.
 
 The test-only ruleset runs CRS at paranoia level 4 in `DetectionOnly`, enables request and response
 inspection, and uses a serial audit log containing message metadata but no request or response body
 parts. This lets go-ftw assert exact rule IDs without changing the production connector's disabled
-native server-log callback. The report applies no platform overrides, ignores, or forced results.
+native server-log callback. A diagnostic run applies no override by default. The required CI
+command explicitly applies only the reviewed Envoy/libmodsecurity3 override file and reports
+every ignored or forced result.
 
 Five pinned CRS stages use `retry_once`. go-ftw 2.4.0 aborts the complete run without producing JSON
 when the retry also fails, so the runner disables that flag in a temporary copy of the corpus and
@@ -139,6 +159,27 @@ macOS output is diagnostic because the release reference environment is Linux. T
 if the JSON or XML parser dependency is unavailable, but a supported compatibility row still
 requires a reviewed full Linux run, documented explanations for every remaining failure, and
 explicit approval of any expected platform deviation.
+
+## Qualification benchmark
+
+Run the release-threshold workload against the custom Envoy binary with:
+
+```shell
+make qualification-benchmark
+```
+
+The benchmark starts four Envoy workers and a loopback upstream. It measures safe header-only
+requests, 4 KiB inspected bodies, blocked attacks, a bounded worst-case regex input, and repeated
+16 KiB body waves. The JSON and Markdown evidence under `artifacts/qualification-benchmark/`
+records throughput, p50/p95/p99/max latency, Envoy process CPU per request, baseline and post-soak
+RSS, and terminal transaction/body gauges. The default release thresholds are 50 requests/second,
+250 ms p99 for representative traffic, 1 second p99 and 250 ms of Envoy CPU per pathological
+request, and no more than 64 MiB of RSS growth. CI fails when a threshold or request expectation is
+violated and uploads the report for 30 days.
+
+These values are repository qualification floors, not a deployment SLO. A deployment must rerun
+the workload with its release binary, production CRS and exclusions, target hardware, body-size
+distribution, concurrency, and overload settings, then select tighter limits from that evidence.
 
 ## Planned release artifacts
 

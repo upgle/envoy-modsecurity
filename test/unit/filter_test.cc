@@ -1,10 +1,13 @@
 #include "source/extensions/filters/http/modsecurity/filter.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -340,6 +343,49 @@ TEST_F(FilterTest, DestroyedActiveStreamPublishesIncompleteEventOnce) {
   EXPECT_EQ(state_->logging_calls, 1);
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->security_events_.value(), 1);
+}
+
+TEST_F(FilterTest, DestroyMidRequestReleasesTransactionAndBodyAccountingExactlyOnce) {
+  initialize(32);
+  auto headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("partial request");
+  EXPECT_EQ(filter_->decodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
+  ASSERT_GT(body_memory_budget_->used(), 0);
+  ASSERT_GT(stats_->modsecurity_buffer_bytes_.value(), 0);
+
+  filter_->onDestroy();
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
+  EXPECT_EQ(body_memory_budget_->used(), 0);
+
+  filter_->onDestroy();
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
+}
+
+TEST_F(FilterTest, DestroyMidResponseReleasesTransactionAndBodyAccountingExactlyOnce) {
+  initialize(32, 32);
+  auto request_headers = requestHeaders();
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"},
+                                                   {"content-type", "text/plain"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
+            Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("partial response");
+  EXPECT_EQ(filter_->encodeData(body, false), Http::FilterDataStatus::StopIterationAndBuffer);
+  ASSERT_GT(body_memory_budget_->used(), 0);
+  ASSERT_GT(stats_->modsecurity_buffer_bytes_.value(), 0);
+
+  filter_->onDestroy();
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
+  EXPECT_EQ(body_memory_budget_->used(), 0);
+
+  filter_->onDestroy();
+  EXPECT_EQ(state_->destroyed_transactions, 1);
 }
 
 TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
@@ -800,6 +846,45 @@ TEST_F(FilterTest, NativeMemoryExhaustionIgnoresFailureModeAllow) {
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
   filter_->onDestroy();
+}
+
+TEST(BodyMemoryBudgetTest, ConcurrentReservationsNeverExceedLimitAndReturnToZero) {
+  constexpr uint64_t Limit = 32;
+  constexpr int ThreadCount = 8;
+  constexpr int Iterations = 5000;
+  BodyMemoryBudget budget(Limit);
+  std::atomic<uint64_t> maximum_observed{0};
+  std::atomic<bool> reservation_failed{false};
+  std::vector<std::thread> threads;
+  threads.reserve(ThreadCount);
+
+  for (int thread_index = 0; thread_index < ThreadCount; ++thread_index) {
+    threads.emplace_back([&, thread_index]() {
+      const uint64_t reservation = 1 + (thread_index % 4);
+      for (int iteration = 0; iteration < Iterations; ++iteration) {
+        if (!budget.tryReserve(reservation)) {
+          reservation_failed.store(true, std::memory_order_relaxed);
+          return;
+        }
+        const uint64_t used = budget.used();
+        uint64_t current_maximum = maximum_observed.load(std::memory_order_relaxed);
+        while (used > current_maximum &&
+               !maximum_observed.compare_exchange_weak(current_maximum, used,
+                                                       std::memory_order_relaxed)) {
+        }
+        std::this_thread::yield();
+        budget.release(reservation);
+      }
+    });
+  }
+  for (std::thread& thread : threads) {
+    thread.join();
+  }
+
+  EXPECT_FALSE(reservation_failed.load());
+  EXPECT_LE(maximum_observed.load(), Limit);
+  EXPECT_GT(maximum_observed.load(), 0);
+  EXPECT_EQ(budget.used(), 0);
 }
 
 TEST(RouteConfigTest, AppliesIndependentRequestAndResponseOverrides) {

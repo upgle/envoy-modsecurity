@@ -50,13 +50,17 @@ class RecordingUpstream(ThreadingHTTPServer):
         self._requests = []
         self._requests_lock = threading.Lock()
 
-    def record(self, method, path, body):
+    def record(self, method, path, body, headers):
         with self._requests_lock:
-            self._requests.append((method, path, body))
+            self._requests.append((method, path, body, headers))
 
     def request_count(self):
         with self._requests_lock:
             return len(self._requests)
+
+    def last_headers(self):
+        with self._requests_lock:
+            return self._requests[-1][3] if self._requests else {}
 
 
 class UpstreamHandler(BaseHTTPRequestHandler):
@@ -71,7 +75,7 @@ class UpstreamHandler(BaseHTTPRequestHandler):
     def _respond(self):
         length = int(self.headers.get("content-length", "0"))
         body = self.rfile.read(length) if length else b""
-        self.server.record(self.command, self.path, body)
+        self.server.record(self.command, self.path, body, dict(self.headers.items()))
         response_body = b"upstream-ok"
         self.send_response(200)
         self.send_header("content-type", "text/plain")
@@ -133,6 +137,8 @@ class OwaspCrsSmokeTest(unittest.TestCase):
                     "--disable-hot-restart",
                     "--log-level",
                     "warning",
+                    "--file-flush-interval-msec",
+                    "50",
                 ],
                 stdout=cls._envoy_log,
                 stderr=subprocess.STDOUT,
@@ -271,6 +277,8 @@ class OwaspCrsSmokeTest(unittest.TestCase):
         if body is not None:
             request_headers["content-type"] = "application/x-www-form-urlencoded"
         request_headers.update(headers or {})
+        if isinstance(body, str):
+            body = body.encode("utf-8")
         connection = http.client.HTTPConnection(
             "127.0.0.1", cls._listener_port, timeout=REQUEST_TIMEOUT_SECONDS
         )
@@ -288,12 +296,71 @@ class OwaspCrsSmokeTest(unittest.TestCase):
         self.assertIn(b"upstream-ok", response_body, self._envoy_logs())
         self.assertEqual(before + 1, self._upstream.request_count())
 
-    def assertBlocked(self, method, path, body=None, headers=None):
+    def _security_events_for_path(self, path):
+        events = []
+        for line in self._envoy_logs().splitlines():
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("path") == path and isinstance(record.get("modsecurity"), dict):
+                events.append(record["modsecurity"])
+        return events
+
+    def _wait_for_security_event(self, path):
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            events = self._security_events_for_path(path)
+            if events:
+                return events[-1]
+            time.sleep(0.05)
+        self.fail(f"security event was not published for {path!r}:\n{self._envoy_logs()}")
+
+    def assertBlocked(self, method, path, body=None, headers=None, expected_rule_id=None):
         before = self._upstream.request_count()
         status, response_body = self._request(method, path, body, headers)
-        self.assertEqual(403, status, self._envoy_logs())
+        self.assertEqual(
+            403,
+            status,
+            f"{self._envoy_logs()}\nupstream headers: {self._upstream.last_headers()}",
+        )
         self.assertIn(b"request blocked by ModSecurity", response_body, self._envoy_logs())
         self.assertEqual(before, self._upstream.request_count())
+        event = self._wait_for_security_event(path)
+        self.assertEqual("blocked", event["outcome"])
+        self.assertEqual("rule_intervention", event["reason"])
+        self.assertEqual(403, event["http_status"])
+        self.assertGreaterEqual(event["blocking_inbound_anomaly_score"], 5)
+        self.assertEqual(5, event["inbound_anomaly_score_threshold"])
+        rules = {rule["id"]: rule for rule in event["rules"]}
+        if expected_rule_id is not None:
+            self.assertIn(str(expected_rule_id), rules, event)
+        self.assertIn("949110", rules, event)
+        self.assertTrue(rules["949110"]["disruptive"], event)
+
+    def assertDetected(self, method, path, body=None, headers=None, expected_rule_id=None):
+        before = self._upstream.request_count()
+        status, response_body = self._request(method, path, body, headers)
+        self.assertEqual(200, status, self._envoy_logs())
+        self.assertIn(b"upstream-ok", response_body, self._envoy_logs())
+        self.assertEqual(before + 1, self._upstream.request_count())
+        event = self._wait_for_security_event(path)
+        rules = {rule["id"]: rule for rule in event["rules"]}
+        if expected_rule_id is not None:
+            self.assertIn(str(expected_rule_id), rules, event)
+
+    def assertHeaderSanitized(self, method, path, header_name, header_value):
+        before = self._upstream.request_count()
+        status, response_body = self._request(
+            method, path, headers={header_name: header_value}
+        )
+        self.assertEqual(200, status, self._envoy_logs())
+        self.assertIn(b"upstream-ok", response_body, self._envoy_logs())
+        self.assertEqual(before + 1, self._upstream.request_count())
+        upstream_header_names = {
+            name.lower() for name in self._upstream.last_headers()
+        }
+        self.assertNotIn(header_name.lower(), upstream_header_names)
 
     def test_allows_normal_get(self):
         self.assertAllowed("GET", "/products?page=2&sort=price")
@@ -314,46 +381,163 @@ class OwaspCrsSmokeTest(unittest.TestCase):
             "GET", "/packages", headers={"user-agent": "urlgrabber/3.10 yum/3.4.3"}
         )
 
+    def test_allows_representative_benign_corpus(self):
+        cases = [
+            ("GET", "/healthz", None, None),
+            ("GET", "/assets/app.min.js?v=20260718", None, None),
+            ("GET", "/orders/550e8400-e29b-41d4-a716-446655440000", None, None),
+            ("GET", "/search?q=%EC%84%9C%EC%9A%B8+%EB%82%A0%EC%94%A8", None, None),
+            ("GET", "/redirect?next=%2Faccount%2Fsettings", None, None),
+            ("POST", "/profile", "email=alice%40example.com&phone=%2B82-10-1234-5678", None),
+            ("POST", "/address", "line1=123+Main+Street&postal_code=06236", None),
+            ("POST", "/preferences", "theme=dark&notifications=true", None),
+            (
+                "POST",
+                "/api/order",
+                json.dumps(
+                    {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "items": [{"sku": "ABC-123", "quantity": 2}],
+                        "notes": "Leave at reception",
+                    }
+                ),
+                {"content-type": "application/json"},
+            ),
+            (
+                "POST",
+                "/api/i18n",
+                json.dumps({"message": "안녕하세요", "locale": "ko-KR"}, ensure_ascii=False),
+                {"content-type": "application/json; charset=utf-8"},
+            ),
+            (
+                "POST",
+                "/webhook",
+                json.dumps({"event": "invoice.paid", "amount": 19900, "currency": "KRW"}),
+                {"content-type": "application/json", "x-request-id": "req-20260718-0001"},
+            ),
+            ("POST", "/markdown", "title=Release+Notes&body=Fixed+three+bugs", None),
+        ]
+        for method, path, body, headers in cases:
+            with self.subTest(method=method, path=path):
+                self.assertAllowed(method, path, body, headers)
+
     def test_blocks_disallowed_method(self):
-        self.assertBlocked("DELETE", "/method-policy")
+        self.assertBlocked("DELETE", "/method-policy", expected_rule_id=911100)
 
     def test_blocks_scanner_user_agent(self):
-        self.assertBlocked("GET", "/", headers={"user-agent": "nuclei"})
+        self.assertBlocked(
+            "GET", "/", headers={"user-agent": "nuclei"}, expected_rule_id=913100
+        )
 
     def test_blocks_protocol_content_type_violation(self):
         self.assertBlocked(
-            "POST", "/submit", "test", {"content-type": "my-new-content-type"}
+            "POST",
+            "/content-type-policy",
+            "test",
+            {"content-type": "my-new-content-type"},
+            expected_rule_id=920420,
         )
 
     def test_blocks_request_smuggling_payload(self):
-        self.assertBlocked("POST", "/submit", "var=%0aPOST+/+HTTP/1.1")
+        self.assertBlocked(
+            "POST", "/request-smuggling", "var=%0aPOST+/+HTTP/1.1", expected_rule_id=921110
+        )
 
     def test_blocks_local_file_inclusion(self):
-        self.assertBlocked("GET", "/get?file=.../.../WINDOWS/win.ini")
+        self.assertBlocked(
+            "GET", "/get?file=.../.../WINDOWS/win.ini", expected_rule_id=930100
+        )
 
     def test_blocks_remote_file_inclusion(self):
         self.assertBlocked(
             "GET",
             "/get/timthumb.php?src=http://66.240.183.75/crash.php",
             headers={"referer": "http"},
+            expected_rule_id=931100,
         )
 
     def test_blocks_command_injection(self):
-        self.assertBlocked("POST", "/run", "arg=%3Bifconfig+example")
+        self.assertBlocked(
+            "POST", "/run", "arg=%3Bifconfig+example", expected_rule_id=932235
+        )
 
     def test_blocks_php_injection(self):
-        self.assertBlocked("GET", "/get?code=%3C%3F+exec%28%27wget%20example%27%29")
+        self.assertBlocked(
+            "GET",
+            "/get?code=%3C%3F+exec%28%27wget%20example%27%29",
+            expected_rule_id=933100,
+        )
 
     def test_blocks_generic_node_injection(self):
-        self.assertBlocked("GET", "/get?value=_%24%24ND_FUNC%24%24_")
+        self.assertBlocked(
+            "GET", "/get?value=_%24%24ND_FUNC%24%24_", expected_rule_id=934100
+        )
 
     def test_blocks_cross_site_scripting(self):
         self.assertBlocked(
-            "POST", "/comment", "text=%3Cxss+onbeforehellfreezes%3Daler%77%281%29%3E"
+            "POST",
+            "/comment",
+            "text=%3Cxss+onbeforehellfreezes%3Daler%77%281%29%3E",
+            expected_rule_id=941100,
+        )
+
+    def test_sanitizes_invalid_referer_before_filter_and_upstream(self):
+        self.assertHeaderSanitized(
+            "GET",
+            "/invalid-referer-sanitized",
+            "referer",
+            "<script >alert(1);</script>",
+        )
+
+    def test_blocks_encoded_script_in_valid_referer_header(self):
+        self.assertBlocked(
+            "GET",
+            "/valid-referer-script",
+            headers={
+                "referer": "https://evil.test/?q=%3Cscript%20%3Ealert%281%29%3B%3C%2Fscript%3E"
+            },
+            expected_rule_id=941110,
+        )
+
+    def test_blocks_encoded_event_handler_in_valid_referer_header(self):
+        self.assertBlocked(
+            "GET",
+            "/valid-referer-event-handler",
+            headers={
+                "referer": "https://evil.test/page?x=1%27%20onclick%3Dalert%281%29%20%27"
+            },
+            expected_rule_id=941120,
         )
 
     def test_blocks_form_sql_injection(self):
-        self.assertBlocked("POST", "/login", "user=1234+OR+1%3D1")
+        self.assertBlocked(
+            "POST", "/login", "user=1234+OR+1%3D1", expected_rule_id=942100
+        )
+
+    def test_blocks_sql_injection_in_referer_header(self):
+        self.assertBlocked(
+            "GET",
+            "/referer-sqli",
+            headers={
+                "referer": "https://example.test/search?q=1%20waitfor%20delay%20%270:0:15%27%20--"
+            },
+            expected_rule_id=942280,
+        )
+
+    def test_detects_paranoia_level_two_command_in_referer_header(self):
+        self.assertDetected(
+            "GET",
+            "/referer-rce-detection",
+            headers={"referer": "https://example.test/etc/shadow"},
+            expected_rule_id=932161,
+        )
+
+    def test_detects_percent_encoded_unicode_ssrf(self):
+        self.assertDetected(
+            "GET",
+            "/unicode-ssrf?target=acap://%E2%91%A0%E2%91%A1%E2%91%A6.%E2%93%AA.%E2%93%AA.%E2%91%A0",
+            expected_rule_id=934120,
+        )
 
     def test_blocks_protocol_attack_in_json_body(self):
         self.assertBlocked(
@@ -361,13 +545,18 @@ class OwaspCrsSmokeTest(unittest.TestCase):
             "/api/import",
             json.dumps({"request": "GET /admin HTTP/1.1"}),
             {"content-type": "application/json"},
+            expected_rule_id=921110,
         )
 
     def test_blocks_session_fixation(self):
-        self.assertBlocked("GET", "/get?session=.cookie%3Bexpires%3D")
+        self.assertBlocked(
+            "GET", "/get?session=.cookie%3Bexpires%3D", expected_rule_id=943100
+        )
 
     def test_blocks_java_injection(self):
-        self.assertBlocked("POST", "/deserialize", "value=java.lang.Runtime")
+        self.assertBlocked(
+            "POST", "/deserialize", "value=java.lang.Runtime", expected_rule_id=944100
+        )
 
     def test_z_releases_native_transactions_and_body_accounting(self):
         deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS

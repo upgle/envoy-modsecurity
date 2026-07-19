@@ -1,5 +1,8 @@
+#include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
@@ -263,6 +266,92 @@ SecRule REQUEST_URI "@contains /replacement" "id:1000003,phase:1,deny,status:429
   ASSERT_NE(new_transaction, nullptr);
   ASSERT_TRUE(processRequestHeaders(*new_transaction, "/blocked/in-flight").ok());
   expectNoIntervention(*new_transaction);
+}
+
+TEST(EngineIntegrationTest, ConcurrentTransactionsRemainPinnedDuringGenerationChurn) {
+  struct PublishedGeneration {
+    std::shared_ptr<const RuleGeneration> generation;
+    int expected_status;
+  };
+
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto compile_generation = [&runtime](int sequence)
+      -> absl::StatusOr<std::shared_ptr<const RuleGeneration>> {
+    const int status = 410 + (sequence % 10);
+    const std::string rules =
+        "SecRuleEngine On\nSecRule REQUEST_URI \"@contains /churn\" \"id:" +
+        std::to_string(1100000 + sequence) + ",phase:1,deny,status:" +
+        std::to_string(status) + ",nolog\"\n";
+    return runtime->compile(
+        {RuleSource::inlineRules("generation-" + std::to_string(sequence) + ".conf", rules)});
+  };
+
+  auto initial = compile_generation(0);
+  ASSERT_TRUE(initial.ok()) << initial.status();
+  std::shared_ptr<const PublishedGeneration> published =
+      std::make_shared<const PublishedGeneration>(PublishedGeneration{*initial, 410});
+  std::atomic<bool> start{false};
+  std::atomic<bool> publisher_done{false};
+  std::atomic<uint64_t> evaluations{0};
+  std::atomic<uint64_t> failures{0};
+
+  constexpr int WorkerCount = 8;
+  constexpr int MinimumEvaluationsPerWorker = 250;
+  std::vector<std::thread> workers;
+  workers.reserve(WorkerCount);
+  for (int worker = 0; worker < WorkerCount; ++worker) {
+    workers.emplace_back([&]() {
+      while (!start.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+      }
+      int completed = 0;
+      while (!publisher_done.load(std::memory_order_acquire) ||
+             completed < MinimumEvaluationsPerWorker) {
+        auto selected = std::atomic_load_explicit(&published, std::memory_order_acquire);
+        auto transaction = selected->generation->createTransaction();
+        const int expected_status = selected->expected_status;
+        selected.reset();
+        if (!transaction.ok()) {
+          failures.fetch_add(1, std::memory_order_relaxed);
+          return;
+        }
+
+        std::this_thread::yield();
+        bool succeeded = processRequestHeaders(**transaction, "/churn/request").ok();
+        auto intervention = (*transaction)->intervention();
+        succeeded = succeeded && intervention.ok() && intervention->has_value() &&
+                    intervention->value().status == expected_status;
+        if (!succeeded) {
+          failures.fetch_add(1, std::memory_order_relaxed);
+        }
+        evaluations.fetch_add(1, std::memory_order_relaxed);
+        ++completed;
+      }
+    });
+  }
+
+  start.store(true, std::memory_order_release);
+  for (int sequence = 1; sequence <= 50; ++sequence) {
+    auto invalid = runtime->compile(
+        {RuleSource::inlineRules("invalid-candidate.conf", "SecRule REQUEST_URI\n")});
+    EXPECT_FALSE(invalid.ok());
+
+    auto candidate = compile_generation(sequence);
+    ASSERT_TRUE(candidate.ok()) << candidate.status();
+    std::atomic_store_explicit(
+        &published,
+        std::make_shared<const PublishedGeneration>(
+            PublishedGeneration{*candidate, 410 + (sequence % 10)}),
+        std::memory_order_release);
+    std::this_thread::yield();
+  }
+  publisher_done.store(true, std::memory_order_release);
+
+  for (std::thread& worker : workers) {
+    worker.join();
+  }
+  EXPECT_GE(evaluations.load(), WorkerCount * MinimumEvaluationsPerWorker);
+  EXPECT_EQ(failures.load(), 0);
 }
 
 }  // namespace

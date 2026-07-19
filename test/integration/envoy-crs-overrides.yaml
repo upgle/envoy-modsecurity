@@ -1,0 +1,235 @@
+version: "v0.0.0"
+meta:
+  engine: "libmodsecurity3"
+  platform: "envoy"
+  annotations:
+    - purpose: "Envoy connector qualification"
+    - review: "Each entry requires an alternative rejection, sanitization, or exact-rule signal"
+test_overrides:
+  - rule_id: 920100
+    test_ids: [16]
+    reason: "Envoy normalizes an absolute-form URI without a path to slash before the HTTP filter."
+    output:
+      log:
+        no_expect_ids: [920100]
+
+  - rule_id: 920171
+    test_ids: [2, 3]
+    reason: "Envoy decodes chunk framing and removes Transfer-Encoding before HTTP filters; the strict request-byte rules still detect these malformed payloads."
+    output:
+      log:
+        no_expect_ids: [920171]
+        expect_ids: [920273, 920640]
+
+  - rule_id: 920180
+    test_ids: [4]
+    reason: "go-ftw sends this metadata-declared HTTP/2 case over HTTP/1, where the missing length is correctly detected. Native HTTP/2 is covered by the protocol integration suite."
+    output:
+      log:
+        expect_ids: [920180]
+
+  - rule_id: 920181
+    test_ids: [1]
+    reason: "Envoy rejects a request containing both Content-Length and chunked Transfer-Encoding before the HTTP filter."
+    output:
+      status: 400
+
+  - rule_id: 920210
+    test_ids: [2, 3, 4, 6, 7]
+    reason: "Envoy consumes and removes the hop-by-hop Connection header before HTTP filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [920210]
+
+  - rule_id: 920270
+    test_ids: [4]
+    reason: "libmodsecurity receives the value accepted by Envoy and detects the invalid Host byte."
+    output:
+      status: 200
+      log:
+        expect_ids: [920270]
+
+  - rule_id: 920274
+    test_ids: [1]
+    reason: "libmodsecurity receives the accepted Host value and detects the trailing dot."
+    output:
+      status: 200
+      log:
+        expect_ids: [920274]
+
+  - rule_id: 920280
+    test_ids: [1]
+    reason: "go-ftw supplies a Host header while serializing this nominal HTTP/1.0 request, so the missing-Host rule is not applicable."
+    output:
+      log:
+        no_expect_ids: [920280]
+
+  - rule_id: 920280
+    test_ids: [3]
+    reason: "go-ftw serializes this nominal HTTP/0.9 case as HTTP/1.0 with Host, which Envoy accepts. Raw invalid-version behavior is covered by the protocol suite."
+    output:
+      status: 200
+
+  - rule_id: 920290
+    test_ids: [1]
+    reason: "DetectionOnly permits the Host-less request after CRS records the missing-Host rule; blocking mode rejects it at anomaly evaluation."
+    output:
+      status: 200
+      log:
+        expect_ids: [920280]
+
+  - rule_id: 920290
+    test_ids: [4]
+    reason: "The encoded fixture is HTTP/1.0, so CRS correctly reports missing Host through 920280 instead of the HTTP/1.1-only 920290 rule."
+    output:
+      log:
+        no_expect_ids: [920290]
+        expect_ids: [920280]
+
+  - rule_id: 920430
+    test_ids: [3]
+    reason: "go-ftw serializes this nominal HTTP/0.9 request as accepted HTTP/1.0. Raw invalid-version behavior is covered by the protocol suite."
+    output:
+      status: 200
+
+  - rule_id: 920430
+    test_ids: [8]
+    reason: "go-ftw normalizes the nominal HTTP/4.0 request to HTTP/1.0 before Envoy receives it."
+    output:
+      status: 200
+      log:
+        no_expect_ids: [920430]
+
+  - rule_id: 920430
+    test_ids: [9]
+    reason: "go-ftw normalizes the nominal HTTP/0.8 request to HTTP/1.0 before Envoy receives it."
+    output:
+      status: 200
+
+  - rule_id: 921140
+    test_ids: [1]
+    reason: "go-ftw removes the carriage return before sending; Envoy receives one header value with no injected field."
+    output:
+      status: 200
+      log:
+        no_expect_ids: [921140]
+
+  - rule_id: 922130
+    test_ids: [1, 2, 4, 7]
+    reason: "The connector intentionally exposes audit messages rather than the native server-log parser string; CRS strict byte validation supplies the equivalent machine-readable signal."
+    output:
+      log:
+        expect_ids: [920273]
+
+  - rule_id: 932161
+    test_ids: [7, 9, 10, 11, 12]
+    reason: "Envoy removes syntactically invalid Referer values before filters and upstream forwarding; valid encoded Referer attacks are covered by the exact-rule smoke suite."
+    output:
+      log:
+        no_expect_ids: [932161]
+
+  - rule_id: 932207
+    test_ids: [1, 2, 7]
+    reason: "Envoy removes Referer values containing fragments before filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [932207]
+
+  - rule_id: 932237
+    test_ids: [4, 12]
+    reason: "Envoy removes these syntactically invalid Referer values before filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [932237]
+
+  - rule_id: 932239
+    test_ids: [6, 7, 19, 27, 29]
+    reason: "Envoy removes these syntactically invalid Referer values before filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [932239]
+
+  - rule_id: 932390
+    test_ids: [9]
+    reason: "Envoy removes the syntactically invalid Referer value before filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [932390]
+
+  - rule_id: 934120
+    test_ids: [23, 24, 25, 26, 39]
+    reason: "Envoy rejects raw non-ASCII request targets before the HTTP filter; the percent-encoded form is covered by the exact-rule smoke suite."
+    output:
+      status: 400
+      log:
+        no_expect_ids: [934120]
+
+  - rule_id: 941101
+    test_ids: [1]
+    reason: "Envoy removes the syntactically invalid Referer value before filters and upstream forwarding."
+    output:
+      log:
+        no_expect_ids: [941101]
+
+  - rule_id: 941110
+    test_ids: [4]
+    reason: "Envoy removes the syntactically invalid Referer value; an encoded valid-URL equivalent is blocked by 941110 in the smoke suite."
+    output:
+      log:
+        no_expect_ids: [941110]
+
+  - rule_id: 941120
+    test_ids: [49, 50]
+    reason: "Envoy removes the syntactically invalid Referer values; encoded valid-URL equivalents are blocked by 941120 in the smoke suite."
+    output:
+      log:
+        no_expect_ids: [941120]
+
+  - rule_id: 942131
+    test_ids: [3, 5, 7]
+    reason: "libmodsecurity v3 logs the first part of this chained rule; retain the upstream-maintained connector expectation."
+    output:
+      log:
+        expect_ids: [942131]
+
+  - rule_id: 942280
+    test_ids: [3]
+    reason: "Envoy removes the syntactically invalid Referer value; an encoded valid-URL equivalent is blocked by 942280 in the smoke suite."
+    output:
+      log:
+        no_expect_ids: [942280]
+
+  - rule_id: 944100
+    test_ids: [11, 12, 15, 16]
+    reason: "libmodsecurity v3 exposes REQUEST_BODY for these XML cases, matching the upstream-maintained connector expectation."
+    output:
+      log:
+        expect_ids: [944100]
+
+  - rule_id: 944110
+    test_ids: [11, 12, 15, 16]
+    reason: "libmodsecurity v3 exposes REQUEST_BODY for these XML cases, matching the upstream-maintained connector expectation."
+    output:
+      log:
+        expect_ids: [944110]
+
+  - rule_id: 944120
+    test_ids: [6, 7, 23, 24, 40, 41, 57, 58, 74, 75, 91, 92, 108, 109, 125, 126]
+    reason: "libmodsecurity v3 exposes REQUEST_BODY for these XML cases, matching the upstream-maintained connector expectation."
+    output:
+      log:
+        expect_ids: [944120]
+
+  - rule_id: 944210
+    test_ids: [6, 7, 23, 24, 40, 41]
+    reason: "libmodsecurity v3 exposes REQUEST_BODY for these XML cases, matching the upstream-maintained connector expectation."
+    output:
+      log:
+        expect_ids: [944210]
+
+  - rule_id: 980170
+    test_ids: [1, 2]
+    reason: "libmodsecurity v3 does not emit an audit entry for a rule carrying noauditlog, matching the upstream-maintained connector expectation."
+    output:
+      log:
+        no_expect_ids: [980170]

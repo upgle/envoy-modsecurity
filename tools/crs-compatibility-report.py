@@ -23,6 +23,14 @@ import time
 STARTUP_TIMEOUT_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 5
 EXPECTED_CRS_RULE_FILE_COUNT = 27
+REVIEWED_PLATFORM_IGNORES = {
+    "920430-5": (
+        "Envoy rejects a version-less request before the HTTP filter; go-ftw 2.4.0 "
+        "cannot clear the fixture's log expectation through a platform override. "
+        "Owner: Envoy ModSecurity maintainers. Tracking: go-ftw 2.4.0 platform-output "
+        "override limitation. Review after: 2026-10-18."
+    ),
+}
 
 
 def parse_args():
@@ -78,12 +86,22 @@ def parse_args():
         / "third_party/coreruleset/tests/regression/nginx-overrides.yaml",
     )
     parser.add_argument(
+        "--platform-overrides",
+        type=Path,
+        default=repository / "test/integration/envoy-crs-overrides.yaml",
+    )
+    parser.add_argument(
         "--output-directory",
         type=Path,
         default=repository / "artifacts/crs-compatibility",
     )
     parser.add_argument("--include", help="Go regular expression selecting test IDs")
     parser.add_argument("--exclude", help="Go regular expression excluding test IDs")
+    parser.add_argument(
+        "--apply-platform-overrides",
+        action="store_true",
+        help="apply the reviewed Envoy/libmodsecurity3 platform overrides",
+    )
     parser.add_argument("--fail-on-test-failure", action="store_true")
     return parser.parse_args()
 
@@ -511,6 +529,8 @@ def write_report(output_path, metadata, results, rows, failure_details, returnco
         f"| OWASP CRS | {metadata['dependencies'].get('coreruleset', 'unknown')} |",
         f"| go-ftw | {metadata['go_ftw_version'].replace(chr(10), '<br>')} |",
         f"| Test selection | {metadata['selection']} |",
+        f"| Platform overrides | {metadata['platform_overrides']} |",
+        f"| Reviewed ignored tests | {metadata['reviewed_ignored_tests']} |",
         f"| retry_once normalized | {metadata['retry_once_normalized']} test stages |",
         "",
         "## Summary",
@@ -552,7 +572,11 @@ def write_report(output_path, metadata, results, rows, failure_details, returnco
             "",
             "## Failure analysis",
             "",
-            f"{upstream_override_failures} failed tests also have an entry in the pinned CRS nginx/libmodsecurity3 override file. Overrides were not applied to this run.",
+            (
+                f"{upstream_override_failures} remaining failed tests also have an entry in the pinned CRS nginx/libmodsecurity3 override file."
+                if metadata["platform_overrides"] != "not applied"
+                else f"{upstream_override_failures} failed tests also have an entry in the pinned CRS nginx/libmodsecurity3 override file. Overrides were not applied to this run."
+            ),
             "",
             "### Assertion type",
             "",
@@ -629,6 +653,8 @@ def write_report(output_path, metadata, results, rows, failure_details, returnco
             "- The regression configuration uses DetectionOnly so exact rule matches can be compared without blocking the Albedo backend.",
             "- Audit logging contains ModSecurity message metadata only; request and response body audit parts are disabled.",
             "- retry_once is disabled in a temporary corpus copy because go-ftw v2.4.0 aborts without JSON when the retry also fails; those stages are evaluated once and reported normally.",
+            "- The reviewed Envoy/libmodsecurity3 overrides are applied only when explicitly requested; forced and ignored results remain visible in the summary.",
+            "- The CI run verifies that the ignored set exactly matches the project-owned reviewed exclusion list; an added or missing ignored test fails qualification.",
             "- A supported compatibility declaration requires a complete run in the Linux reference build, without unreviewed ignores or forced results.",
             "- Protocol behavior that Envoy rejects before the HTTP filter is still reported as a compatibility difference.",
             "",
@@ -670,6 +696,16 @@ def run():
         "dependencies": dependencies,
         "go_ftw_version": executable_version(go_ftw_binary),
         "selection": args.include or "all enabled tests",
+        "platform_overrides": (
+            str(args.platform_overrides.resolve())
+            if args.apply_platform_overrides
+            else "not applied"
+        ),
+        "reviewed_ignored_tests": (
+            ", ".join(sorted(REVIEWED_PLATFORM_IGNORES))
+            if args.apply_platform_overrides
+            else "none"
+        ),
         "retry_once_normalized": 0,
         "configure_capabilities": configure_capabilities,
         "configure_log": configure_log,
@@ -771,28 +807,34 @@ def run():
             listener_port = discover_listener_port(admin_host, admin_port)
 
             ftw_config_path = workdir / "go-ftw.yaml"
+            ftw_config_lines = [
+                f"logfile: {json.dumps(str(audit_log_path))}",
+                "mode: default",
+                "logmarkerheadername: X-CRS-Test",
+                "maxmarkerretries: 5",
+                "maxmarkerloglines: 1000",
+                "testoverride:",
+                "  input:",
+                '    dest_addr: "127.0.0.1"',
+                f"    port: {listener_port}",
+                '    protocol: "http"',
+            ]
+            if args.apply_platform_overrides:
+                ftw_config_lines.append("  ignore:")
+                for test_id, reason in sorted(REVIEWED_PLATFORM_IGNORES.items()):
+                    ftw_config_lines.append(
+                        f"    {json.dumps('^' + re.escape(test_id) + '$')}: {json.dumps(reason)}"
+                    )
+            ftw_config_lines.append("")
             ftw_config_path.write_text(
-                "\n".join(
-                    [
-                        f"logfile: {json.dumps(str(audit_log_path))}",
-                        "mode: default",
-                        "logmarkerheadername: X-CRS-Test",
-                        "maxmarkerretries: 5",
-                        "maxmarkerloglines: 1000",
-                        "testoverride:",
-                        "  input:",
-                        '    dest_addr: "127.0.0.1"',
-                        f"    port: {listener_port}",
-                        '    protocol: "http"',
-                        "",
-                    ]
-                ),
-                encoding="utf-8",
+                "\n".join(ftw_config_lines), encoding="utf-8"
             )
 
             command = [
                 str(go_ftw_binary),
             ]
+            if args.apply_platform_overrides:
+                command.extend(["--overrides", str(args.platform_overrides.resolve())])
             command.extend(
                 [
                     "--config",
@@ -805,6 +847,11 @@ def run():
                     "--file",
                     str(raw_result_path),
                     "--report-triggered-rules",
+                    "--store-failure-waf-logs",
+                    "--failure-waf-logs-dir",
+                    str(output_directory),
+                    "--failure-waf-logs-file",
+                    "failure-waf-logs.log",
                     "--wait-delay",
                     "50ms",
                     "--max-marker-retries",
@@ -865,7 +912,24 @@ def run():
     raw_result_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     write_report(report_path, metadata, results, rows, failure_details, returncode)
     print(report_path)
-    if args.fail_on_test_failure and result_test_ids(results, "failed"):
+    actual_ignored = set(result_test_ids(results, "ignored"))
+    reviewed_ignored = set(REVIEWED_PLATFORM_IGNORES)
+    if actual_ignored - reviewed_ignored:
+        return 1
+    if (
+        args.apply_platform_overrides
+        and not args.include
+        and not args.exclude
+        and actual_ignored != reviewed_ignored
+    ):
+        return 1
+    if not args.apply_platform_overrides and actual_ignored:
+        return 1
+    if args.fail_on_test_failure and (
+        result_test_ids(results, "failed")
+        or result_test_ids(results, "forced-pass")
+        or result_test_ids(results, "forced-fail")
+    ):
         return 1
     return 0
 
