@@ -44,7 +44,10 @@ Every pull request runs the body-pressure profile at the end of the existing QA 
 already-built custom Envoy binary for concurrent 1 MiB request and response workloads and repeated
 256 KiB body waves. It uploads throughput, latency, CPU, sampled peak RSS, and terminal-gauge
 evidence. Functional expectations and terminal gauges fail the job immediately; performance and
-RSS thresholds are diagnostic until a reviewed Linux baseline is recorded.
+RSS thresholds are diagnostic until a reviewed Linux baseline is recorded. The QA job summary
+renders the CRS counts and benchmark tables without an artifact download, adds threshold
+annotations, and links to browser-readable Markdown previews while retaining complete JSON and
+diagnostic artifacts.
 
 Any project-specific CRS exclusion added in the future must record its reason, affected rule ID,
 responsible maintainer or tracking issue, and expiration or review date. Unreviewed failures and

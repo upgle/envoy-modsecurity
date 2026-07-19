@@ -73,7 +73,10 @@ body waves. The sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN
 instrumentation. The body-pressure profile records sampled peak RSS and uploads its report for 30
 days on every pull request. Request failures, unexpected statuses, timeouts, and non-zero terminal
 gauges fail QA. Performance and RSS thresholds remain diagnostic until a reviewed Linux baseline
-is available.
+is available. The Actions run summary renders the CRS result counts and both benchmark tables,
+highlights enforced and diagnostic threshold violations with annotations, and links to standalone
+Markdown previews. Complete JSON, Markdown, and diagnostic evidence remains available as 30-day
+workflow artifacts.
 Sanitizer actions may reuse compilation outputs, but their test-result cache is disabled so every
 release-gate run executes the instrumented binaries.
 
@@ -188,7 +191,9 @@ process CPU per request, baseline and post-soak RSS, sampled peak RSS, and termi
 gauges. The default release thresholds are 50 requests/second, 250 ms p99 for representative
 traffic, 1 second p99 and 250 ms of Envoy CPU per pathological request, and no more than 64 MiB of
 sampled peak RSS growth. CI fails when a threshold or request expectation is violated and uploads
-the report for 30 days.
+the report for 30 days. The same Markdown table is rendered directly in the QA job summary and is
+published as an unarchived browser preview; the JSON file remains in the complete evidence
+artifact.
 
 Run the pull-request stress profile locally with:
 
