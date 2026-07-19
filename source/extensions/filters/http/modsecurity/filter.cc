@@ -9,6 +9,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/strip.h"
 #include "envoy/network/address.h"
 #include "source/common/grpc/common.h"
 #include "source/common/http/header_utility.h"
@@ -360,7 +361,10 @@ bool Filter::shouldBypassResponseBody(const Http::ResponseHeaderMap& headers) co
       ((connect_tunnel_ && status >= 200 && status < 300) || (!connect_tunnel_ && status == 101))) {
     return true;
   }
-  return absl::StartsWithIgnoreCase(headers.getContentTypeValue(), "text/event-stream");
+  absl::string_view content_type = headers.getContentTypeValue();
+  const size_t parameter = content_type.find(';');
+  content_type = absl::StripAsciiWhitespace(content_type.substr(0, parameter));
+  return absl::EqualsIgnoreCase(content_type, "text/event-stream");
 }
 
 bool Filter::declaredBodyExceedsLimit(const Http::RequestOrResponseHeaderMap& headers,
