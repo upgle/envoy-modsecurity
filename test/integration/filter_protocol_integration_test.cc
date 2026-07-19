@@ -240,6 +240,30 @@ TEST_P(FilterProtocolIntegrationTest, EnforcesResponseBoundariesAndPhaseFour) {
   expectAccountingReleased();
 }
 
+TEST_P(FilterProtocolIntegrationTest, RejectsActualChunkedResponseOverflow) {
+  initializeFilter();
+
+  auto response = startUpstreamRequest();
+  Http::TestResponseHeaderMapImpl headers{{":status", "200"},
+                                          {"content-type", "text/plain"}};
+  upstream_request_->encodeHeaders(headers, false);
+  upstream_request_->encodeData(64, false);
+
+  const std::string body_bytes = gaugeName(".modsecurity_buffer_bytes");
+  ASSERT_FALSE(body_bytes.empty());
+  test_server_->waitForGauge(body_bytes, Eq(64));
+
+  upstream_request_->encodeData(1, true);
+  ASSERT_TRUE(response->waitForEndStream());
+  ASSERT_TRUE(response->complete());
+  EXPECT_EQ("500", response->headers().getStatusValue());
+
+  const std::string overflows = counterName(".response_body_overflow");
+  ASSERT_FALSE(overflows.empty());
+  test_server_->waitForCounter(overflows, Eq(1));
+  expectAccountingReleased();
+}
+
 TEST_P(FilterProtocolIntegrationTest, UpstreamResetFailsClosedAndReleasesBufferedResponse) {
   initializeFilter();
 
@@ -296,6 +320,41 @@ TEST_P(FilterProtocolIntegrationTest, Http2MultiplexedResetDoesNotAffectPeerStre
   ASSERT_TRUE(second.second->waitForEndStream());
   ASSERT_TRUE(second.second->complete());
   EXPECT_EQ("406", second.second->headers().getStatusValue());
+  expectAccountingReleased();
+}
+
+TEST_P(FilterProtocolIntegrationTest, Http2ConcurrentBodiesEnforceAggregateBudget) {
+  if (downstreamProtocol() != Http::CodecType::HTTP2) {
+    return;
+  }
+  initializeFilter();
+
+  auto first = codec_client_->startRequest(requestHeaders("/finite/first"));
+  auto second = codec_client_->startRequest(requestHeaders("/finite/second"));
+  auto rejected = codec_client_->startRequest(requestHeaders("/finite/rejected"));
+  codec_client_->sendData(first.first, std::string(63, 'a'), false);
+  codec_client_->sendData(second.first, std::string(63, 'b'), false);
+
+  const std::string transactions = gaugeName(".active_transactions");
+  const std::string body_bytes = gaugeName(".modsecurity_buffer_bytes");
+  ASSERT_FALSE(transactions.empty());
+  ASSERT_FALSE(body_bytes.empty());
+  test_server_->waitForGauge(transactions, Eq(3));
+  test_server_->waitForGauge(body_bytes, Eq(126));
+
+  codec_client_->sendData(rejected.first, "ccc", false);
+  ASSERT_TRUE(rejected.second->waitForEndStream());
+  ASSERT_TRUE(rejected.second->complete());
+  EXPECT_EQ("500", rejected.second->headers().getStatusValue());
+
+  const std::string exhausted = counterName(".body_memory_budget_exceeded");
+  ASSERT_FALSE(exhausted.empty());
+  test_server_->waitForCounter(exhausted, Eq(1));
+  test_server_->waitForGauge(transactions, Eq(2));
+  test_server_->waitForGauge(body_bytes, Eq(126));
+
+  codec_client_->sendReset(first.first);
+  codec_client_->sendReset(second.first);
   expectAccountingReleased();
 }
 

@@ -54,10 +54,12 @@ The repository currently includes:
   chunked bodies, oversized payloads, and trailers;
 - engine, filter, custom-Envoy HTTP integration, and pinned OWASP CRS PL1 smoke suites;
 - HTTP/1.1 and HTTP/2 boundary, trailer, downstream-reset, upstream-reset, multiplexing, and
-  explicit unbounded-route tests;
+  explicit unbounded-route tests, including actual chunked-response overflow and concurrent HTTP/2
+  aggregate-body-budget exhaustion;
 - multi-worker ECDS ACK/NACK, last-good retention, generation pinning, and update-churn tests;
 - Linux ASAN/LSan/UBSAN and TSAN CI gates; and
-- a thresholded latency, throughput, pathological-regex CPU, and RSS qualification benchmark.
+- a thresholded latency, throughput, pathological-regex CPU, and RSS qualification benchmark plus
+  a scheduled body-pressure stress profile.
 
 These gates must pass for the exact release candidate. Their presence alone is not release evidence,
 and packaging and operational qualification still block a supported release.
@@ -69,6 +71,11 @@ remote cache. After it succeeds, the `qa` and `sanitizers` jobs run in parallel 
 the sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN and TSAN instrumentation.
 Sanitizer actions may reuse compilation outputs, but their test-result cache is disabled so every
 release-gate run executes the instrumented binaries.
+The separate `body-pressure stress` workflow runs daily and on manual dispatch. It exercises
+concurrent 1 MiB requests and responses plus repeated 256 KiB body waves, records sampled peak RSS,
+and uploads its report for 30 days without extending every pull-request run. Request failures,
+unexpected statuses, timeouts, and non-zero terminal gauges fail the workflow. Performance and RSS
+thresholds remain diagnostic until a reviewed Linux baseline is available.
 
 ## Verification status
 
@@ -82,6 +89,7 @@ release-gate run executes the instrumented binaries.
 | Data-race detection | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs engine, budget, and multi-worker ECDS churn with `--config=tsan` |
 | Concurrent ECDS updates and transaction-lifetime stress | Required TSAN gate | `//test/integration:filter_ecds_integration_test` overlaps requests on four exactly balanced workers with accepted configuration updates |
 | Latency, CPU, throughput, and RSS profile | Required CI gate | `make qualification-benchmark` |
+| Concurrent large-body pressure and longer RSS sampling | Scheduled CI evidence; functional gate | `make body-pressure-stress` |
 
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
 without running the HTTP filter or custom Envoy binary.
@@ -172,14 +180,28 @@ Run the release-threshold workload against the custom Envoy binary with:
 make qualification-benchmark
 ```
 
-The benchmark starts four Envoy workers and a loopback upstream. It measures safe header-only
-requests, 4 KiB inspected bodies, blocked attacks, a bounded worst-case regex input, and repeated
-16 KiB body waves. The JSON and Markdown evidence under `artifacts/qualification-benchmark/`
-records throughput, p50/p95/p99/max latency, Envoy process CPU per request, baseline and post-soak
-RSS, and terminal transaction/body gauges. The default release thresholds are 50 requests/second,
-250 ms p99 for representative traffic, 1 second p99 and 250 ms of Envoy CPU per pathological
-request, and no more than 64 MiB of RSS growth. CI fails when a threshold or request expectation is
-violated and uploads the report for 30 days.
+The benchmark starts four Envoy workers and a loopback upstream with request and response body
+inspection enabled. It measures safe header-only requests, 4 KiB inspected bodies, blocked attacks,
+a bounded worst-case regex input, and repeated 16 KiB body waves. The JSON and Markdown evidence
+under `artifacts/qualification-benchmark/` records throughput, p50/p95/p99/p99.9/max latency, Envoy
+process CPU per request, baseline and post-soak RSS, sampled peak RSS, and terminal transaction/body
+gauges. The default release thresholds are 50 requests/second, 250 ms p99 for representative
+traffic, 1 second p99 and 250 ms of Envoy CPU per pathological request, and no more than 64 MiB of
+sampled peak RSS growth. CI fails when a threshold or request expectation is violated and uploads
+the report for 30 days.
+
+Run the scheduled profile locally with:
+
+```shell
+make body-pressure-stress
+```
+
+This profile adds 96 requests and 96 responses at the 1 MiB inspection limit, uses client
+concurrency 48, and performs twelve 250-request waves with 256 KiB bodies. The profile is intended
+to expose memory amplification and tail-latency regressions on GitHub-hosted runners; it remains a
+portable regression floor rather than a production capacity claim. Its request expectations and
+terminal gauges are enforced immediately. Review the first stable Linux runs before enabling its
+performance and RSS thresholds with `--enforce`.
 
 These values are repository qualification floors, not a deployment SLO. A deployment must rerun
 the workload with its release binary, production CRS and exclusions, target hardware, body-size

@@ -4,9 +4,9 @@ set -euo pipefail
 
 ci_mode="${1:-all}"
 case "${ci_mode}" in
-  all | build | qa | sanitizers) ;;
+  all | build | qa | sanitizers | stress) ;;
   *)
-    echo "Usage: $0 [all|build|qa|sanitizers]" >&2
+    echo "Usage: $0 [all|build|qa|sanitizers|stress]" >&2
     exit 2
     ;;
 esac
@@ -82,6 +82,11 @@ run_qa() {
   ./tools/run-qualification-benchmark.sh --enforce
 }
 
+run_stress() {
+  bazel build //:envoy-modsecurity
+  make body-pressure-stress
+}
+
 preserve_sanitizer_logs() {
   local sanitizer_name="$1"
   local target
@@ -143,6 +148,9 @@ case "${ci_mode}" in
     ;;
   sanitizers)
     run_sanitizers
+    ;;
+  stress)
+    run_stress
     ;;
   all)
     run_build
