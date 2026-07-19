@@ -9,7 +9,7 @@ baseline, native, and Dynamic Module measurements use one Envoy executable.
 The `waf-engine-comparison` workflow performs the complete Linux pipeline in the Envoy v1.39.0
 build image:
 
-1. Build the comparison Envoy target with Bazel `opt`, stripping, and `-flto=thin`.
+1. Build the comparison Envoy target with Bazel `opt`, stripping, and ThinLTO.
 2. Add LLVM instrumentation and train baseline, native, and Dynamic Module paths equally.
 3. Merge all raw profiles with the LLVM toolchain shipped in the build image.
 4. Rebuild the same target with ThinLTO and the merged instrumentation profile.
@@ -23,8 +23,9 @@ mismatches. The default measurement uses seven repeats and triples each workload
 to reduce process CPU clock quantization on optimized builds.
 
 The profile workload deliberately exercises all three modes. This gives the common Envoy path and
-both filter integration paths training coverage, while the separately built Go shared library
-keeps the upstream release's normal optimized build settings.
+both filter integration paths training coverage. The native static library receives the same LLVM
+instrumentation and profile-use cycle as the Bazel C++ code. The separately built Go shared
+library keeps the upstream release's normal optimized build settings.
 
 ## Build inputs
 
@@ -50,9 +51,10 @@ Bazel's visibility check only for this benchmark target:
 ```
 
 For a Linux optimized build without PGO training, replace the macOS option with
-`--compilation_mode=opt --strip=always --copt=-flto=thin --linkopt=-flto=thin`. The CI script
-`tools/ci-waf-engine-comparison.sh` is the source of truth for the two-pass instrumentation PGO
-build because its merged profile is generated during the same job.
+`--compilation_mode=opt --strip=always '--per_file_copt=.*@-flto=thin' --linkopt=-flto=thin`.
+The per-file form keeps Envoy's CMake-based foreign dependencies on their normal object format.
+The CI script `tools/ci-waf-engine-comparison.sh` is the source of truth for the two-pass
+instrumentation PGO build because its merged profile is generated during the same job.
 
 Run the order-rotated comparison after setting paths to the generated Envoy binary, Coraza module,
 and initialized CRS submodule:
