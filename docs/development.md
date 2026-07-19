@@ -76,7 +76,11 @@ gauges fail QA. Performance and RSS thresholds remain diagnostic until a reviewe
 is available. The Actions run summary renders the CRS result counts and both benchmark tables,
 highlights enforced and diagnostic threshold violations with annotations, and links to standalone
 Markdown previews. Complete JSON, Markdown, and diagnostic evidence remains available as 30-day
-workflow artifacts.
+workflow artifacts. A performance-only qualification threshold failure is retried once with a
+fresh Envoy process; both attempts must exceed the threshold for QA to fail. Both reports are
+retained. Runtime errors, request failures, and incomplete reports are not retried. The
+body-pressure profile still runs after two performance-threshold failures, and QA returns the
+qualification failure after collecting that stress evidence.
 Sanitizer actions may reuse compilation outputs, but their test-result cache is disabled so every
 release-gate run executes the instrumented binaries.
 
@@ -193,7 +197,10 @@ traffic, 1 second p99 and 250 ms of Envoy CPU per pathological request, and no m
 sampled peak RSS growth. CI fails when a threshold or request expectation is violated and uploads
 the report for 30 days. The same Markdown table is rendered directly in the QA job summary and is
 published as an unarchived browser preview; the JSON file remains in the complete evidence
-artifact.
+artifact. Because tail latency varies on shared GitHub-hosted runners, CI retries only exit status
+`1`, which represents completed measurements with threshold violations. The canonical report is
+the final attempt, while `attempt-1/` and `attempt-2/` preserve both measurements. Exit status `2`
+represents a functional or runtime error and fails immediately without a retry.
 
 Run the pull-request stress profile locally with:
 

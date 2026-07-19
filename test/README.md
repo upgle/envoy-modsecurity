@@ -47,7 +47,10 @@ evidence. Functional expectations and terminal gauges fail the job immediately; 
 RSS thresholds are diagnostic until a reviewed Linux baseline is recorded. The QA job summary
 renders the CRS counts and benchmark tables without an artifact download, adds threshold
 annotations, and links to browser-readable Markdown previews while retaining complete JSON and
-diagnostic artifacts.
+diagnostic artifacts. A completed qualification run that exceeds only a performance threshold is
+retried once on a fresh Envoy process, and both attempts are retained. Runtime and functional
+errors fail immediately. If both performance attempts exceed their thresholds, the body-pressure
+profile still runs before QA returns the qualification failure.
 
 Any project-specific CRS exclusion added in the future must record its reason, affected rule ID,
 responsible maintainer or tracking issue, and expiration or review date. Unreviewed failures and

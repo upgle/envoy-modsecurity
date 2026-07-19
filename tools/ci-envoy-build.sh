@@ -77,10 +77,21 @@ run_build() {
 }
 
 run_qa() {
+  local qualification_status=0
+  local stress_status=0
+
   make check
   ./tools/run-crs-compatibility.sh --apply-platform-overrides --fail-on-test-failure
-  ./tools/run-qualification-benchmark.sh --enforce
-  make body-pressure-stress
+  ./tools/run-ci-qualification.sh || qualification_status=$?
+  if (( qualification_status > 1 )); then
+    return "${qualification_status}"
+  fi
+
+  make body-pressure-stress || stress_status=$?
+  if (( stress_status != 0 )); then
+    return "${stress_status}"
+  fi
+  return "${qualification_status}"
 }
 
 preserve_sanitizer_logs() {

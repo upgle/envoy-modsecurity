@@ -84,7 +84,7 @@ def emit_annotation(level, title, message):
     )
 
 
-def benchmark_annotations(json_path, title):
+def benchmark_annotations(json_path, title, level=None):
     if not json_path.is_file():
         return
     try:
@@ -92,9 +92,85 @@ def benchmark_annotations(json_path, title):
     except (OSError, json.JSONDecodeError) as error:
         emit_annotation("warning", title, f"Unable to read benchmark JSON: {error}")
         return
-    level = "error" if result.get("enforced") else "warning"
+    annotation_level = level or ("error" if result.get("enforced") else "warning")
     for violation in result.get("violations", []):
-        emit_annotation(level, title, violation)
+        emit_annotation(annotation_level, title, violation)
+
+
+def qualification_markdown(artifacts_directory):
+    qualification_directory = artifacts_directory / "qualification-benchmark"
+    canonical_report = qualification_directory / "qualification-benchmark.md"
+    attempt_directories = [
+        qualification_directory / "attempt-1",
+        qualification_directory / "attempt-2",
+    ]
+
+    if attempt_directories[1].is_dir():
+        lines = []
+        complete_attempts = 0
+        for number, attempt_directory in enumerate(attempt_directories, start=1):
+            report_path = attempt_directory / "qualification-benchmark.md"
+            lines.extend([f"### Attempt {number}", ""])
+            if report_path.is_file():
+                complete_attempts += 1
+                lines.extend(
+                    [
+                        markdown_without_title(
+                            report_path.read_text(encoding="utf-8")
+                        ),
+                        "",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        "> This attempt did not produce a report because it ended with a "
+                        "functional or runtime error.",
+                        "",
+                    ]
+                )
+        rendered = "\n".join(lines).rstrip()
+        preview = "# Qualification benchmark attempts\n\n" + rendered + "\n"
+        status = (
+            "Available (2 attempts)"
+            if complete_attempts == 2
+            else "Available (retry incomplete)"
+        )
+        return rendered, preview, status
+
+    if canonical_report.is_file():
+        markdown = canonical_report.read_text(encoding="utf-8")
+        return markdown_without_title(markdown), markdown, "Available"
+
+    first_attempt = attempt_directories[0] / "qualification-benchmark.md"
+    if first_attempt.is_file():
+        rendered = "### Attempt 1\n\n" + markdown_without_title(
+            first_attempt.read_text(encoding="utf-8")
+        )
+        preview = "# Qualification benchmark attempts\n\n" + rendered + "\n"
+        return rendered, preview, "Available (incomplete retry)"
+
+    return None, None, "Not produced"
+
+
+def qualification_annotations(artifacts_directory):
+    qualification_directory = artifacts_directory / "qualification-benchmark"
+    second_attempt = qualification_directory / "attempt-2"
+    if second_attempt.is_dir():
+        benchmark_annotations(
+            qualification_directory / "attempt-1/qualification-benchmark.json",
+            "Qualification benchmark attempt 1",
+            level="warning",
+        )
+        benchmark_annotations(
+            second_attempt / "qualification-benchmark.json",
+            "Qualification benchmark attempt 2",
+        )
+        return
+    benchmark_annotations(
+        qualification_directory / "qualification-benchmark.json",
+        "Qualification benchmark threshold",
+    )
 
 
 def build_summary(artifacts_directory, preview_directory):
@@ -109,6 +185,25 @@ def build_summary(artifacts_directory, preview_directory):
     preview_directory.mkdir(parents=True, exist_ok=True)
 
     for key, (title, relative_path, preview_name) in REPORTS.items():
+        if key == "qualification":
+            lines.extend([f"## {title}", ""])
+            rendered, preview, status = qualification_markdown(artifacts_directory)
+            if rendered is None:
+                lines.extend(
+                    [
+                        "> This report was not produced. An earlier QA stage may have failed or "
+                        "the stage may not have started.",
+                        "",
+                    ]
+                )
+            else:
+                lines.extend([rendered, ""])
+                (preview_directory / preview_name).write_text(
+                    preview, encoding="utf-8"
+                )
+            availability.append((title, status))
+            continue
+
         report_path = artifacts_directory / relative_path
         lines.extend([f"## {title}", ""])
         if not report_path.is_file():
@@ -150,11 +245,7 @@ def main():
     args.summary_output.parent.mkdir(parents=True, exist_ok=True)
     args.summary_output.write_text(summary, encoding="utf-8")
 
-    benchmark_annotations(
-        args.artifacts_directory
-        / "qualification-benchmark/qualification-benchmark.json",
-        "Qualification benchmark threshold",
-    )
+    qualification_annotations(args.artifacts_directory)
     benchmark_annotations(
         args.artifacts_directory / "body-pressure-stress/qualification-benchmark.json",
         "Body-pressure diagnostic threshold",

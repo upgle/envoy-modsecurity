@@ -78,6 +78,51 @@ details
             self.assertEqual(summary.count("Not produced"), 3)
             self.assertEqual(summary.count("earlier QA stage may have failed"), 3)
 
+    def test_renders_both_qualification_attempts(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            artifacts = root / "artifacts"
+            qualification = artifacts / "qualification-benchmark"
+            first = qualification / "attempt-1"
+            second = qualification / "attempt-2"
+            first.mkdir(parents=True)
+            second.mkdir()
+            (first / "qualification-benchmark.md").write_text(
+                "# Benchmark\n\nAttempt one failed threshold\n", encoding="utf-8"
+            )
+            (second / "qualification-benchmark.md").write_text(
+                "# Benchmark\n\nAttempt two passed\n", encoding="utf-8"
+            )
+
+            summary = CI_SUMMARY.build_summary(artifacts, root / "preview")
+            preview = (root / "preview/qualification-benchmark-report.md").read_text(
+                encoding="utf-8"
+            )
+
+            self.assertIn("### Attempt 1", summary)
+            self.assertIn("Attempt one failed threshold", summary)
+            self.assertIn("### Attempt 2", summary)
+            self.assertIn("Attempt two passed", summary)
+            self.assertIn("Available (2 attempts)", summary)
+            self.assertIn("# Qualification benchmark attempts", preview)
+
+    def test_marks_a_missing_second_attempt_report_as_incomplete(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            qualification = root / "artifacts/qualification-benchmark"
+            first = qualification / "attempt-1"
+            second = qualification / "attempt-2"
+            first.mkdir(parents=True)
+            second.mkdir()
+            (first / "qualification-benchmark.md").write_text(
+                "# Benchmark\n\nAttempt one failed threshold\n", encoding="utf-8"
+            )
+
+            summary = CI_SUMMARY.build_summary(root / "artifacts", root / "preview")
+
+            self.assertIn("Available (retry incomplete)", summary)
+            self.assertIn("functional or runtime error", summary)
+
     def test_uses_error_for_enforced_and_warning_for_diagnostic_violations(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -100,6 +145,36 @@ details
             annotations = output.getvalue()
             self.assertIn("::error title=Enforced%3A threshold::p99: 300, limit 250", annotations)
             self.assertIn("::warning title=Diagnostic::RSS grew 300%25", annotations)
+
+    def test_retry_annotations_warn_for_first_attempt_and_error_for_final_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            artifacts = Path(temporary_directory)
+            qualification = artifacts / "qualification-benchmark"
+            first = qualification / "attempt-1"
+            second = qualification / "attempt-2"
+            first.mkdir(parents=True)
+            second.mkdir()
+            result = json.dumps({"enforced": True, "violations": ["p99 exceeded"]})
+            (first / "qualification-benchmark.json").write_text(
+                result, encoding="utf-8"
+            )
+            (second / "qualification-benchmark.json").write_text(
+                result, encoding="utf-8"
+            )
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                CI_SUMMARY.qualification_annotations(artifacts)
+
+            annotations = output.getvalue()
+            self.assertIn(
+                "::warning title=Qualification benchmark attempt 1::p99 exceeded",
+                annotations,
+            )
+            self.assertIn(
+                "::error title=Qualification benchmark attempt 2::p99 exceeded",
+                annotations,
+            )
 
 
 if __name__ == "__main__":
