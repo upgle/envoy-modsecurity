@@ -19,8 +19,10 @@ build image:
 The expensive workflow runs only for manual dispatches and pushes to the dedicated
 `codex/linux-waf-pgo-benchmark` validation branch; it is not a pull-request gate. It does not
 enforce a winner, and fails only on build, profile generation, configuration, or response
-mismatches. The default measurement uses seven repeats and triples each workload's request count
-to reduce process CPU clock quantization on optimized builds.
+mismatches. The default CI measurement uses three repeats at each workload's standard request
+count so the two full Envoy builds, training pass, and comparison fit within the hosted-runner
+limit. Use a manual dispatch with more repeats and a larger request scale for publication-quality
+measurements.
 
 The profile workload deliberately exercises all three modes. This gives the common Envoy path and
 both filter integration paths training coverage. The native static library receives the same LLVM

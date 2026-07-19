@@ -9,12 +9,12 @@ on:
       repeats:
         description: Number of order-rotated measurement repeats
         required: true
-        default: 7
+        default: 3
         type: number
       request_scale:
         description: Multiplier applied to measurement request counts
         required: true
-        default: 3
+        default: 1
         type: number
       pgo_training_request_scale:
         description: Multiplier applied to PGO training request counts
