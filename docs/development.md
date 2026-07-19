@@ -67,6 +67,8 @@ compiles the normal custom Envoy binary and publishes reusable Bazel outputs to 
 remote cache. After it succeeds, the `qa` and `sanitizers` jobs run in parallel with independent
 180-minute timeouts. QA runs the normal suites, complete CRS corpus, and qualification benchmark;
 the sanitizer job rebuilds the selected targets with ASAN/LSan/UBSAN and TSAN instrumentation.
+Sanitizer actions may reuse compilation outputs, but their test-result cache is disabled so every
+release-gate run executes the instrumented binaries.
 
 ## Verification status
 
@@ -139,10 +141,12 @@ CI runs the complete corpus after the normal Linux and sanitizer checks and uplo
 Envoy/libmodsecurity3 overrides account only for reviewed codec normalization, native audit
 behavior, and connector differences. Each entry records its alternative rejection, sanitization,
 or exact-rule signal; the smoke and protocol suites verify those alternative security controls.
-Any remaining failed or forced test fails CI. Passed, failed, ignored, and forced results
-remain separate in the report; an override cannot silently disappear from the evidence. The runner
-also fails unless the actual ignored set exactly equals its reviewed list. The sole current entry,
-`920430-5`, records its owner, go-ftw limitation, and 2026-10-18 review date in the runner.
+Any non-zero go-ftw exit, skipped test, incomplete or duplicate result set, failed test, or forced
+result fails CI. Passed, failed, skipped, ignored, and forced results remain separate in the report;
+an override cannot silently disappear from the evidence. The runner also fails unless the complete
+result ID set matches the pinned 5,003-test corpus and the actual ignored set exactly equals its
+reviewed list. The sole current ignored entry, `920430-5`, records its owner, go-ftw limitation, and
+2026-10-18 review date in the runner.
 
 The test-only ruleset runs CRS at paranoia level 4 in `DetectionOnly`, enables request and response
 inspection, and uses a serial audit log containing message metadata but no request or response body
