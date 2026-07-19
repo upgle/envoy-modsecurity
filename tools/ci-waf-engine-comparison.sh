@@ -81,7 +81,7 @@ mkdir --parents "${raw_profile_directory}" "${output_directory}"
 common_build_flags=(
   --compilation_mode=opt
   --strip=always
-  --copt=-flto=thin
+  '--per_file_copt=.*@-flto=thin'
   --linkopt=-flto=thin
   --nocheck_visibility
 )
@@ -89,6 +89,7 @@ common_build_flags=(
 echo "Building the Linux release ThinLTO instrumentation binary."
 bazel build \
   "${common_build_flags[@]}" \
+  --define=modsecurity_benchmark_pgo=instrument \
   --fdo_instrument="${raw_profile_directory}" \
   "${comparison_target}"
 
@@ -128,10 +129,13 @@ fi
 "${llvm_profdata}" merge --output="${merged_profile}" "${raw_profiles[@]}"
 "${llvm_profdata}" show --detailed-summary --profile-version "${merged_profile}" \
   > "${output_directory}/pgo-profile-summary.txt"
+merged_profile_sha256="$(sha256sum "${merged_profile}" | cut --delimiter=' ' --fields=1)"
 
 echo "Building the Linux release ThinLTO binary with the merged PGO profile."
 bazel build \
   "${common_build_flags[@]}" \
+  --action_env=MODSECURITY_PGO_PROFILE_SHA256="${merged_profile_sha256}" \
+  --define=modsecurity_benchmark_pgo=use \
   --fdo_optimize="${merged_profile}" \
   "${comparison_target}"
 
@@ -151,9 +155,9 @@ python3 tools/waf-engine-comparison.py \
   printf 'target=%s\n' "${comparison_target}"
   printf 'bazel_version=%s\n' "$(bazel --version)"
   printf 'llvm_profdata_version=%s\n' "$("${llvm_profdata}" --version | head --lines=1)"
-  printf 'build_flags=%s\n' "${common_build_flags[*]} --fdo_optimize=<merged LLVM profile>"
+  printf 'build_flags=%s\n' "${common_build_flags[*]} --define=modsecurity_benchmark_pgo=use --fdo_optimize=<merged LLVM profile>"
   printf 'raw_profile_count=%s\n' "${#raw_profiles[@]}"
-  printf 'merged_profile_sha256=%s\n' "$(sha256sum "${merged_profile}" | cut --delimiter=' ' --fields=1)"
+  printf 'merged_profile_sha256=%s\n' "${merged_profile_sha256}"
   printf 'envoy_binary_sha256=%s\n' "$(sha256sum "${comparison_binary}" | cut --delimiter=' ' --fields=1)"
   printf 'comparison_module_sha256=%s\n' "$(sha256sum "${coraza_module}" | cut --delimiter=' ' --fields=1)"
 } > "${output_directory}/build-manifest.txt"

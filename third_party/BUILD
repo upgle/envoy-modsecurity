@@ -1,6 +1,45 @@
 load("@rules_foreign_cc//foreign_cc:configure.bzl", "configure_make")
+load("@bazel_skylib//lib:selects.bzl", "selects")
 
 package(default_visibility = ["//visibility:public"])
+
+# These opt-in settings keep benchmark-only profile flags out of normal project builds. The Linux
+# comparison script owns the stable profile paths used by the foreign build.
+config_setting(
+    name = "linux",
+    constraint_values = ["@platforms//os:linux"],
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "modsecurity_benchmark_pgo_instrument",
+    define_values = {"modsecurity_benchmark_pgo": "instrument"},
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "modsecurity_benchmark_pgo_use",
+    define_values = {"modsecurity_benchmark_pgo": "use"},
+    visibility = ["//visibility:private"],
+)
+
+selects.config_setting_group(
+    name = "linux_modsecurity_benchmark_pgo_instrument",
+    match_all = [
+        ":linux",
+        ":modsecurity_benchmark_pgo_instrument",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+selects.config_setting_group(
+    name = "linux_modsecurity_benchmark_pgo_use",
+    match_all = [
+        ":linux",
+        ":modsecurity_benchmark_pgo_use",
+    ],
+    visibility = ["//visibility:private"],
+)
 
 # Keep the pinned CRS inputs available to black-box tests without copying the
 # third-party distribution into project-owned fixtures.
@@ -57,6 +96,18 @@ configure_make(
     }),
     # On Darwin, let configure discover /usr/bin/ar because Bazel's static-link tool is libtool.
     env = select({
+        ":linux_modsecurity_benchmark_pgo_instrument": {
+            "CFLAGS": "-flto=thin -fprofile-generate=/build/waf-comparison-pgo/raw",
+            "CXXFLAGS": "-flto=thin -fprofile-generate=/build/waf-comparison-pgo/raw",
+            "LDFLAGS": "-flto=thin -fprofile-generate=/build/waf-comparison-pgo/raw",
+            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
+        },
+        ":linux_modsecurity_benchmark_pgo_use": {
+            "CFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date",
+            "CXXFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date",
+            "LDFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata",
+            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
+        },
         "@platforms//os:linux": {
             # rules_foreign_cc builds pkg-config with an isolated prefix, so it does not discover
             # Debian's system package metadata by default. The pinned CI image is linux/amd64.
