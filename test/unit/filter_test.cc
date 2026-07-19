@@ -572,6 +572,26 @@ TEST_F(FilterTest, ServerSentEventsResponseDoesNotWaitForEndStream) {
   filter_->onDestroy();
 }
 
+TEST_F(FilterTest, ServerSentEventsContentTypePrefixIsInspected) {
+  initialize(32, 32);
+  Http::TestRequestHeaderMapImpl request_headers{
+      {":method", "GET"}, {":path", "/events"}, {":authority", "example.test"}};
+  EXPECT_EQ(filter_->decodeHeaders(request_headers, true), Http::FilterHeadersStatus::Continue);
+
+  Http::TestResponseHeaderMapImpl response_headers{
+      {":status", "200"}, {"content-type", "text/event-streamx; charset=utf-8"}};
+  EXPECT_EQ(filter_->encodeHeaders(response_headers, false),
+            Http::FilterHeadersStatus::StopIteration);
+  Buffer::OwnedImpl body("not actually an event stream");
+  EXPECT_EQ(filter_->encodeData(body, true), Http::FilterDataStatus::Continue);
+
+  EXPECT_EQ(state_->response_body, "not actually an event stream");
+  EXPECT_EQ(state_->response_body_calls, 1);
+  EXPECT_EQ(stats_->response_body_bypassed_.value(), 0);
+  EXPECT_EQ(state_->destroyed_transactions, 1);
+  filter_->onDestroy();
+}
+
 TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
   initialize(32, 32);
   auto request_headers = requestHeaders();
