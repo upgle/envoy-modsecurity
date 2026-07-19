@@ -35,6 +35,11 @@ SecRule REQUEST_URI "@contains /signal" "id:1000101,phase:1,pass,log,msg:'reques
 SecAction "id:1000102,phase:5,pass,log,msg:'logging signal'"
 )";
 
+constexpr char kDetectionOnlyRules[] = R"(
+SecRuleEngine DetectionOnly
+SecRule REQUEST_URI "@rx ^/observed" "id:1000150,phase:1,deny,status:418,log"
+)";
+
 constexpr char kJsonParserRules[] = R"(
 SecRuleEngine On
 SecRequestBodyAccess On
@@ -107,6 +112,7 @@ TEST(EngineIntegrationTest, CompilesInlineRulesAndExecutesPhaseOne) {
   ASSERT_TRUE(generation.ok()) << generation.status();
   EXPECT_EQ((*generation)->sourceCount(), 1);
   EXPECT_GE((*generation)->loadedRuleCount(), 1);
+  EXPECT_EQ((*generation)->ruleEngineMode(), RuleEngineMode::Enabled);
 
   std::unique_ptr<Transaction> allowed = createTransaction(*generation);
   ASSERT_NE(allowed, nullptr);
@@ -117,6 +123,20 @@ TEST(EngineIntegrationTest, CompilesInlineRulesAndExecutesPhaseOne) {
   ASSERT_NE(blocked, nullptr);
   ASSERT_TRUE(processRequestHeaders(*blocked, "/blocked/resource").ok());
   expectIntervention(*blocked, 418);
+}
+
+TEST(EngineIntegrationTest, ReportsDetectionOnlyRuleEngineMode) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("detection-only.conf", kDetectionOnlyRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+  EXPECT_EQ((*generation)->ruleEngineMode(), RuleEngineMode::DetectionOnly);
+  EXPECT_EQ(ruleEngineModeName((*generation)->ruleEngineMode()), "detection_only");
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/observed/resource").ok());
+  expectNoIntervention(*transaction);
 }
 
 TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {
