@@ -23,6 +23,15 @@ import time
 STARTUP_TIMEOUT_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 5
 EXPECTED_CRS_RULE_FILE_COUNT = 27
+EXPECTED_CRS_TEST_COUNT = 5003
+RESULT_STATUS_KEYS = (
+    "success",
+    "failed",
+    "skipped",
+    "ignored",
+    "forced-pass",
+    "forced-fail",
+)
 REVIEWED_PLATFORM_IGNORES = {
     "920430-5": (
         "Envoy rejects a version-less request before the HTTP filter; go-ftw 2.4.0 "
@@ -409,6 +418,107 @@ def prepare_test_corpus(source_directory, workdir):
 def result_test_ids(results, key):
     values = results.get(key) or []
     return [value if isinstance(value, str) else str(value) for value in values]
+
+
+def summarize_test_ids(test_ids, limit=10):
+    ordered = sorted(test_ids)
+    summary = ", ".join(ordered[:limit])
+    if len(ordered) > limit:
+        summary += f", ... ({len(ordered)} total)"
+    return summary
+
+
+def qualification_failures(
+    results,
+    returncode,
+    expected_test_ids,
+    expected_test_count,
+    full_run,
+    apply_platform_overrides,
+    fail_on_test_failure,
+):
+    failures = []
+    actual_by_status = {
+        key: result_test_ids(results, key) for key in RESULT_STATUS_KEYS
+    }
+    all_results = [
+        test_id
+        for key in RESULT_STATUS_KEYS
+        for test_id in actual_by_status[key]
+    ]
+    result_counts = Counter(all_results)
+    duplicate_ids = {
+        test_id for test_id, count in result_counts.items() if count > 1
+    }
+
+    if returncode != 0:
+        failures.append(f"go-ftw exited with status {returncode}")
+
+    if actual_by_status["skipped"]:
+        failures.append(
+            "go-ftw reported skipped tests: "
+            + summarize_test_ids(actual_by_status["skipped"])
+        )
+
+    if duplicate_ids:
+        failures.append(
+            "go-ftw reported duplicate test IDs: "
+            + summarize_test_ids(duplicate_ids)
+        )
+
+    if full_run:
+        expected_ids = set(expected_test_ids)
+        actual_ids = set(all_results)
+        if len(expected_ids) != expected_test_count:
+            failures.append(
+                "pinned CRS corpus metadata contains "
+                f"{len(expected_ids)} tests; expected {expected_test_count}"
+            )
+        if len(all_results) != expected_test_count:
+            failures.append(
+                f"go-ftw reported {len(all_results)} result entries; "
+                f"expected {expected_test_count}"
+            )
+        missing_ids = expected_ids - actual_ids
+        unexpected_ids = actual_ids - expected_ids
+        if missing_ids:
+            failures.append(
+                "go-ftw omitted expected test IDs: "
+                + summarize_test_ids(missing_ids)
+            )
+        if unexpected_ids:
+            failures.append(
+                "go-ftw reported unexpected test IDs: "
+                + summarize_test_ids(unexpected_ids)
+            )
+
+    actual_ignored = set(actual_by_status["ignored"])
+    reviewed_ignored = set(REVIEWED_PLATFORM_IGNORES)
+    unreviewed_ignored = actual_ignored - reviewed_ignored
+    if unreviewed_ignored:
+        failures.append(
+            "go-ftw reported unreviewed ignored tests: "
+            + summarize_test_ids(unreviewed_ignored)
+        )
+    if apply_platform_overrides and full_run and actual_ignored != reviewed_ignored:
+        failures.append(
+            "go-ftw ignored set does not match the reviewed platform exclusions"
+        )
+    if not apply_platform_overrides and actual_ignored:
+        failures.append("go-ftw reported ignored tests without platform overrides")
+
+    if fail_on_test_failure:
+        failed_or_forced = (
+            actual_by_status["failed"]
+            + actual_by_status["forced-pass"]
+            + actual_by_status["forced-fail"]
+        )
+        if failed_or_forced:
+            failures.append(
+                "go-ftw reported failed or forced tests: "
+                + summarize_test_ids(failed_or_forced)
+            )
+    return failures
 
 
 def result_rows(results, rule_index):
@@ -902,34 +1012,29 @@ def run():
     failure_details = classify_failures(
         results, test_metadata, upstream_override_ids
     )
+    qualification_errors = qualification_failures(
+        results=results,
+        returncode=returncode,
+        expected_test_ids=test_metadata,
+        expected_test_count=EXPECTED_CRS_TEST_COUNT,
+        full_run=not args.include and not args.exclude,
+        apply_platform_overrides=args.apply_platform_overrides,
+        fail_on_test_failure=args.fail_on_test_failure,
+    )
     payload = {
         "metadata": metadata,
         "go_ftw_exit_status": returncode,
         "go_ftw": results,
         "by_rule_file": rows,
         "failure_details": failure_details,
+        "qualification_errors": qualification_errors,
     }
     raw_result_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     write_report(report_path, metadata, results, rows, failure_details, returncode)
     print(report_path)
-    actual_ignored = set(result_test_ids(results, "ignored"))
-    reviewed_ignored = set(REVIEWED_PLATFORM_IGNORES)
-    if actual_ignored - reviewed_ignored:
-        return 1
-    if (
-        args.apply_platform_overrides
-        and not args.include
-        and not args.exclude
-        and actual_ignored != reviewed_ignored
-    ):
-        return 1
-    if not args.apply_platform_overrides and actual_ignored:
-        return 1
-    if args.fail_on_test_failure and (
-        result_test_ids(results, "failed")
-        or result_test_ids(results, "forced-pass")
-        or result_test_ids(results, "forced-fail")
-    ):
+    for error in qualification_errors:
+        print(f"CRS qualification failed: {error}", file=sys.stderr)
+    if qualification_errors:
         return 1
     return 0
 

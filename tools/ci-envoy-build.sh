@@ -108,7 +108,7 @@ run_sanitizer_suite() {
   local status=0
   shift
 
-  bazel test "$@" || status=$?
+  bazel test --nocache_test_results "$@" || status=$?
   preserve_sanitizer_logs "${sanitizer_name}" "$@"
   return "${status}"
 }
