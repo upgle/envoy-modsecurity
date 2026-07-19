@@ -169,7 +169,35 @@ jobs:
             "${ENVOY_BUILD_IMAGE}" \
             ./tools/ci-envoy-build.sh "${{ matrix.mode }}"
 
+      - name: Prepare QA report summary
+        id: qa_summary
+        if: ${{ always() && matrix.mode == 'qa' }}
+        env:
+          PREVIEW_DIRECTORY: ${{ runner.temp }}/ci-report-previews
+          SUMMARY_PATH: ${{ runner.temp }}/qa-summary.md
+        run: |
+          python3 tools/ci-report-summary.py \
+            --summary-output "${SUMMARY_PATH}" \
+            --preview-directory "${PREVIEW_DIRECTORY}"
+
+          crs_preview=false
+          qualification_preview=false
+          body_pressure_preview=false
+          if [[ -f "${PREVIEW_DIRECTORY}/crs-compatibility-report.md" ]]; then
+            crs_preview=true
+          fi
+          if [[ -f "${PREVIEW_DIRECTORY}/qualification-benchmark-report.md" ]]; then
+            qualification_preview=true
+          fi
+          if [[ -f "${PREVIEW_DIRECTORY}/body-pressure-stress-report.md" ]]; then
+            body_pressure_preview=true
+          fi
+          echo "crs_preview=${crs_preview}" >> "${GITHUB_OUTPUT}"
+          echo "qualification_preview=${qualification_preview}" >> "${GITHUB_OUTPUT}"
+          echo "body_pressure_preview=${body_pressure_preview}" >> "${GITHUB_OUTPUT}"
+
       - name: Upload CRS compatibility report
+        id: crs_artifact
         if: ${{ always() && matrix.mode == 'qa' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -179,6 +207,7 @@ jobs:
           retention-days: 30
 
       - name: Upload qualification benchmark
+        id: qualification_artifact
         if: ${{ always() && matrix.mode == 'qa' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -186,6 +215,86 @@ jobs:
           path: artifacts/qualification-benchmark/
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Upload body-pressure benchmark
+        id: body_pressure_artifact
+        if: ${{ always() && matrix.mode == 'qa' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: body-pressure-stress-linux-amd64
+          path: artifacts/body-pressure-stress/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload CRS report preview
+        id: crs_preview
+        if: ${{ always() && matrix.mode == 'qa' && steps.qa_summary.outputs.crs_preview == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/ci-report-previews/crs-compatibility-report.md
+          archive: false
+          retention-days: 30
+
+      - name: Upload qualification report preview
+        id: qualification_preview
+        if: ${{ always() && matrix.mode == 'qa' && steps.qa_summary.outputs.qualification_preview == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/ci-report-previews/qualification-benchmark-report.md
+          archive: false
+          retention-days: 30
+
+      - name: Upload body-pressure report preview
+        id: body_pressure_preview
+        if: ${{ always() && matrix.mode == 'qa' && steps.qa_summary.outputs.body_pressure_preview == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/ci-report-previews/body-pressure-stress-report.md
+          archive: false
+          retention-days: 30
+
+      - name: Publish QA report summary
+        if: ${{ always() && matrix.mode == 'qa' }}
+        env:
+          SUMMARY_PATH: ${{ runner.temp }}/qa-summary.md
+          CRS_PREVIEW_URL: ${{ steps.crs_preview.outputs.artifact-url }}
+          QUALIFICATION_PREVIEW_URL: ${{ steps.qualification_preview.outputs.artifact-url }}
+          BODY_PRESSURE_PREVIEW_URL: ${{ steps.body_pressure_preview.outputs.artifact-url }}
+          CRS_ARTIFACT_URL: ${{ steps.crs_artifact.outputs.artifact-url }}
+          QUALIFICATION_ARTIFACT_URL: ${{ steps.qualification_artifact.outputs.artifact-url }}
+          BODY_PRESSURE_ARTIFACT_URL: ${{ steps.body_pressure_artifact.outputs.artifact-url }}
+        run: |
+          if [[ -f "${SUMMARY_PATH}" ]]; then
+            cat "${SUMMARY_PATH}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "# QA report preview" >> "${GITHUB_STEP_SUMMARY}"
+            echo "" >> "${GITHUB_STEP_SUMMARY}"
+            echo "> The QA summary could not be generated." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+          {
+            echo ""
+            echo "## Report links"
+            echo ""
+            if [[ -n "${CRS_PREVIEW_URL}" ]]; then
+              echo "- [Open OWASP CRS Markdown preview](${CRS_PREVIEW_URL})"
+            fi
+            if [[ -n "${QUALIFICATION_PREVIEW_URL}" ]]; then
+              echo "- [Open qualification benchmark preview](${QUALIFICATION_PREVIEW_URL})"
+            fi
+            if [[ -n "${BODY_PRESSURE_PREVIEW_URL}" ]]; then
+              echo "- [Open body-pressure stress preview](${BODY_PRESSURE_PREVIEW_URL})"
+            fi
+            if [[ -n "${CRS_ARTIFACT_URL}" ]]; then
+              echo "- [Download complete OWASP CRS evidence](${CRS_ARTIFACT_URL})"
+            fi
+            if [[ -n "${QUALIFICATION_ARTIFACT_URL}" ]]; then
+              echo "- [Download complete qualification evidence](${QUALIFICATION_ARTIFACT_URL})"
+            fi
+            if [[ -n "${BODY_PRESSURE_ARTIFACT_URL}" ]]; then
+              echo "- [Download complete body-pressure evidence](${BODY_PRESSURE_ARTIFACT_URL})"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload sanitizer test logs
         if: ${{ always() && matrix.mode == 'sanitizers' }}
