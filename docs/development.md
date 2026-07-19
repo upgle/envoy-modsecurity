@@ -79,8 +79,8 @@ release-gate run executes the instrumented binaries.
 | Explicit HTTP/2 and stream-reset matrix | Gate implemented | `//test/integration:filter_protocol_integration_test` |
 | Complete OWASP CRS regression with exact rule IDs and reviewed exclusions | Required CI gate | `./tools/run-crs-compatibility.sh --apply-platform-overrides --fail-on-test-failure` |
 | ASAN, UBSAN, and leak detection on Linux | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs the in-process lifetime suites with `--config=asan` |
-| Data-race detection | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs generation and budget contention with `--config=tsan` |
-| Concurrent ECDS updates and transaction-lifetime stress | Gate implemented | `//test/integration:filter_ecds_integration_test` and `//test/engine:engine_integration_test` |
+| Data-race detection | Required CI gate | `tools/ci-envoy-build.sh sanitizers` runs engine, budget, and multi-worker ECDS churn with `--config=tsan` |
+| Concurrent ECDS updates and transaction-lifetime stress | Required TSAN gate | `//test/integration:filter_ecds_integration_test` overlaps requests on four exactly balanced workers with accepted configuration updates |
 | Latency, CPU, throughput, and RSS profile | Required CI gate | `make qualification-benchmark` |
 
 The engine-layer tests exercise rule loading, exception boundaries, and libmodsecurity behavior
