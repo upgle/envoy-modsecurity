@@ -9,7 +9,7 @@ baseline, native, and Dynamic Module measurements use one Envoy executable.
 The `waf-engine-comparison` workflow performs the complete Linux pipeline in the Envoy v1.39.0
 build image:
 
-1. Build the comparison Envoy target with Bazel `opt`, stripping, and ThinLTO.
+1. Build the comparison Envoy target with Bazel `opt`, stripping, Fission disabled, and ThinLTO.
 2. Add LLVM instrumentation and train baseline, native, and Dynamic Module paths equally.
 3. Merge all raw profiles with the LLVM toolchain shipped in the build image.
 4. Rebuild the same target with ThinLTO and the merged instrumentation profile.
@@ -51,7 +51,9 @@ Bazel's visibility check only for this benchmark target:
 ```
 
 For a Linux optimized build without PGO training, replace the macOS option with
-`--compilation_mode=opt --strip=always '--per_file_copt=.*@-flto=thin' --linkopt=-flto=thin`.
+`--compilation_mode=opt --strip=always --fission=no`, disable per-object debug information with
+`--features=-per_object_debug_info`, and add
+`'--per_file_copt=.*@-flto=thin' --linkopt=-flto=thin`.
 The per-file form keeps Envoy's CMake-based foreign dependencies on their normal object format.
 The CI script `tools/ci-waf-engine-comparison.sh` is the source of truth for the two-pass
 instrumentation PGO build because its merged profile is generated during the same job.
