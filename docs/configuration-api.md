@@ -137,6 +137,7 @@ of an active transaction. A clean allowed stream produces no ModSecurity metadat
 | `phase` | `request`, `response`, or `complete`. Individual rule records carry their native SecLang phase. |
 | `http_status` | Local-reply status when the filter selected one. |
 | `rule_generation` | Process-local monotonically increasing compiled-generation identifier, encoded as a string. It is not stable across restarts and is not an ECDS version. |
+| `rule_engine_mode` | Compiled generation-level `SecRuleEngine` mode: `enabled`, `detection_only`, `disabled`, or `unspecified`. Transaction-local `ctl:ruleEngine` actions do not change this field. |
 | `rules` | At most 32 log-selected records containing only string `id`, numeric `phase`, and Boolean `disruptive`. |
 | `rules_truncated` | True when additional log-selected records were omitted. |
 | anomaly score fields | Integer CRS TX values when defined: blocking/detection inbound/outbound scores and their thresholds. |
@@ -161,7 +162,21 @@ requires full transaction evidence for compliance or forensics needs a separatel
 design; the bounded metadata intentionally does not contain headers or bodies.
 
 `security_events` counts metadata publications and `security_event_rule_truncations` counts events
-whose rule list reached the bound. `logging_errors` remains the phase-5 error signal.
+whose rule list reached the bound. `logging_errors` remains the phase-5 error signal. The filter
+also exposes fixed-name CRS threshold counters:
+
+| Counter | Meaning |
+| --- | --- |
+| `crs_inbound_anomaly_score_threshold_exceeded` | Streams whose final CRS blocking inbound anomaly score was greater than or equal to its threshold, independent of enforcement mode. |
+| `crs_outbound_anomaly_score_threshold_exceeded` | Streams whose final CRS blocking outbound anomaly score was greater than or equal to its threshold, independent of enforcement mode. |
+| `detection_only_crs_inbound_anomaly_score_threshold_exceeded` | Subset of the inbound counter evaluated by a generation compiled with `SecRuleEngine DetectionOnly`. |
+| `detection_only_crs_outbound_anomaly_score_threshold_exceeded` | Subset of the outbound counter evaluated by a generation compiled with `SecRuleEngine DetectionOnly`. |
+
+Each threshold counter increments at most once per stream and direction after successful phase-5
+processing. A `logging_error` therefore represents a possible observation gap. Use
+`request_interventions` and `response_interventions` for actual disruptive actions. The
+DetectionOnly counters describe CRS anomaly-threshold decisions; they do not include custom
+score-independent `deny`, `drop`, or `redirect` actions.
 
 ## Failure and buffering semantics
 

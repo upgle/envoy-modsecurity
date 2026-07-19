@@ -53,8 +53,9 @@ and [docs/development.md](docs/development.md) for the remaining release work.
 - Disruptive intervention handling, configurable fail-open handling for non-resource-exhaustion
   runtime errors, and fixed-name counters, gauges, and latency histograms.
 - Bounded structured security-event dynamic metadata with rule IDs, phases, disruptive status,
-  CRS anomaly scores, stable outcomes, and process-local rule-generation correlation. Native audit
-  file logging can remain disabled.
+  CRS anomaly scores, compiled rule-engine mode, stable outcomes, and process-local
+  rule-generation correlation. Fixed-name counters separate all CRS anomaly-threshold crossings
+  from the DetectionOnly subset. Native audit file logging can remain disabled.
 - Header-phase inspection with explicit body-bypass counters for recognized gRPC requests, Connect
   streaming requests, Upgrade/CONNECT tunnels, and event-stream responses.
 

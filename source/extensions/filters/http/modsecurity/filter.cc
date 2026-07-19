@@ -66,6 +66,11 @@ class ScopedHistogramTimer {
 
 bool nonZero(const std::optional<int64_t>& value) { return value.has_value() && *value != 0; }
 
+bool thresholdExceeded(const std::optional<int64_t>& score,
+                       const std::optional<int64_t>& threshold) {
+  return score.has_value() && threshold.has_value() && *score >= *threshold;
+}
+
 void setOptionalNumber(Protobuf::Struct& metadata, absl::string_view name,
                        const std::optional<int64_t>& value) {
   if (value.has_value()) {
@@ -80,7 +85,8 @@ Filter::Filter(FilterConfigSharedPtr config)
       settings_(config_->settings()),
       stats_(config_->statsShared()),
       time_source_(config_->timeSource()),
-      body_memory_budget_(config_->bodyMemoryBudget()) {}
+      body_memory_budget_(config_->bodyMemoryBudget()),
+      rule_engine_mode_(config_->generation()->ruleEngineMode()) {}
 
 void Filter::setDecoderFilterCallbacks(Http::StreamDecoderFilterCallbacks& callbacks) {
   decoder_callbacks_ = &callbacks;
@@ -561,7 +567,26 @@ void Filter::finishLogging() {
     publishSecurityEvent(nullptr, true);
     return;
   }
+  recordCrsThresholdStats(*result);
   publishSecurityEvent(&*result);
+}
+
+void Filter::recordCrsThresholdStats(const Engine::LoggingResult& result) {
+  const bool detection_only = rule_engine_mode_ == Engine::RuleEngineMode::DetectionOnly;
+  if (thresholdExceeded(result.blocking_inbound_anomaly_score,
+                        result.inbound_anomaly_score_threshold)) {
+    stats_->crs_inbound_anomaly_score_threshold_exceeded_.inc();
+    if (detection_only) {
+      stats_->detection_only_crs_inbound_anomaly_score_threshold_exceeded_.inc();
+    }
+  }
+  if (thresholdExceeded(result.blocking_outbound_anomaly_score,
+                        result.outbound_anomaly_score_threshold)) {
+    stats_->crs_outbound_anomaly_score_threshold_exceeded_.inc();
+    if (detection_only) {
+      stats_->detection_only_crs_outbound_anomaly_score_threshold_exceeded_.inc();
+    }
+  }
 }
 
 void Filter::setSecurityOutcome(absl::string_view outcome, absl::string_view reason, Path path,
@@ -597,6 +622,8 @@ void Filter::publishSecurityEvent(const Engine::LoggingResult* result, bool logg
                                         : security_reason_);
   fields["phase"].set_string_value(security_phase_);
   fields["rule_generation"].set_string_value(std::to_string(rule_generation_id_));
+  fields["rule_engine_mode"].set_string_value(
+      std::string(Engine::ruleEngineModeName(rule_engine_mode_)));
   if (security_status_.has_value()) {
     fields["http_status"].set_number_value(static_cast<double>(*security_status_));
   }
