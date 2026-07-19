@@ -4,6 +4,7 @@
 #include "envoy/service/extension/v3/config_discovery.pb.h"
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "api/envoy_modsecurity/extensions/filters/http/modsecurity/v3/modsecurity.pb.h"
