@@ -130,6 +130,7 @@ run_sanitizers() {
   # from the larger HTTP suites so the race gate stays focused and has a bounded runtime.
   run_sanitizer_suite tsan -c dbg --config=tsan \
     //test/engine:engine_integration_test \
+    //test/integration:filter_ecds_integration_test \
     //test/unit:filter_test
 }
 
