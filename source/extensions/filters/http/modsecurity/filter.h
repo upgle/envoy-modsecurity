@@ -122,6 +122,7 @@ class Filter final : public Http::StreamFilter {
   bool logging_finished_{false};
   bool security_event_published_{false};
   bool resources_released_{false};
+  const bool stage_timing_enabled_;
 };
 
 }  // namespace ModSecurityFilter
