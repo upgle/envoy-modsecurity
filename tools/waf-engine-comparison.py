@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import statistics
 import subprocess
 import sys
@@ -59,6 +60,17 @@ def parse_args():
     parser.add_argument("--libmodsecurity-version", default="unspecified")
     parser.add_argument("--crs-version", default="unspecified")
     parser.add_argument("--build-profile", default="unspecified")
+    parser.add_argument(
+        "--native-phase1-profile",
+        action="store_true",
+        help="Profile the native phase-1 blocking path instead of running the comparison",
+    )
+    parser.add_argument(
+        "--perf-binary",
+        type=Path,
+        help="Linux perf executable used by --native-phase1-profile",
+    )
+    parser.add_argument("--perf-frequency", default=499, type=int)
     parser.add_argument(
         "--workload",
         action="append",
@@ -334,6 +346,137 @@ def run_workload(port, pid, engine, workload):
     }
 
 
+def start_perf(pid, data_path):
+    if ARGS.perf_binary is None:
+        raise ValueError("--perf-binary is required with --native-phase1-profile")
+    perf_binary = ARGS.perf_binary.resolve()
+    if not perf_binary.is_file():
+        raise RuntimeError(f"perf executable is not a file: {perf_binary}")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    record_log_path = data_path.with_suffix(".record.log")
+    stat_path = data_path.with_suffix(".stat.txt")
+    record_log = record_log_path.open("w", encoding="utf-8")
+    record = subprocess.Popen(
+        [
+            str(perf_binary),
+            "record",
+            "--quiet",
+            "--event",
+            "cpu-clock",
+            "--freq",
+            str(ARGS.perf_frequency),
+            "--call-graph",
+            "dwarf,16384",
+            "--output",
+            str(data_path),
+            "--pid",
+            str(pid),
+        ],
+        stdout=record_log,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    stat = subprocess.Popen(
+        [
+            str(perf_binary),
+            "stat",
+            "--output",
+            str(stat_path),
+            "--event",
+            "task-clock,cycles,instructions,branches,branch-misses,cache-misses,context-switches,cpu-migrations,page-faults",
+            "--pid",
+            str(pid),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    session = {
+        "processes": (record, stat),
+        "record_log": record_log,
+        "record_log_path": record_log_path,
+        "stat_path": stat_path,
+        "data_path": data_path,
+        "stopped": False,
+    }
+    time.sleep(0.25)
+    for process, description in ((record, "perf record"), (stat, "perf stat")):
+        if process.poll() is not None:
+            try:
+                stop_perf(session)
+            except RuntimeError as error:
+                raise RuntimeError(f"{description} exited before the workload: {error}") from error
+            raise RuntimeError(f"{description} exited before the workload with {process.returncode}")
+    return session
+
+
+def stop_perf(session):
+    if session is None or session["stopped"]:
+        return
+    session["stopped"] = True
+    errors = []
+    for process in session["processes"]:
+        if process.poll() is None:
+            process.send_signal(signal.SIGINT)
+    for process, description in zip(session["processes"], ("perf record", "perf stat")):
+        try:
+            return_code = process.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            return_code = process.wait(timeout=10)
+        if return_code not in (0, 130, -signal.SIGINT):
+            errors.append(f"{description} exited with {return_code}")
+    session["record_log"].close()
+    if errors:
+        detail = session["record_log_path"].read_text(encoding="utf-8", errors="replace")
+        if session["stat_path"].exists():
+            detail += "\n" + session["stat_path"].read_text(
+                encoding="utf-8", errors="replace"
+            )
+        raise RuntimeError(f"{'; '.join(errors)}:\n{detail}")
+
+
+def write_perf_reports(data_path):
+    perf_binary = ARGS.perf_binary.resolve()
+    reports = (
+        (
+            data_path.with_suffix(".self.txt"),
+            ["--no-children", "--sort", "dso,symbol"],
+        ),
+        (
+            data_path.with_suffix(".callgraph.txt"),
+            [
+                "--children",
+                "--sort",
+                "dso,symbol",
+                "--call-graph",
+                "graph,0.5,caller",
+            ],
+        ),
+    )
+    for report_path, options in reports:
+        with report_path.open("w", encoding="utf-8") as report:
+            result = subprocess.run(
+                [
+                    str(perf_binary),
+                    "report",
+                    "--stdio",
+                    "--input",
+                    str(data_path),
+                    "--percent-limit",
+                    "0.1",
+                    *options,
+                ],
+                stdout=report,
+                stderr=subprocess.STDOUT,
+                check=False,
+                text=True,
+                timeout=120,
+            )
+        if result.returncode != 0:
+            raise RuntimeError(f"perf report failed with {result.returncode}: {report_path}")
+
+
 def workloads():
     clean_query = "/search?q=" + "normal-value-" * 32
     xss_query = "/search?q=%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
@@ -365,15 +508,27 @@ def render_config(template, upstream_port, engine, crs_config_path):
     )
 
 
-def run_engine(engine, repeat, config_path, workdir, upstream_port, cases):
+def run_engine(
+    engine,
+    repeat,
+    config_path,
+    workdir,
+    upstream_port,
+    cases,
+    enable_stage_timing=False,
+    perf_data_path=None,
+):
     address_path = workdir / f"admin-{repeat}-{engine}.txt"
     log_path = workdir / f"envoy-{repeat}-{engine}.log"
     environment = os.environ.copy()
     environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(ARGS.coraza_module.parent.resolve())
     environment["GODEBUG"] = "cgocheck=0"
+    if enable_stage_timing:
+        environment["ENVOY_MODSECURITY_STAGE_TIMING"] = "1"
     log = log_path.open("w", encoding="utf-8")
     started = time.monotonic()
     admin_address = None
+    perf_session = None
     envoy = subprocess.Popen(
         [
             str(ARGS.envoy_binary.resolve()),
@@ -409,9 +564,21 @@ def run_engine(engine, repeat, config_path, workdir, upstream_port, cases):
         }
         run_workload(port, envoy.pid, engine, warmup)
         rss_after_warmup = process_rss_bytes(envoy.pid)
+        if enable_stage_timing:
+            status, body = admin_request(admin_host, admin_port, "/reset_counters", method="POST")
+            if status != 200:
+                raise RuntimeError(
+                    f"counter reset returned HTTP {status}: {body.decode(errors='replace')}"
+                )
+        if perf_data_path is not None:
+            perf_session = start_perf(envoy.pid, perf_data_path)
         results = {}
         for case in cases:
             results[case["name"]] = run_workload(port, envoy.pid, engine, case)
+        stop_perf(perf_session)
+        perf_session = None
+        if perf_data_path is not None:
+            write_perf_reports(perf_data_path)
         rss_after_suite = process_rss_bytes(envoy.pid)
         status, stats_body = admin_request(admin_host, admin_port, "/stats?format=json")
         if status != 200:
@@ -438,8 +605,10 @@ def run_engine(engine, repeat, config_path, workdir, upstream_port, cases):
             "workloads": results,
             "terminal_stats": interesting_stats,
             "terminal_histograms": interesting_histograms,
+            "perf_data": str(perf_data_path) if perf_data_path is not None else None,
         }
     finally:
+        stop_perf(perf_session)
         if envoy.poll() is None:
             if admin_address is not None:
                 try:
@@ -580,6 +749,176 @@ def sha256(path):
 def command_output(command):
     result = subprocess.run(command, capture_output=True, check=True, text=True, timeout=15)
     return result.stdout.strip() or result.stderr.strip()
+
+
+STAGE_PROFILE_METRICS = (
+    ("transaction_create", "stage_profile_transaction_create_ns"),
+    ("process_connection", "stage_profile_process_connection_ns"),
+    ("process_uri", "stage_profile_process_uri_ns"),
+    ("add_request_headers", "stage_profile_add_request_headers_ns"),
+    ("process_request_headers", "stage_profile_process_request_headers_ns"),
+    ("intervention_lookup", "stage_profile_intervention_lookup_ns"),
+    ("intervention_response", "stage_profile_intervention_response_ns"),
+    ("logging", "stage_profile_logging_ns"),
+    ("process_logging", "stage_profile_process_logging_ns"),
+    ("security_event", "stage_profile_security_event_ns"),
+    ("local_reply", "stage_profile_local_reply_ns"),
+    ("release_resources", "stage_profile_release_resources_ns"),
+)
+
+
+def terminal_stat(run, suffix):
+    matches = [
+        value
+        for name, value in run["terminal_stats"].items()
+        if name == suffix or name.endswith(f".{suffix}")
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(f"expected one terminal stat ending in {suffix!r}, found {len(matches)}")
+    return int(matches[0])
+
+
+def stage_profile_summary(run, workload_name):
+    samples = terminal_stat(run, "stage_profile_samples")
+    requests = run["workloads"][workload_name]["requests"]
+    interventions = terminal_stat(run, "request_interventions")
+    if samples != requests or interventions != requests:
+        raise RuntimeError(
+            f"stage profile expected {requests} samples and interventions, got "
+            f"{samples} samples and {interventions} interventions"
+        )
+    decode_total = terminal_stat(run, "stage_profile_decode_headers_ns")
+    stages = {}
+    for name, suffix in STAGE_PROFILE_METRICS:
+        total = terminal_stat(run, suffix)
+        stages[name] = {
+            "total_ns": total,
+            "ns_per_request": total / samples,
+            "percent_of_decode_headers": 100 * total / decode_total if decode_total else None,
+        }
+    additive_names = (
+        "transaction_create",
+        "process_connection",
+        "process_uri",
+        "add_request_headers",
+        "process_request_headers",
+        "intervention_lookup",
+        "intervention_response",
+    )
+    additive_total = sum(stages[name]["total_ns"] for name in additive_names)
+    residual = max(0, decode_total - additive_total)
+    return {
+        "samples": samples,
+        "intervention_lookups": terminal_stat(run, "stage_profile_intervention_lookups"),
+        "intervention_lookups_per_request": terminal_stat(
+            run, "stage_profile_intervention_lookups"
+        )
+        / samples,
+        "decode_headers": {
+            "total_ns": decode_total,
+            "ns_per_request": decode_total / samples,
+        },
+        "additive_residual": {
+            "total_ns": residual,
+            "ns_per_request": residual / samples,
+            "percent_of_decode_headers": 100 * residual / decode_total if decode_total else None,
+        },
+        "stages": stages,
+    }
+
+
+def write_phase1_profile_markdown(path, result):
+    lines = [
+        "# Native phase-1 block profile",
+        "",
+        f"Generated: {result['generated_at']}",
+        "",
+        f"Platform: `{result['platform']}`",
+        "",
+        f"Envoy: `{result['envoy_version']}`",
+        "",
+        f"Build profile: `{result['build_profile']}`",
+        "",
+        "Stage counters use monotonic nanosecond measurements and are reset after warmup. Linux perf sampling covers only the measured workload. The stage-instrumented run is diagnostic and must not be used as an engine comparison result.",
+        "",
+    ]
+    for profile_run in result["profile_runs"]:
+        workload_name = profile_run["workload"]
+        stage_workload = profile_run["stage_run"]["workloads"][workload_name]
+        perf_workload = profile_run["perf_run"]["workloads"][workload_name]
+        stage = profile_run["stage_timing"]
+        lines.extend(
+            [
+                f"## {workload_name}",
+                "",
+                f"Uninstrumented perf run: {perf_workload['requests']} requests; concurrency: {perf_workload['concurrency']}; throughput: {perf_workload['throughput_rps']:.2f} rps; p50: {perf_workload['latency_ms']['median']:.3f} ms; p99: {perf_workload['latency_ms']['p99']:.3f} ms.",
+                "",
+                f"Stage-instrumented run: throughput: {stage_workload['throughput_rps']:.2f} rps; p50: {stage_workload['latency_ms']['median']:.3f} ms; p99: {stage_workload['latency_ms']['p99']:.3f} ms.",
+                "",
+                f"decodeHeaders total: {stage['decode_headers']['ns_per_request'] / 1000:.3f} us/request; intervention lookups: {stage['intervention_lookups_per_request']:.2f}/request.",
+                "",
+                "### Additive request-header path",
+                "",
+                "| Stage | us/request | Percent of decodeHeaders |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for name in (
+            "transaction_create",
+            "process_connection",
+            "process_uri",
+            "add_request_headers",
+            "process_request_headers",
+            "intervention_lookup",
+            "intervention_response",
+        ):
+            value = stage["stages"][name]
+            lines.append(
+                f"| {name} | {value['ns_per_request'] / 1000:.3f} | "
+                f"{value['percent_of_decode_headers']:.2f}% |"
+            )
+        residual = stage["additive_residual"]
+        lines.append(
+            f"| other filter and instrumentation overhead | {residual['ns_per_request'] / 1000:.3f} | "
+            f"{residual['percent_of_decode_headers']:.2f}% |"
+        )
+        lines.extend(
+            [
+                "",
+                "### Intervention-response breakdown",
+                "",
+                "These stages are contained within `intervention_response`; do not add them to the request-header table again.",
+                "",
+                "| Nested stage | us/request | Percent of decodeHeaders |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for name in (
+            "logging",
+            "process_logging",
+            "security_event",
+            "local_reply",
+            "release_resources",
+        ):
+            value = stage["stages"][name]
+            lines.append(
+                f"| {name} | {value['ns_per_request'] / 1000:.3f} | "
+                f"{value['percent_of_decode_headers']:.2f}% |"
+            )
+        perf_data = Path(profile_run["perf_run"]["perf_data"])
+        lines.extend(
+            [
+                "",
+                "### Linux perf artifacts",
+                "",
+                f"- Raw samples: `{perf_data.name}`",
+                f"- Self-cost report: `{perf_data.with_suffix('.self.txt').name}`",
+                f"- Inclusive call graph: `{perf_data.with_suffix('.callgraph.txt').name}`",
+                f"- Hardware/software counters: `{perf_data.with_suffix('.stat.txt').name}`",
+                "",
+            ]
+        )
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def write_markdown(path, result):
@@ -728,6 +1067,18 @@ def main():
         if unknown:
             raise ValueError(f"unknown workload names: {sorted(unknown)}")
         cases = [case for case in cases if case["name"] in requested]
+    elif ARGS.native_phase1_profile:
+        cases = [case for case in cases if case["name"] == "phase1_block_c1"]
+    if ARGS.native_phase1_profile:
+        if platform.system() != "Linux":
+            raise RuntimeError("--native-phase1-profile requires Linux")
+        if ARGS.perf_binary is None:
+            raise ValueError("--perf-binary is required with --native-phase1-profile")
+        if ARGS.perf_frequency < 1:
+            raise ValueError("--perf-frequency must be positive")
+        invalid = [case["name"] for case in cases if not case["name"].startswith("phase1_block_")]
+        if invalid:
+            raise ValueError(f"native phase-1 profile does not accept workloads: {invalid}")
     environment = os.environ.copy()
     environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(coraza_module.parent)
     environment["GODEBUG"] = "cgocheck=0"
@@ -757,63 +1108,122 @@ def main():
                     f"Envoy rejected {engine} config:\n{validation.stdout}\n{validation.stderr}"
                 )
             configs[engine] = config_path
-        order_patterns = [
-            ("baseline", "libmodsecurity", "coraza"),
-            ("coraza", "baseline", "libmodsecurity"),
-            ("libmodsecurity", "coraza", "baseline"),
-        ]
-        for repeat in range(ARGS.repeats):
-            for engine in order_patterns[repeat % len(order_patterns)]:
-                print(f"repeat {repeat + 1}/{ARGS.repeats}: {engine}", flush=True)
-                runs.append(
-                    run_engine(
-                        engine,
-                        repeat,
-                        configs[engine],
-                        workdir,
-                        upstream.server_port,
-                        cases,
-                    )
-                )
         crs_repository = ARGS.crs_rules_directory.resolve().parent
         try:
             crs_commit = command_output(["git", "-C", str(crs_repository), "rev-parse", "HEAD"])
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             crs_commit = "unknown"
-        aggregate, comparisons = aggregate_results(runs, cases)
-        result = {
+        common_result = {
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "platform": platform.platform(),
             "envoy_binary": str(envoy_binary),
             "envoy_version": command_output([str(envoy_binary), "--version"]),
             "build_profile": ARGS.build_profile,
-            "coraza_module": str(coraza_module),
-            "coraza_module_sha256": sha256(coraza_module),
             "crs_commit": crs_commit,
             "crs_rule_file_count": len(rule_files),
-            "parameters": {
-                "repeats": ARGS.repeats,
-                "request_scale": ARGS.request_scale,
-                "envoy_concurrency": ARGS.envoy_concurrency,
-            },
             "versions": {
-                "coraza_release": ARGS.coraza_release,
-                "coraza_engine": ARGS.coraza_engine_version,
                 "libmodsecurity": ARGS.libmodsecurity_version,
                 "crs": ARGS.crs_version,
             },
-            "workload_names": [case["name"] for case in cases],
-            "runs": runs,
-            "aggregate": aggregate,
-            "comparisons": comparisons,
         }
+        if ARGS.native_phase1_profile:
+            profile_runs = []
+            for repeat in range(ARGS.repeats):
+                for case in cases:
+                    print(
+                        f"profile {repeat + 1}/{ARGS.repeats}: {case['name']}", flush=True
+                    )
+                    suffix = f"-r{repeat + 1}" if ARGS.repeats > 1 else ""
+                    perf_data_path = output_directory / f"{case['name']}{suffix}.perf.data"
+                    stage_run = run_engine(
+                        "libmodsecurity",
+                        repeat * 2,
+                        configs["libmodsecurity"],
+                        workdir,
+                        upstream.server_port,
+                        [case],
+                        enable_stage_timing=True,
+                    )
+                    perf_run = run_engine(
+                        "libmodsecurity",
+                        repeat * 2 + 1,
+                        configs["libmodsecurity"],
+                        workdir,
+                        upstream.server_port,
+                        [case],
+                        perf_data_path=perf_data_path,
+                    )
+                    profile_runs.append(
+                        {
+                            "workload": case["name"],
+                            "stage_run": stage_run,
+                            "perf_run": perf_run,
+                            "stage_timing": stage_profile_summary(
+                                stage_run, case["name"]
+                            ),
+                        }
+                    )
+            result = {
+                **common_result,
+                "perf_version": command_output([str(ARGS.perf_binary.resolve()), "version"]),
+                "parameters": {
+                    "repeats": ARGS.repeats,
+                    "request_scale": ARGS.request_scale,
+                    "envoy_concurrency": ARGS.envoy_concurrency,
+                    "perf_frequency": ARGS.perf_frequency,
+                },
+                "profile_runs": profile_runs,
+            }
+        else:
+            order_patterns = [
+                ("baseline", "libmodsecurity", "coraza"),
+                ("coraza", "baseline", "libmodsecurity"),
+                ("libmodsecurity", "coraza", "baseline"),
+            ]
+            for repeat in range(ARGS.repeats):
+                for engine in order_patterns[repeat % len(order_patterns)]:
+                    print(f"repeat {repeat + 1}/{ARGS.repeats}: {engine}", flush=True)
+                    runs.append(
+                        run_engine(
+                            engine,
+                            repeat,
+                            configs[engine],
+                            workdir,
+                            upstream.server_port,
+                            cases,
+                        )
+                    )
+            aggregate, comparisons = aggregate_results(runs, cases)
+            result = {
+                **common_result,
+                "coraza_module": str(coraza_module),
+                "coraza_module_sha256": sha256(coraza_module),
+                "parameters": {
+                    "repeats": ARGS.repeats,
+                    "request_scale": ARGS.request_scale,
+                    "envoy_concurrency": ARGS.envoy_concurrency,
+                },
+                "versions": {
+                    **common_result["versions"],
+                    "coraza_release": ARGS.coraza_release,
+                    "coraza_engine": ARGS.coraza_engine_version,
+                },
+                "workload_names": [case["name"] for case in cases],
+                "runs": runs,
+                "aggregate": aggregate,
+                "comparisons": comparisons,
+            }
     upstream.shutdown()
     upstream.server_close()
     upstream_thread.join(timeout=5)
-    json_path = output_directory / "waf-engine-comparison.json"
-    markdown_path = output_directory / "waf-engine-comparison.md"
+    stem = "waf-phase1-profile" if ARGS.native_phase1_profile else "waf-engine-comparison"
+    json_path = output_directory / f"{stem}.json"
+    markdown_path = output_directory / f"{stem}.md"
     json_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    write_markdown(markdown_path, result)
+    if ARGS.native_phase1_profile:
+        write_phase1_profile_markdown(markdown_path, result)
+    else:
+        write_markdown(markdown_path, result)
     print(markdown_path)
 
 

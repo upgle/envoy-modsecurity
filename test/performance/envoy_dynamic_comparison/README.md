@@ -9,12 +9,14 @@ baseline, native, and Dynamic Module measurements use one Envoy executable.
 The `waf-engine-comparison` workflow performs the complete Linux pipeline in the Envoy v1.39.0
 build image:
 
-1. Build the comparison Envoy target with Bazel `opt`, stripping, Fission disabled, and ThinLTO.
+1. Build the comparison Envoy target with Bazel `opt`, Fission disabled, and ThinLTO.
 2. Add LLVM instrumentation and train baseline, native, and Dynamic Module paths equally.
 3. Merge all raw profiles with the LLVM toolchain shipped in the build image.
-4. Rebuild the same target with ThinLTO and the merged instrumentation profile.
+4. Rebuild the same target unstripped with ThinLTO and the merged instrumentation profile.
 5. Run the order-rotated comparison and upload JSON, Markdown, profile summary, and build manifest
    artifacts.
+6. Run the native phase-1 block workload twice: once with nanosecond stage counters and once with
+   the counters disabled while Linux `perf record` and `perf stat` are attached.
 
 The expensive workflow runs only for manual dispatches and pushes to the dedicated
 `codex/linux-waf-pgo-benchmark` validation branch; it is not a pull-request gate. It does not
@@ -28,6 +30,13 @@ The profile workload deliberately exercises all three modes. This gives the comm
 both filter integration paths training coverage. The native static library receives the same LLVM
 instrumentation and profile-use cycle as the Bazel C++ code. The separately built Go shared
 library keeps the upstream release's normal optimized build settings.
+
+The diagnostic run keeps stage timing separate from perf sampling. This prevents counter updates
+from appearing as filter hot spots in the sampled call graph. Warmup happens before the stage
+counters are reset and before perf attaches. The profile artifacts include raw `perf.data`,
+self-cost and inclusive-call-graph reports, hardware/software counter output, and per-request stage
+totals for transaction creation, connection processing, URI processing, header ingestion,
+phase-1 evaluation, intervention lookup, logging, local reply, and resource release.
 
 ## Build inputs
 
@@ -53,7 +62,7 @@ Bazel's visibility check only for this benchmark target:
 ```
 
 For a Linux optimized build without PGO training, replace the macOS option with
-`--compilation_mode=opt --strip=always --fission=no`, disable per-object debug information with
+`--compilation_mode=opt --strip=never --fission=no`, disable per-object debug information with
 `--features=-per_object_debug_info`, and add
 `'--per_file_copt=.*@-flto=thin' --linkopt=-flto=thin`.
 The per-file form keeps Envoy's CMake-based foreign dependencies on their normal object format.
@@ -81,3 +90,8 @@ The runner measures safe headers, a clean query, 1 KiB form bodies, 4 KiB and 64
 SQL injection and XSS blocks, a direct phase-1 header block, and selected workloads at concurrency
 16. It records throughput, latency percentiles, Envoy process CPU, startup time, RSS, terminal
 native-filter gauges, raw runs, paired-repeat ranges, and medians in JSON and Markdown.
+
+The Linux phase-1 diagnostic defaults to 30,000 sequential blocking requests (`request scale 50`)
+at a 499 Hz sampling frequency. Use the workflow input to lengthen the sample window when a shared
+runner produces too few samples. The stage-instrumented latency is diagnostic overhead and is
+reported separately from the uninstrumented perf run.

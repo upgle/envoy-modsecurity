@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <optional>
 #include <string>
@@ -38,6 +39,48 @@ IpEndpoint endpoint(const Network::Address::InstanceConstSharedPtr& address) {
 }
 
 bool isPseudoHeader(absl::string_view name) { return !name.empty() && name.front() == ':'; }
+
+bool diagnosticStageTimingEnabled() {
+  static const bool enabled = [] {
+    const char* value = std::getenv("ENVOY_MODSECURITY_STAGE_TIMING");
+    return value != nullptr && absl::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
+class ScopedCounterTimer {
+ public:
+  ScopedCounterTimer(bool enabled, Stats::Counter& counter, TimeSource& time_source)
+      : counter_(enabled ? &counter : nullptr), time_source_(time_source) {
+    if (counter_ != nullptr) {
+      start_ = time_source_.monotonicTime();
+    }
+  }
+
+  ScopedCounterTimer(const ScopedCounterTimer&) = delete;
+  ScopedCounterTimer& operator=(const ScopedCounterTimer&) = delete;
+
+  ~ScopedCounterTimer() {
+    if (counter_ == nullptr) {
+      return;
+    }
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(time_source_.monotonicTime() - start_);
+    counter_->add(static_cast<uint64_t>(elapsed.count()));
+  }
+
+ private:
+  Stats::Counter* counter_;
+  TimeSource& time_source_;
+  MonotonicTime start_;
+};
+
+template <class Callback>
+auto timedCall(bool enabled, Stats::Counter& counter, TimeSource& time_source,
+               Callback&& callback) {
+  ScopedCounterTimer timer(enabled, counter, time_source);
+  return callback();
+}
 
 class ScopedHistogramTimer {
  public:
@@ -88,7 +131,8 @@ Filter::Filter(FilterConfigSharedPtr config)
       stats_(config_->statsShared()),
       time_source_(config_->timeSource()),
       body_memory_budget_(config_->bodyMemoryBudget()),
-      rule_engine_mode_(config_->generation()->ruleEngineMode()) {}
+      rule_engine_mode_(config_->generation()->ruleEngineMode()),
+      stage_timing_enabled_(diagnosticStageTimingEnabled()) {}
 
 void Filter::setDecoderFilterCallbacks(Http::StreamDecoderFilterCallbacks& callbacks) {
   decoder_callbacks_ = &callbacks;
@@ -116,6 +160,8 @@ void Filter::initializeSettings() {
 }
 
 bool Filter::createTransaction() {
+  ScopedCounterTimer timer(stage_timing_enabled_, stats_->stage_profile_transaction_create_ns_,
+                           time_source_);
   rule_generation_id_ = config_->generation()->generationId();
   auto transaction = config_->generation()->createTransaction();
   config_.reset();
@@ -163,7 +209,12 @@ bool Filter::evaluate(const absl::Status& status, Path path, bool check_interven
 }
 
 bool Filter::checkIntervention(Path path) {
-  auto intervention = transaction_->intervention();
+  if (stage_timing_enabled_) {
+    stats_->stage_profile_intervention_lookups_.inc();
+  }
+  auto intervention =
+      timedCall(stage_timing_enabled_, stats_->stage_profile_intervention_lookup_ns_, time_source_,
+                [&] { return transaction_->intervention(); });
   if (!intervention.ok()) {
     return evaluate(intervention.status(), path, false);
   }
@@ -175,6 +226,8 @@ bool Filter::checkIntervention(Path path) {
 }
 
 void Filter::sendIntervention(Engine::Intervention intervention, Path path) {
+  ScopedCounterTimer response_timer(stage_timing_enabled_,
+                                    stats_->stage_profile_intervention_response_ns_, time_source_);
   int status = intervention.status;
   if (!intervention.redirect_url.empty() && (status < 300 || status >= 400)) {
     status = 302;
@@ -200,12 +253,19 @@ void Filter::sendIntervention(Engine::Intervention intervention, Path path) {
 
   if (path == Path::Request) {
     stats_->request_interventions_.inc();
-    decoder_callbacks_->sendLocalReply(code, *settings_.request_intervention_body, modify_headers,
-                                       std::nullopt, "modsecurity_request_intervention");
+    timedCall(stage_timing_enabled_, stats_->stage_profile_local_reply_ns_, time_source_, [&] {
+      decoder_callbacks_->sendLocalReply(code, *settings_.request_intervention_body, modify_headers,
+                                         std::nullopt, "modsecurity_request_intervention");
+      return true;
+    });
   } else {
     stats_->response_interventions_.inc();
-    encoder_callbacks_->sendLocalReply(code, *settings_.response_intervention_body, modify_headers,
-                                       std::nullopt, "modsecurity_response_intervention");
+    timedCall(stage_timing_enabled_, stats_->stage_profile_local_reply_ns_, time_source_, [&] {
+      encoder_callbacks_->sendLocalReply(code, *settings_.response_intervention_body,
+                                         modify_headers, std::nullopt,
+                                         "modsecurity_response_intervention");
+      return true;
+    });
   }
   releaseResources();
 }
@@ -225,6 +285,8 @@ void Filter::sendRuntimeError(Path path, absl::string_view details) {
 
 bool Filter::addRequestHeaders(const Http::RequestHeaderMap& headers,
                                absl::string_view request_host) {
+  ScopedCounterTimer timer(stage_timing_enabled_, stats_->stage_profile_add_request_headers_ns_,
+                           time_source_);
   bool host_added = false;
   bool succeeded = true;
   headers.iterate([&](const Http::HeaderEntry& header) {
@@ -285,6 +347,11 @@ Http::FilterHeadersStatus Filter::stoppedOrContinue() const {
 }
 
 Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers, bool end_stream) {
+  ScopedCounterTimer stage_timer(stage_timing_enabled_, stats_->stage_profile_decode_headers_ns_,
+                                 time_source_);
+  if (stage_timing_enabled_) {
+    stats_->stage_profile_samples_.inc();
+  }
   initializeSettings();
   if (disabled_) {
     return Http::FilterHeadersStatus::Continue;
@@ -298,9 +365,13 @@ Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers,
   const auto& addresses = decoder_callbacks_->streamInfo().downstreamAddressProvider();
   const IpEndpoint client = endpoint(addresses.remoteAddress());
   const IpEndpoint server = endpoint(addresses.localAddress());
-  if (!evaluate(
-          transaction_->processConnection(client.address, client.port, server.address, server.port),
-          Path::Request)) {
+  if (!evaluate(timedCall(stage_timing_enabled_, stats_->stage_profile_process_connection_ns_,
+                          time_source_,
+                          [&] {
+                            return transaction_->processConnection(client.address, client.port,
+                                                                   server.address, server.port);
+                          }),
+                Path::Request)) {
     return stoppedOrContinue();
   }
   const absl::string_view request_target = Http::HeaderUtility::isStandardConnectRequest(headers)
@@ -308,13 +379,19 @@ Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers,
                                                : headers.getPathValue();
   // processURI only initializes transaction variables. The preceding connection-phase
   // intervention has already been consumed, so there cannot be a new intervention here.
-  if (!evaluate(transaction_->processUri(request_target, headers.getMethodValue(),
-                                         modSecurityRequestVersion()),
-                Path::Request, false) ||
+  if (!evaluate(
+          timedCall(stage_timing_enabled_, stats_->stage_profile_process_uri_ns_, time_source_,
+                    [&] {
+                      return transaction_->processUri(request_target, headers.getMethodValue(),
+                                                      modSecurityRequestVersion());
+                    }),
+          Path::Request, false) ||
       !addRequestHeaders(headers, headers.getHostValue())) {
     return stoppedOrContinue();
   }
-  if (!evaluate(transaction_->processRequestHeaders(), Path::Request)) {
+  if (!evaluate(timedCall(stage_timing_enabled_, stats_->stage_profile_process_request_headers_ns_,
+                          time_source_, [&] { return transaction_->processRequestHeaders(); }),
+                Path::Request)) {
     return stoppedOrContinue();
   }
   timer.complete();
@@ -590,8 +667,11 @@ void Filter::finishLogging() {
     return;
   }
   logging_finished_ = true;
+  ScopedCounterTimer stage_timer(stage_timing_enabled_, stats_->stage_profile_logging_ns_,
+                                 time_source_);
   ScopedHistogramTimer timer(stats_->logging_duration_us_, time_source_);
-  auto result = transaction_->processLogging();
+  auto result = timedCall(stage_timing_enabled_, stats_->stage_profile_process_logging_ns_,
+                          time_source_, [&] { return transaction_->processLogging(); });
   if (!result.ok()) {
     stats_->logging_errors_.inc();
     publishSecurityEvent(nullptr, true);
@@ -662,6 +742,8 @@ const char* Filter::securityReasonName(SecurityReason reason) {
 }
 
 void Filter::publishSecurityEvent(const Engine::LoggingResult* result, bool logging_error) {
+  ScopedCounterTimer stage_timer(stage_timing_enabled_, stats_->stage_profile_security_event_ns_,
+                                 time_source_);
   if (security_event_published_ || decoder_callbacks_ == nullptr) {
     return;
   }
@@ -742,6 +824,8 @@ void Filter::releaseResources() {
     return;
   }
   resources_released_ = true;
+  ScopedCounterTimer stage_timer(stage_timing_enabled_, stats_->stage_profile_release_resources_ns_,
+                                 time_source_);
   if (transaction_ != nullptr) {
     transaction_.reset();
     stats_->active_transactions_.dec();

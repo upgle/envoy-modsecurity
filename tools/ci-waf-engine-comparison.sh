@@ -14,6 +14,7 @@ coraza_module="${CORAZA_MODULE:?CORAZA_MODULE must point to libcomposer.so}"
 benchmark_repeats="${BENCHMARK_REPEATS:-3}"
 benchmark_request_scale="${BENCHMARK_REQUEST_SCALE:-1}"
 pgo_training_request_scale="${PGO_TRAINING_REQUEST_SCALE:-1}"
+profile_request_scale="${PROFILE_REQUEST_SCALE:-50}"
 output_directory="${repository_root}/artifacts/waf-engine-comparison"
 pgo_root="${HOME}/waf-comparison-pgo"
 raw_profile_directory="${pgo_root}/raw"
@@ -33,6 +34,7 @@ apt-get install --yes \
   libpcre2-dev \
   libtool \
   libxml2-dev \
+  linux-tools-generic \
   libyajl-dev \
   make \
   pkg-config
@@ -80,7 +82,6 @@ mkdir --parents "${raw_profile_directory}" "${output_directory}"
 
 common_build_flags=(
   --compilation_mode=opt
-  --strip=always
   --fission=no
   --features=-per_object_debug_info
   '--per_file_copt=.*@-flto=thin'
@@ -91,6 +92,7 @@ common_build_flags=(
 echo "Building the Linux release ThinLTO instrumentation binary."
 bazel build \
   "${common_build_flags[@]}" \
+  --strip=always \
   --define=modsecurity_benchmark_pgo=instrument \
   --fdo_instrument="${raw_profile_directory}" \
   "${comparison_target}"
@@ -136,6 +138,7 @@ merged_profile_sha256="$(sha256sum "${merged_profile}" | cut --delimiter=' ' --f
 echo "Building the Linux release ThinLTO binary with the merged PGO profile."
 bazel build \
   "${common_build_flags[@]}" \
+  --strip=never \
   --action_env=MODSECURITY_PGO_PROFILE_SHA256="${merged_profile_sha256}" \
   --define=modsecurity_benchmark_pgo=use \
   --fdo_optimize="${merged_profile}" \
@@ -153,11 +156,38 @@ python3 tools/waf-engine-comparison.py \
   --libmodsecurity-version v3.0.16 \
   --crs-version v4.28.0
 
+perf_binary="$(find /usr/lib/linux-tools -type f -name perf -perm -u+x -print | sort --version-sort | tail --lines=1)"
+if [[ -z "${perf_binary}" ]]; then
+  perf_binary="$(command -v perf || true)"
+fi
+if [[ -z "${perf_binary}" || ! -x "${perf_binary}" ]]; then
+  echo "A working Linux perf executable is required for the phase-1 profile." >&2
+  exit 1
+fi
+"${perf_binary}" version
+
+echo "Profiling the native phase-1 blocking path with stage timers and Linux perf."
+python3 tools/waf-engine-comparison.py \
+  --envoy-binary "${comparison_binary}" \
+  --coraza-module "${coraza_module}" \
+  --output-directory "${output_directory}" \
+  --native-phase1-profile \
+  --perf-binary "${perf_binary}" \
+  --repeats 1 \
+  --request-scale "${profile_request_scale}" \
+  --build-profile "Linux x86_64 Bazel opt, unstripped, ThinLTO, instrumentation PGO" \
+  --coraza-release v0.6.2 \
+  --coraza-engine-version v3.7.0 \
+  --libmodsecurity-version v3.0.16 \
+  --crs-version v4.28.0
+
 {
   printf 'target=%s\n' "${comparison_target}"
   printf 'bazel_version=%s\n' "$(bazel --version)"
   printf 'llvm_profdata_version=%s\n' "$("${llvm_profdata}" --version | head --lines=1)"
-  printf 'build_flags=%s\n' "${common_build_flags[*]} --define=modsecurity_benchmark_pgo=use --fdo_optimize=<merged LLVM profile>"
+  printf 'build_flags=%s\n' "${common_build_flags[*]} --strip=never --define=modsecurity_benchmark_pgo=use --fdo_optimize=<merged LLVM profile>"
+  printf 'perf_version=%s\n' "$("${perf_binary}" version)"
+  printf 'profile_request_scale=%s\n' "${profile_request_scale}"
   printf 'raw_profile_count=%s\n' "${#raw_profiles[@]}"
   printf 'merged_profile_sha256=%s\n' "${merged_profile_sha256}"
   printf 'envoy_binary_sha256=%s\n' "$(sha256sum "${comparison_binary}" | cut --delimiter=' ' --fields=1)"
