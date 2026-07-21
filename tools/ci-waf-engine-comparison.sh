@@ -34,7 +34,7 @@ apt-get install --yes \
   libpcre2-dev \
   libtool \
   libxml2-dev \
-  linux-tools-generic \
+  linux-perf \
   libyajl-dev \
   make \
   pkg-config
@@ -156,9 +156,9 @@ python3 tools/waf-engine-comparison.py \
   --libmodsecurity-version v3.0.16 \
   --crs-version v4.28.0
 
-perf_binary="$(find /usr/lib/linux-tools -type f -name perf -perm -u+x -print | sort --version-sort | tail --lines=1)"
-if [[ -z "${perf_binary}" ]]; then
-  perf_binary="$(command -v perf || true)"
+perf_binary="$(command -v perf || true)"
+if [[ -z "${perf_binary}" && -d /usr/lib/linux-tools ]]; then
+  perf_binary="$(find /usr/lib/linux-tools -type f -name perf -perm -u+x -print | sort --version-sort | tail --lines=1)"
 fi
 if [[ -z "${perf_binary}" || ! -x "${perf_binary}" ]]; then
   echo "A working Linux perf executable is required for the phase-1 profile." >&2
