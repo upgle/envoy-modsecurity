@@ -47,6 +47,16 @@ export CI_SYSROOT_FINGERPRINT="$({
 } | sha256sum | cut --delimiter=' ' --fields=1)"
 
 buildbuddy_bazelrc="${HOME}/.bazelrc"
+buildbuddy_bazelrc_created=false
+cleanup() {
+  if [[ "${buildbuddy_bazelrc_created}" == true ]]; then
+    rm -f -- "${buildbuddy_bazelrc}"
+  fi
+  if [[ -d "${output_directory}" ]]; then
+    chmod --recursive a+rX "${output_directory}" || true
+  fi
+}
+trap cleanup EXIT
 if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
   previous_umask="$(umask)"
   umask 077
@@ -60,8 +70,8 @@ if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
     'common --remote_timeout=60s' \
     'build --action_env=CI_SYSROOT_FINGERPRINT' \
     > "${buildbuddy_bazelrc}"
+  buildbuddy_bazelrc_created=true
   umask "${previous_umask}"
-  trap 'rm -f -- "${buildbuddy_bazelrc}"' EXIT
   echo "BuildBuddy remote cache enabled for the comparison build."
 else
   echo "BuildBuddy API key unavailable; continuing without the remote cache."

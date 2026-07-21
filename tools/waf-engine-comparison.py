@@ -366,7 +366,7 @@ def start_perf(pid, data_path):
             "--freq",
             str(ARGS.perf_frequency),
             "--call-graph",
-            "dwarf,16384",
+            "dwarf,8192",
             "--output",
             str(data_path),
             "--pid",
@@ -438,6 +438,7 @@ def stop_perf(session):
 
 def write_perf_reports(data_path):
     perf_binary = ARGS.perf_binary.resolve()
+    errors = []
     reports = (
         (
             data_path.with_suffix(".self.txt"),
@@ -455,26 +456,34 @@ def write_perf_reports(data_path):
         ),
     )
     for report_path, options in reports:
-        with report_path.open("w", encoding="utf-8") as report:
-            result = subprocess.run(
-                [
-                    str(perf_binary),
-                    "report",
-                    "--stdio",
-                    "--input",
-                    str(data_path),
-                    "--percent-limit",
-                    "0.1",
-                    *options,
-                ],
-                stdout=report,
-                stderr=subprocess.STDOUT,
-                check=False,
-                text=True,
-                timeout=120,
-            )
+        try:
+            with report_path.open("w", encoding="utf-8") as report:
+                result = subprocess.run(
+                    [
+                        str(perf_binary),
+                        "report",
+                        "--stdio",
+                        "--input",
+                        str(data_path),
+                        "--percent-limit",
+                        "0.1",
+                        *options,
+                    ],
+                    stdout=report,
+                    stderr=subprocess.STDOUT,
+                    check=False,
+                    text=True,
+                    timeout=600,
+                )
+        except subprocess.TimeoutExpired:
+            message = f"perf report timed out after 600 seconds: {report_path.name}"
+            errors.append(message)
+            with report_path.open("a", encoding="utf-8") as report:
+                report.write(f"\n{message}\n")
+            continue
         if result.returncode != 0:
-            raise RuntimeError(f"perf report failed with {result.returncode}: {report_path}")
+            errors.append(f"perf report exited with {result.returncode}: {report_path.name}")
+    return errors
 
 
 def workloads():
@@ -529,6 +538,7 @@ def run_engine(
     started = time.monotonic()
     admin_address = None
     perf_session = None
+    perf_report_errors = []
     envoy = subprocess.Popen(
         [
             str(ARGS.envoy_binary.resolve()),
@@ -578,7 +588,7 @@ def run_engine(
         stop_perf(perf_session)
         perf_session = None
         if perf_data_path is not None:
-            write_perf_reports(perf_data_path)
+            perf_report_errors = write_perf_reports(perf_data_path)
         rss_after_suite = process_rss_bytes(envoy.pid)
         status, stats_body = admin_request(admin_host, admin_port, "/stats?format=json")
         if status != 200:
@@ -606,6 +616,7 @@ def run_engine(
             "terminal_stats": interesting_stats,
             "terminal_histograms": interesting_histograms,
             "perf_data": str(perf_data_path) if perf_data_path is not None else None,
+            "perf_report_errors": perf_report_errors,
         }
     finally:
         stop_perf(perf_session)
@@ -915,9 +926,11 @@ def write_phase1_profile_markdown(path, result):
                 f"- Self-cost report: `{perf_data.with_suffix('.self.txt').name}`",
                 f"- Inclusive call graph: `{perf_data.with_suffix('.callgraph.txt').name}`",
                 f"- Hardware/software counters: `{perf_data.with_suffix('.stat.txt').name}`",
-                "",
             ]
         )
+        for error in profile_run["perf_run"]["perf_report_errors"]:
+            lines.append(f"- Report warning: {error}")
+        lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
 
 

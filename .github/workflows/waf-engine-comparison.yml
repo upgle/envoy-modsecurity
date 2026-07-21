@@ -155,6 +155,7 @@ jobs:
           path: artifacts/waf-engine-comparison/
           if-no-files-found: warn
           retention-days: 30
+          compression-level: 0
 
       - name: Report disk usage
         if: always()
