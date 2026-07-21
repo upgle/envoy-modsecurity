@@ -465,6 +465,7 @@ def write_perf_reports(data_path):
                         "--stdio",
                         "--input",
                         str(data_path),
+                        "--no-inline",
                         "--percent-limit",
                         "0.1",
                         *options,
