@@ -166,6 +166,11 @@ class FilterTest : public testing::Test {
     return {{":method", "POST"}, {":path", "/submit"}, {":authority", "example.test"}};
   }
 
+  const Protobuf::Struct& securityMetadata() const {
+    return decoder_callbacks_.stream_info_.metadata_.filter_metadata().at(
+        "envoy.filters.http.modsecurity");
+  }
+
   Event::SimulatedTimeSystem time_system_;
   Stats::IsolatedStoreImpl store_;
   NiceMock<Http::MockStreamDecoderFilterCallbacks> decoder_callbacks_;
@@ -180,9 +185,6 @@ class FilterTest : public testing::Test {
 
 TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   initialize();
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .Times(0);
   auto headers = requestHeaders();
 
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
@@ -201,6 +203,8 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
   EXPECT_EQ(stats_->modsecurity_buffer_bytes_.value(), 0);
   EXPECT_EQ(body_memory_budget_->used(), 0);
+  const auto& filter_metadata = decoder_callbacks_.stream_info_.metadata_.filter_metadata();
+  EXPECT_EQ(filter_metadata.find("envoy.filters.http.modsecurity"), filter_metadata.end());
 
   filter_->onStreamComplete();
   filter_->onStreamComplete();
@@ -247,14 +251,15 @@ TEST_F(FilterTest, PublishesBoundedDetectionMetadataWithoutMatchedValues) {
   state_->logging_result.blocking_inbound_anomaly_score = 7;
   state_->logging_result.detection_inbound_anomaly_score = 12;
   state_->logging_result.inbound_anomaly_score_threshold = 5;
+  Protobuf::Struct& existing_metadata =
+      (*decoder_callbacks_.stream_info_.metadata_.mutable_filter_metadata())
+          ["envoy.filters.http.modsecurity"];
+  (*existing_metadata.mutable_fields())["existing"].set_string_value("preserved");
 
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
 
+  const Protobuf::Struct& metadata = securityMetadata();
   const auto& fields = metadata.fields();
   EXPECT_EQ(fields.at("schema_version").number_value(), 1);
   EXPECT_EQ(fields.at("outcome").string_value(), "allowed");
@@ -265,6 +270,7 @@ TEST_F(FilterTest, PublishesBoundedDetectionMetadataWithoutMatchedValues) {
   EXPECT_EQ(fields.at("blocking_inbound_anomaly_score").number_value(), 7);
   EXPECT_EQ(fields.at("detection_inbound_anomaly_score").number_value(), 12);
   EXPECT_EQ(fields.at("inbound_anomaly_score_threshold").number_value(), 5);
+  EXPECT_EQ(fields.at("existing").string_value(), "preserved");
   ASSERT_EQ(fields.at("rules").list_value().values_size(), Engine::LoggingResult::MaxRuleEvents);
   const Protobuf::Struct& first_rule = fields.at("rules").list_value().values(0).struct_value();
   EXPECT_EQ(first_rule.fields().at("id").string_value(), "942000");
@@ -286,13 +292,10 @@ TEST_F(FilterTest, SeparatesDetectionOnlyCrsThresholdCounters) {
   state_->logging_result.blocking_outbound_anomaly_score = 9;
   state_->logging_result.outbound_anomaly_score_threshold = 5;
 
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
 
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("rule_engine_mode").string_value(), "detection_only");
   EXPECT_EQ(stats_->crs_inbound_anomaly_score_threshold_exceeded_.value(), 1);
   EXPECT_EQ(stats_->crs_outbound_anomaly_score_threshold_exceeded_.value(), 1);
@@ -310,14 +313,11 @@ TEST_F(FilterTest, SeparatesDetectionOnlyCrsThresholdCounters) {
 TEST_F(FilterTest, LoggingFailurePublishesLossSignalWithoutChangingTrafficOutcome) {
   initialize();
   state_->logging_status = absl::InternalError("logging unavailable");
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
 
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
 
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "allowed");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "logging_error");
   EXPECT_TRUE(metadata.fields().at("logging_error").bool_value());
@@ -329,16 +329,13 @@ TEST_F(FilterTest, LoggingFailurePublishesLossSignalWithoutChangingTrafficOutcom
 
 TEST_F(FilterTest, DestroyedActiveStreamPublishesIncompleteEventOnce) {
   initialize(32, 32);
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
 
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::Continue);
   EXPECT_EQ(state_->destroyed_transactions, 0);
   filter_->onDestroy();
 
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "incomplete");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "stream_destroyed");
   EXPECT_EQ(state_->logging_calls, 1);
@@ -391,10 +388,6 @@ TEST_F(FilterTest, DestroyMidResponseReleasesTransactionAndBodyAccountingExactly
 
 TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
   initialize(5);
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::StopIteration);
 
@@ -404,6 +397,7 @@ TEST_F(FilterTest, RejectsRequestOverflowBeforePartialAppend) {
   EXPECT_EQ(filter_->decodeData(body, true), Http::FilterDataStatus::StopIterationNoBuffer);
   EXPECT_TRUE(state_->request_body.empty());
   EXPECT_EQ(stats_->request_body_overflow_.value(), 1);
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "body_overflow");
   EXPECT_EQ(metadata.fields().at("http_status").number_value(), 413);
@@ -618,15 +612,12 @@ TEST_F(FilterTest, HoldsAndInspectsResponseWhenEnabled) {
 TEST_F(FilterTest, RuntimeFailureCanFailOpen) {
   initialize(32, std::nullopt, true);
   state_->request_headers_status = absl::InternalError("engine unavailable");
-  Protobuf::Struct metadata;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
 
   EXPECT_EQ(filter_->decodeHeaders(headers, false), Http::FilterHeadersStatus::Continue);
   EXPECT_EQ(stats_->runtime_errors_.value(), 1);
   EXPECT_EQ(stats_->failure_mode_allowed_.value(), 1);
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "bypassed");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "runtime_error");
   EXPECT_EQ(metadata.fields().at("phase").string_value(), "request");
@@ -677,11 +668,7 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   state_->logging_result.rules = {{942100, 2, false}, {949110, 2, true}};
   state_->logging_result.blocking_inbound_anomaly_score = 5;
   state_->logging_result.inbound_anomaly_score_threshold = 5;
-  Protobuf::Struct metadata;
   std::function<void(Http::ResponseHeaderMap&)> modify_headers;
-  EXPECT_CALL(decoder_callbacks_.stream_info_,
-              setDynamicMetadata("envoy.filters.http.modsecurity", _))
-      .WillOnce(SaveArg<1>(&metadata));
   auto headers = requestHeaders();
 
   EXPECT_CALL(decoder_callbacks_,
@@ -691,6 +678,7 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
   EXPECT_EQ(modify_headers, nullptr);
   EXPECT_EQ(stats_->request_interventions_.value(), 1);
+  const Protobuf::Struct& metadata = securityMetadata();
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "rule_intervention");
   EXPECT_EQ(metadata.fields().at("phase").string_value(), "request");

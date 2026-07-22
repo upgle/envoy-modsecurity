@@ -26,6 +26,11 @@ namespace {
 
 constexpr absl::string_view SecurityMetadataNamespace = "envoy.filters.http.modsecurity";
 
+const std::string& securityMetadataNamespace() {
+  static const std::string value(SecurityMetadataNamespace);
+  return value;
+}
+
 struct IpEndpoint {
   absl::string_view address{"0.0.0.0"};
   uint32_t port{0};
@@ -760,7 +765,9 @@ void Filter::publishSecurityEvent(const Engine::LoggingResult* result, bool logg
   }
 
   security_event_published_ = true;
-  Protobuf::Struct metadata;
+  Protobuf::Struct& metadata =
+      (*decoder_callbacks_->streamInfo().dynamicMetadata().mutable_filter_metadata())
+          [securityMetadataNamespace()];
   auto& fields = *metadata.mutable_fields();
   fields["schema_version"].set_number_value(1);
   fields["outcome"].set_string_value(securityOutcomeName(security_outcome_));
@@ -812,8 +819,6 @@ void Filter::publishSecurityEvent(const Engine::LoggingResult* result, bool logg
     }
   }
 
-  decoder_callbacks_->streamInfo().setDynamicMetadata(std::string(SecurityMetadataNamespace),
-                                                      metadata);
   stats_->security_events_.inc();
 }
 

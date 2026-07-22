@@ -9,6 +9,7 @@ envoy_cc_library(
     repository = "@envoy",
     hdrs = ["engine.h"],
     deps = [
+        "@abseil-cpp//absl/container:inlined_vector",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:string_view",

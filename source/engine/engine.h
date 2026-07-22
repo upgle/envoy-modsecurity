@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -67,7 +68,7 @@ struct RuleEvent {
 struct LoggingResult {
   static constexpr size_t MaxRuleEvents = 32;
 
-  std::vector<RuleEvent> rules;
+  absl::InlinedVector<RuleEvent, 4> rules;
   bool rules_truncated{false};
   std::optional<int64_t> blocking_inbound_anomaly_score;
   std::optional<int64_t> detection_inbound_anomaly_score;
