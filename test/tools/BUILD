@@ -7,3 +7,9 @@ py_test(
     srcs = ["crs_compatibility_report_test.py"],
     data = ["//tools:crs-compatibility-report.py"],
 )
+
+py_test(
+    name = "waf_engine_comparison_test",
+    srcs = ["waf_engine_comparison_test.py"],
+    data = ["//tools:waf-engine-comparison.py"],
+)

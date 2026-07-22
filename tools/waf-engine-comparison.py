@@ -177,6 +177,8 @@ class Upstream(ThreadingHTTPServer):
 
 class UpstreamHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    # Keep the tiny benchmark response independent of Nagle/delayed-ACK interactions.
+    disable_nagle_algorithm = True
 
     def do_GET(self):
         self._respond()
@@ -254,7 +256,25 @@ def process_rss_bytes(pid):
     return int(result.stdout.strip()) * 1024
 
 
+def proc_stat_cpu_seconds(contents, ticks_per_second, pid):
+    fields = contents.rsplit(") ", 1)
+    if len(fields) != 2:
+        raise RuntimeError(f"unexpected process stat format for pid {pid}")
+    values = fields[1].split()
+    if len(values) <= 12:
+        raise RuntimeError(f"incomplete process stat for pid {pid}")
+    user_ticks = int(values[11])
+    system_ticks = int(values[12])
+    return (user_ticks + system_ticks) / ticks_per_second
+
+
 def process_cpu_seconds(pid):
+    stat_path = Path(f"/proc/{pid}/stat")
+    if stat_path.is_file():
+        return proc_stat_cpu_seconds(
+            stat_path.read_text(encoding="utf-8"), os.sysconf("SC_CLK_TCK"), pid
+        )
+
     result = subprocess.run(
         ["ps", "-o", "time=", "-p", str(pid)],
         capture_output=True,
@@ -305,8 +325,19 @@ def request_worker(port, workload, count, expected_status):
     return latencies
 
 
+def workload_request_count(workload, request_scale, native_phase1_profile):
+    base_requests = (
+        workload.get("profile_requests", workload["requests"])
+        if native_phase1_profile
+        else workload["requests"]
+    )
+    return max(1, int(base_requests * request_scale))
+
+
 def run_workload(port, pid, engine, workload):
-    count = max(1, int(workload["requests"] * ARGS.request_scale))
+    count = workload_request_count(
+        workload, ARGS.request_scale, ARGS.native_phase1_profile
+    )
     concurrency = min(count, workload["concurrency"])
     counts = [count // concurrency] * concurrency
     for index in range(count % concurrency):
@@ -503,11 +534,11 @@ def workloads():
         {"name": "json_64k_c1", "requests": 50, "concurrency": 1, "method": "POST", "path": "/json", "body": json_64k, "headers": json_headers, "waf_status": 200},
         {"name": "blocked_sqli_c1", "requests": 150, "concurrency": 1, "method": "POST", "path": "/attack", "body": "user=1234+OR+1%3D1", "headers": form_headers, "waf_status": 403},
         {"name": "blocked_xss_c1", "requests": 150, "concurrency": 1, "method": "GET", "path": xss_query, "body": None, "headers": {}, "waf_status": 403},
-        {"name": "phase1_block_c1", "requests": 600, "concurrency": 1, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
+        {"name": "phase1_block_c1", "requests": 6000, "profile_requests": 600, "concurrency": 1, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
         {"name": "headers_c16", "requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {}, "waf_status": 200},
         {"name": "json_4k_c16", "requests": 600, "concurrency": 16, "method": "POST", "path": "/json", "body": json_4k, "headers": json_headers, "waf_status": 200},
         {"name": "blocked_sqli_c16", "requests": 400, "concurrency": 16, "method": "POST", "path": "/attack", "body": "user=1234+OR+1%3D1", "headers": form_headers, "waf_status": 403},
-        {"name": "phase1_block_c16", "requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
+        {"name": "phase1_block_c16", "requests": 12000, "profile_requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
     ]
 
 
