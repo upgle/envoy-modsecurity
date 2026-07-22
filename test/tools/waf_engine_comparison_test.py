@@ -13,6 +13,12 @@ from unittest import mock
 SCRIPT_PATH = (
     Path(__file__).resolve().parents[2] / "tools" / "waf-engine-comparison.py"
 )
+BOOTSTRAP_TEMPLATE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "test"
+    / "performance"
+    / "waf_comparison_bootstrap.yaml.tmpl"
+)
 SPEC = importlib.util.spec_from_file_location("waf_engine_comparison", SCRIPT_PATH)
 WAF_COMPARISON = importlib.util.module_from_spec(SPEC)
 with mock.patch.object(
@@ -67,6 +73,32 @@ class MeasurementHelpersTest(unittest.TestCase):
             ),
             1,
         )
+
+    def test_baseline_status_can_match_an_early_block(self):
+        workload = {"baseline_status": 403, "waf_status": 403}
+
+        self.assertEqual(
+            WAF_COMPARISON.expected_workload_status("baseline", workload), 403
+        )
+        self.assertEqual(
+            WAF_COMPARISON.expected_workload_status("native", workload), 403
+        )
+
+    def test_baseline_status_defaults_to_success(self):
+        self.assertEqual(
+            WAF_COMPARISON.expected_workload_status(
+                "baseline", {"waf_status": 403}
+            ),
+            200,
+        )
+
+    def test_phase_one_baseline_direct_response_precedes_upstream_route(self):
+        template = BOOTSTRAP_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        direct_response = template.index("exact: phase1-block")
+        upstream_route = template.index("cluster: waf_comparison_upstream")
+        self.assertLess(direct_response, upstream_route)
+        self.assertIn("direct_response:\n                            status: 403", template)
 
     def test_tiny_upstream_responses_disable_nagle(self):
         self.assertTrue(WAF_COMPARISON.UpstreamHandler.disable_nagle_algorithm)
