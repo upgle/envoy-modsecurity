@@ -177,12 +177,14 @@ if [[ -z "${perf_binary}" || ! -x "${perf_binary}" ]]; then
 fi
 "${perf_binary}" version
 
-echo "Profiling the native phase-1 blocking path with stage timers and Linux perf."
+echo "Profiling the native phase-1 blocking paths with stage timers and Linux perf."
 python3 tools/waf-engine-comparison.py \
   --envoy-binary "${comparison_binary}" \
   --coraza-module "${coraza_module}" \
   --output-directory "${output_directory}" \
   --native-phase1-profile \
+  --workload phase1_block_c1 \
+  --workload phase1_block_c16 \
   --perf-binary "${perf_binary}" \
   --repeats 1 \
   --request-scale "${profile_request_scale}" \
