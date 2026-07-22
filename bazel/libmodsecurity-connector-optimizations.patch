@@ -73,100 +73,56 @@ diff --git a/src/actions/set_var.cc b/src/actions/set_var.cc
 diff --git a/headers/modsecurity/transaction.h b/headers/modsecurity/transaction.h
 --- a/headers/modsecurity/transaction.h
 +++ b/headers/modsecurity/transaction.h
-@@ -378,6 +378,9 @@ class Transaction : public TransactionAnchoredVariables, public TransactionSecMa
-
-    bool intervention(ModSecurityIntervention *it);
-
+@@ -396,0 +397,3 @@
 +    void setInterventionLogEnabled(bool enabled) { m_interventionLogEnabled = enabled; }
 +    bool interventionLogEnabled() const { return m_interventionLogEnabled; }
 +
-     bool addArgument(const std::string& orig, const std::string& key,
-         const std::string& value, size_t offset);
-     bool extractArguments(const std::string &orig, const std::string& buf,
-@@ -650,6 +653,7 @@ class Transaction : public TransactionAnchoredVariables, public TransactionSecMa
-      * m_it.disruptive, this is NOT cleared by intervention::reset(), so
-      * it remains a reliable signal at audit-log time.
-      */
-     bool m_isInterrupted = false;
+@@ -603,0 +607 @@
 +    bool m_interventionLogEnabled = true;
-
-    /**
-      * Holds the creation time stamp, using std::time.
 diff --git a/src/actions/disruptive/deny.cc b/src/actions/disruptive/deny.cc
 --- a/src/actions/disruptive/deny.cc
 +++ b/src/actions/disruptive/deny.cc
-@@ -39,8 +39,10 @@ bool Deny::evaluate(RuleWithActions *rule, Transaction *transaction,
-     transaction->m_it.disruptive = true;
-     intervention::freeLog(&transaction->m_it);
-     ruleMessage.m_isDisruptive = true;
+@@ -42,2 +42,4 @@
 -    transaction->m_it.log = strdup(
 -        ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    if (transaction->interventionLogEnabled()) {
 +        transaction->m_it.log = strdup(
 +            ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    }
-
-    return true;
- }
 diff --git a/src/actions/disruptive/drop.cc b/src/actions/disruptive/drop.cc
 --- a/src/actions/disruptive/drop.cc
 +++ b/src/actions/disruptive/drop.cc
-@@ -44,8 +44,10 @@ bool Drop::evaluate(RuleWithActions *rule, Transaction *transaction,
-     transaction->m_it.disruptive = true;
-     intervention::freeLog(&transaction->m_it);
-     ruleMessage.m_isDisruptive = true;
+@@ -47,2 +47,4 @@
 -    transaction->m_it.log = strdup(
 -        ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    if (transaction->interventionLogEnabled()) {
 +        transaction->m_it.log = strdup(
 +            ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    }
-
-    return true;
- }
 diff --git a/src/actions/disruptive/redirect.cc b/src/actions/disruptive/redirect.cc
 --- a/src/actions/disruptive/redirect.cc
 +++ b/src/actions/disruptive/redirect.cc
-@@ -48,8 +48,10 @@ bool Redirect::evaluate(RuleWithActions *rule, Transaction *transaction,
-     transaction->m_it.disruptive = true;
-     intervention::freeLog(&transaction->m_it);
-     ruleMessage.m_isDisruptive = true;
+@@ -51,2 +51,4 @@
 -    transaction->m_it.log = strdup(
 -        ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    if (transaction->interventionLogEnabled()) {
 +        transaction->m_it.log = strdup(
 +            ruleMessage.log(RuleMessage::LogMessageInfo::ClientLogMessageInfo).c_str());
 +    }
-
-    return true;
- }
 diff --git a/src/transaction.cc b/src/transaction.cc
 --- a/src/transaction.cc
 +++ b/src/transaction.cc
-@@ -953,9 +953,11 @@ bool Transaction::appendRequestBody(const unsigned char *buf, size_t len) {
-                 ms_dbg(5, "Request body limit is marked to reject the " \
-                     "request");
-                 if (getRuleEngineState() == RulesSet::EnabledRuleEngine) {
-                     intervention::free(&m_it);
+@@ -956,2 +956,4 @@
 -                    m_it.log = strdup("Request body limit is marked to " \
 -                            "reject the request");
 +                    if (m_interventionLogEnabled) {
 +                        m_it.log = strdup("Request body limit is marked to " \
 +                                "reject the request");
 +                    }
-                     m_it.status = 403;
-                     m_it.disruptive = true;
-                 } else {
-@@ -1212,8 +1214,10 @@ bool Transaction::appendResponseBody(const unsigned char *buf, size_t len) {
-                     "request");
-                 if (getRuleEngineState() == RulesSet::EnabledRuleEngine) {
-                     intervention::free(&m_it);
+@@ -1215,2 +1217,4 @@
 -                    m_it.log = strdup("Response body limit is marked to reject " \
 -                        "the request");
 +                    if (m_interventionLogEnabled) {
 +                        m_it.log = strdup("Response body limit is marked to reject " \
 +                            "the request");
 +                    }
-                     m_it.status = 403;
-                     m_it.disruptive = true;
-                 } else {
