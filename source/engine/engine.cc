@@ -74,7 +74,9 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
     modsecurity_->setConnectorInformation("envoy-modsecurity v0.1.0");
     // Native synchronous server logging is deliberately disabled. Structured stream metadata and
     // Envoy stats provide bounded observability without a shared log sink in worker callbacks.
-    modsecurity_->setServerLogCb(discardServerLog);
+    // Request the RuleMessage representation so libmodsecurity does not serialize text that the
+    // callback intentionally discards.
+    modsecurity_->setServerLogCb(discardServerLog, modsecurity::RuleMessageLogProperty);
   }
 
   absl::StatusOr<std::shared_ptr<const RuleGeneration>> compile(
