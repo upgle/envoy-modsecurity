@@ -3,12 +3,13 @@
 """Compare native libmodsecurity and the Coraza Envoy Dynamic Module."""
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import datetime
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import platform
@@ -25,6 +26,10 @@ STARTUP_TIMEOUT_SECONDS = 45
 REQUEST_TIMEOUT_SECONDS = 15
 EXPECTED_CRS_RULE_FILE_COUNT = 27
 ENGINES = ("baseline", "libmodsecurity", "coraza")
+CLIENT_PROCESS_POOL = None
+ENVOY_CPU = None
+CLIENT_CPUS = None
+WARMUP_CONCURRENCY = 8
 
 
 def parse_args():
@@ -325,6 +330,56 @@ def request_worker(port, workload, count, expected_status):
     return latencies
 
 
+def prime_client_process(_index):
+    time.sleep(0.05)
+    return os.getpid()
+
+
+def partition_cpu_affinity(available_cpus):
+    cpus = tuple(sorted(available_cpus))
+    if len(cpus) < 2:
+        return None, cpus
+    return cpus[0], cpus[1:]
+
+
+def configure_client_process(client_cpus):
+    if client_cpus and hasattr(os, "sched_setaffinity"):
+        os.sched_setaffinity(0, set(client_cpus))
+
+
+def pin_process_threads(pid, cpu):
+    if cpu is None or not hasattr(os, "sched_setaffinity"):
+        return
+    affinity = {cpu}
+    os.sched_setaffinity(pid, affinity)
+    task_directory = Path(f"/proc/{pid}/task")
+    if not task_directory.is_dir():
+        return
+    for task in task_directory.iterdir():
+        try:
+            os.sched_setaffinity(int(task.name), affinity)
+        except (FileNotFoundError, ProcessLookupError):
+            pass
+
+
+def max_client_processes(cases):
+    return max(WARMUP_CONCURRENCY, *(case["concurrency"] for case in cases))
+
+
+def client_topology_description(parameters):
+    description = (
+        f"Concurrent workloads use {parameters['client_processes']} persistent "
+        "spawned client processes, with one persistent HTTP connection per process."
+    )
+    if parameters["envoy_cpu"] is not None:
+        client_cpus = ",".join(str(cpu) for cpu in parameters["client_cpus"])
+        description += (
+            f" Envoy threads are pinned to CPU {parameters['envoy_cpu']}; "
+            f"clients and the upstream are pinned to CPUs {client_cpus}."
+        )
+    return description
+
+
 def workload_request_count(workload, request_scale, native_phase1_profile):
     base_requests = (
         workload.get("profile_requests", workload["requests"])
@@ -347,9 +402,18 @@ def run_workload(port, pid, engine, workload):
     started = time.perf_counter()
     latencies = []
     errors = []
-    with ThreadPoolExecutor(max_workers=concurrency, thread_name_prefix=workload["name"]) as pool:
+    if concurrency == 1:
+        try:
+            latencies = request_worker(port, workload, count, expected_status)
+        except Exception as error:
+            errors.append(str(error))
+    else:
+        if CLIENT_PROCESS_POOL is None:
+            raise RuntimeError("concurrent client process pool is not initialized")
         futures = [
-            pool.submit(request_worker, port, workload, worker_count, expected_status)
+            CLIENT_PROCESS_POOL.submit(
+                request_worker, port, workload, worker_count, expected_status
+            )
             for worker_count in counts
         ]
         for future in as_completed(futures):
@@ -589,15 +653,17 @@ def run_engine(
         text=True,
         env=environment,
     )
+    pin_process_threads(envoy.pid, ENVOY_CPU)
     try:
         admin_host, admin_port = wait_for_admin(envoy, address_path, log_path)
+        pin_process_threads(envoy.pid, ENVOY_CPU)
         admin_address = (admin_host, admin_port)
         startup_ms = (time.monotonic() - started) * 1000
         port = listener_port(admin_host, admin_port)
         warmup = {
             "name": "warmup",
             "requests": 100,
-            "concurrency": 8,
+            "concurrency": WARMUP_CONCURRENCY,
             "method": "GET",
             "path": "/safe",
             "body": None,
@@ -605,6 +671,7 @@ def run_engine(
             "waf_status": 200,
         }
         run_workload(port, envoy.pid, engine, warmup)
+        pin_process_threads(envoy.pid, ENVOY_CPU)
         rss_after_warmup = process_rss_bytes(envoy.pid)
         if enable_stage_timing:
             status, body = admin_request(admin_host, admin_port, "/reset_counters", method="POST")
@@ -882,6 +949,8 @@ def write_phase1_profile_markdown(path, result):
         "",
         f"Build profile: `{result['build_profile']}`",
         "",
+        client_topology_description(result["parameters"]),
+        "",
         "Stage counters use monotonic nanosecond measurements and are reset after warmup. Linux perf sampling covers only the measured workload. The stage-instrumented run is diagnostic and must not be used as an engine comparison result.",
         "",
     ]
@@ -988,6 +1057,8 @@ def write_markdown(path, result):
         "",
         f"Repeats: {result['parameters']['repeats']}; Envoy workers: {result['parameters']['envoy_concurrency']}; request scale: {result['parameters']['request_scale']}",
         "",
+        client_topology_description(result["parameters"]),
+        "",
         "All three modes use the same Envoy executable. Both WAFs use the same generated SecLang root file and the same local CRS files. Response inspection, audit logging, access logging, and native server logging are disabled. Results are medians across order-rotated process runs.",
         "",
         "## Steady-state results",
@@ -1085,6 +1156,8 @@ def write_markdown(path, result):
 
 
 def main():
+    global CLIENT_CPUS, CLIENT_PROCESS_POOL, ENVOY_CPU
+
     if ARGS.repeats < 1:
         raise ValueError("--repeats must be at least 1")
     if ARGS.request_scale <= 0:
@@ -1100,9 +1173,6 @@ def main():
             raise RuntimeError(f"{description} is not a file: {path}")
     output_directory = ARGS.output_directory.resolve()
     output_directory.mkdir(parents=True, exist_ok=True)
-    upstream = Upstream(("127.0.0.1", 0), UpstreamHandler)
-    upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
-    upstream_thread.start()
     runs = []
     cases = workloads()
     if ARGS.workload:
@@ -1124,6 +1194,28 @@ def main():
         invalid = [case["name"] for case in cases if not case["name"].startswith("phase1_block_")]
         if invalid:
             raise ValueError(f"native phase-1 profile does not accept workloads: {invalid}")
+    original_cpu_affinity = None
+    if platform.system() == "Linux" and hasattr(os, "sched_getaffinity"):
+        original_cpu_affinity = tuple(sorted(os.sched_getaffinity(0)))
+        ENVOY_CPU, CLIENT_CPUS = partition_cpu_affinity(original_cpu_affinity)
+        if ENVOY_CPU is not None:
+            os.sched_setaffinity(0, set(CLIENT_CPUS))
+    client_processes = max_client_processes(cases)
+    CLIENT_PROCESS_POOL = ProcessPoolExecutor(
+        max_workers=client_processes,
+        mp_context=multiprocessing.get_context("spawn"),
+        initializer=configure_client_process,
+        initargs=(CLIENT_CPUS,),
+    )
+    prime_futures = [
+        CLIENT_PROCESS_POOL.submit(prime_client_process, index)
+        for index in range(client_processes)
+    ]
+    for future in as_completed(prime_futures):
+        future.result()
+    upstream = Upstream(("127.0.0.1", 0), UpstreamHandler)
+    upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
+    upstream_thread.start()
     environment = os.environ.copy()
     environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(coraza_module.parent)
     environment["GODEBUG"] = "cgocheck=0"
@@ -1216,6 +1308,9 @@ def main():
                     "request_scale": ARGS.request_scale,
                     "envoy_concurrency": ARGS.envoy_concurrency,
                     "perf_frequency": ARGS.perf_frequency,
+                    "client_processes": client_processes,
+                    "envoy_cpu": ENVOY_CPU,
+                    "client_cpus": CLIENT_CPUS,
                 },
                 "profile_runs": profile_runs,
             }
@@ -1247,6 +1342,9 @@ def main():
                     "repeats": ARGS.repeats,
                     "request_scale": ARGS.request_scale,
                     "envoy_concurrency": ARGS.envoy_concurrency,
+                    "client_processes": client_processes,
+                    "envoy_cpu": ENVOY_CPU,
+                    "client_cpus": CLIENT_CPUS,
                 },
                 "versions": {
                     **common_result["versions"],
@@ -1261,6 +1359,10 @@ def main():
     upstream.shutdown()
     upstream.server_close()
     upstream_thread.join(timeout=5)
+    CLIENT_PROCESS_POOL.shutdown(wait=True)
+    CLIENT_PROCESS_POOL = None
+    if original_cpu_affinity is not None and ENVOY_CPU is not None:
+        os.sched_setaffinity(0, set(original_cpu_affinity))
     stem = "waf-phase1-profile" if ARGS.native_phase1_profile else "waf-engine-comparison"
     json_path = output_directory / f"{stem}.json"
     markdown_path = output_directory / f"{stem}.md"
