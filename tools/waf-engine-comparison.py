@@ -389,6 +389,12 @@ def workload_request_count(workload, request_scale, native_phase1_profile):
     return max(1, int(base_requests * request_scale))
 
 
+def expected_workload_status(engine, workload):
+    if engine == "baseline":
+        return workload.get("baseline_status", 200)
+    return workload["waf_status"]
+
+
 def run_workload(port, pid, engine, workload):
     count = workload_request_count(
         workload, ARGS.request_scale, ARGS.native_phase1_profile
@@ -397,7 +403,7 @@ def run_workload(port, pid, engine, workload):
     counts = [count // concurrency] * concurrency
     for index in range(count % concurrency):
         counts[index] += 1
-    expected_status = 200 if engine == "baseline" else workload["waf_status"]
+    expected_status = expected_workload_status(engine, workload)
     cpu_before = process_cpu_seconds(pid)
     started = time.perf_counter()
     latencies = []
@@ -598,11 +604,11 @@ def workloads():
         {"name": "json_64k_c1", "requests": 50, "concurrency": 1, "method": "POST", "path": "/json", "body": json_64k, "headers": json_headers, "waf_status": 200},
         {"name": "blocked_sqli_c1", "requests": 150, "concurrency": 1, "method": "POST", "path": "/attack", "body": "user=1234+OR+1%3D1", "headers": form_headers, "waf_status": 403},
         {"name": "blocked_xss_c1", "requests": 150, "concurrency": 1, "method": "GET", "path": xss_query, "body": None, "headers": {}, "waf_status": 403},
-        {"name": "phase1_block_c1", "requests": 6000, "profile_requests": 600, "concurrency": 1, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
+        {"name": "phase1_block_c1", "requests": 6000, "profile_requests": 600, "concurrency": 1, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "baseline_status": 403, "waf_status": 403},
         {"name": "headers_c16", "requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {}, "waf_status": 200},
         {"name": "json_4k_c16", "requests": 600, "concurrency": 16, "method": "POST", "path": "/json", "body": json_4k, "headers": json_headers, "waf_status": 200},
         {"name": "blocked_sqli_c16", "requests": 400, "concurrency": 16, "method": "POST", "path": "/attack", "body": "user=1234+OR+1%3D1", "headers": form_headers, "waf_status": 403},
-        {"name": "phase1_block_c16", "requests": 12000, "profile_requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "waf_status": 403},
+        {"name": "phase1_block_c16", "requests": 12000, "profile_requests": 1200, "concurrency": 16, "method": "GET", "path": "/safe", "body": None, "headers": {"x-waf-benchmark": "phase1-block"}, "baseline_status": 403, "waf_status": 403},
     ]
 
 

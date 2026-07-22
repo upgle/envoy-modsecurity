@@ -26,6 +26,14 @@ static_resources:
                       routes:
                         - match:
                             prefix: "/"
+                            headers:
+                              - name: x-waf-benchmark
+                                string_match:
+                                  exact: phase1-block
+                          direct_response:
+                            status: 403
+                        - match:
+                            prefix: "/"
                           route:
                             cluster: waf_comparison_upstream
                 http_filters:
