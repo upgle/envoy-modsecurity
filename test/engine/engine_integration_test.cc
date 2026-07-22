@@ -40,6 +40,11 @@ SecRuleEngine DetectionOnly
 SecRule REQUEST_URI "@rx ^/observed" "id:1000150,phase:1,deny,status:418,log"
 )";
 
+constexpr char kLoggedRedirectRules[] = R"(
+SecRuleEngine On
+SecRule REQUEST_URI "@streq /redirect" "id:1000175,phase:1,redirect:'https://example.test/blocked',log,msg:'redirect signal'"
+)";
+
 constexpr char kJsonParserRules[] = R"(
 SecRuleEngine On
 SecRequestBodyAccess On
@@ -109,6 +114,14 @@ void expectIntervention(Transaction& transaction, int expected_status) {
   EXPECT_EQ(intervention->value().status, expected_status);
 }
 
+void expectRedirect(Transaction& transaction, int expected_status, absl::string_view expected_url) {
+  auto intervention = transaction.intervention();
+  ASSERT_TRUE(intervention.ok()) << intervention.status();
+  ASSERT_TRUE(intervention->has_value());
+  EXPECT_EQ(intervention->value().status, expected_status);
+  EXPECT_EQ(intervention->value().redirect_url, expected_url);
+}
+
 void processStructuredRequestBody(Transaction& transaction, absl::string_view content_type,
                                   absl::string_view body) {
   ASSERT_TRUE(transaction.processConnection("192.0.2.10", 12345, "192.0.2.20", 8080).ok());
@@ -152,6 +165,25 @@ TEST(EngineIntegrationTest, ReportsDetectionOnlyRuleEngineMode) {
   ASSERT_NE(transaction, nullptr);
   ASSERT_TRUE(processRequestHeaders(*transaction, "/observed/resource").ok());
   expectNoIntervention(*transaction);
+}
+
+TEST(EngineIntegrationTest, PreservesRedirectAndStructuredEventWithoutInterventionLogPayload) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("logged-redirect.conf", kLoggedRedirectRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/redirect").ok());
+  expectRedirect(*transaction, 302, "https://example.test/blocked");
+
+  auto result = transaction->processLogging();
+  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_EQ(result->rules.size(), 1);
+  EXPECT_EQ(result->rules[0].id, 1000175);
+  EXPECT_EQ(result->rules[0].phase, 1);
+  EXPECT_TRUE(result->rules[0].disruptive);
 }
 
 TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {

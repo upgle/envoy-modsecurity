@@ -72,9 +72,9 @@ configure_make(
     autogen_command = "build.sh",
     build_data = [
         "//bazel:apply-libmodsecurity-patch.sh",
-        "//bazel:libmodsecurity-set-var-nonthrow.patch",
+        "//bazel:libmodsecurity-connector-optimizations.patch",
     ],
-    configure_prefix = "bash $(execpath //bazel:apply-libmodsecurity-patch.sh) $(execpath //bazel:libmodsecurity-set-var-nonthrow.patch)",
+    configure_prefix = "bash $(execpath //bazel:apply-libmodsecurity-patch.sh) $(execpath //bazel:libmodsecurity-connector-optimizations.patch)",
     configure_in_place = True,
     configure_options = [
         "--disable-shared",

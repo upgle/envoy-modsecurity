@@ -4,6 +4,6 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "apply-libmodsecurity-patch.sh",
-    "libmodsecurity-set-var-nonthrow.patch",
+    "libmodsecurity-connector-optimizations.patch",
     "modsecurity_source.BUILD",
 ])

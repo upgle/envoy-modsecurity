@@ -123,10 +123,13 @@ absl::StatusOr<std::unique_ptr<Transaction>> RuleGenerationImpl::createTransacti
   return catchLibraryExceptions(
       "transaction creation", [&]() -> absl::StatusOr<std::unique_ptr<Transaction>> {
         const std::string transaction_id = runtime_->nextTransactionId();
-        return std::unique_ptr<Transaction>(new TransactionImpl(
-            std::make_unique<modsecurity::Transaction>(runtime_->native(), rules_.get(),
-                                                       transaction_id.c_str(), nullptr),
-            shared_from_this()));
+        auto native_transaction = std::make_unique<modsecurity::Transaction>(
+            runtime_->native(), rules_.get(), transaction_id.c_str(), nullptr);
+        // The connector consumes status and redirect fields plus bounded structured rule events;
+        // it deliberately does not expose libmodsecurity's free-form intervention log payload.
+        native_transaction->setInterventionLogEnabled(false);
+        return std::unique_ptr<Transaction>(
+            new TransactionImpl(std::move(native_transaction), shared_from_this()));
       });
 }
 
