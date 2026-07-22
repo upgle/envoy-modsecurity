@@ -1,0 +1,73 @@
+diff --git a/src/actions/set_var.cc b/src/actions/set_var.cc
+index af965e08..37f3bbce 100644
+--- a/src/actions/set_var.cc
++++ b/src/actions/set_var.cc
+@@ -18,0 +19,2 @@
++#include <cerrno>
++#include <cstdlib>
+@@ -20 +23 @@
+-#include <string>
++#include <limits>
+@@ -21,0 +25 @@
++#include <string>
+@@ -37,0 +42,21 @@ namespace actions {
++namespace {
++
++int parseIntegerOrZero(const std::string& input) {
++    if (input.empty()) {
++        return 0;
++    }
++
++    errno = 0;
++    char *end = nullptr;
++    const long parsed = std::strtol(input.c_str(), &end, 10);
++    if (end == input.c_str() || errno == ERANGE ||
++        parsed < std::numeric_limits<int>::min() ||
++        parsed > std::numeric_limits<int>::max()) {
++        return 0;
++    }
++    return static_cast<int>(parsed);
++}
++
++}  // namespace
++
++
+@@ -96,21 +121,17 @@ bool SetVar::evaluate(RuleWithActions *rule, Transaction *t) {
+-        try {
+-            pre = stoi(resolvedPre);
+-        } catch (...) {
+-            pre = 0;
+-        }
+-
+-        try {
+-            std::vector<const VariableValue *> l;
+-            RuleWithOperator *rr = dynamic_cast<RuleWithOperator *>(rule);
+-            m_variable->evaluate(t, rr, &l);
+-            if (l.size() == 0) {
+-                value = 0;
+-            } else {
+-                value = stoi(l[0]->getValue());
+-                for (auto &i : l) {
+-                    delete i;
+-                }
+-            }
+-        } catch (...) {
+-            value = 0;
+-        }
++        pre = parseIntegerOrZero(resolvedPre);
++
++        std::vector<const VariableValue *> values;
++        try {
++            RuleWithOperator *rr = dynamic_cast<RuleWithOperator *>(rule);
++            m_variable->evaluate(t, rr, &values);
++            if (values.empty()) {
++                value = 0;
++            } else {
++                value = parseIntegerOrZero(values[0]->getValue());
++            }
++        } catch (...) {
++            value = 0;
++        }
++        for (const VariableValue *item : values) {
++            delete item;
++        }

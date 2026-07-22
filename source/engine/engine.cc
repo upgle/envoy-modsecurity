@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -106,17 +107,23 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
   }
 
   modsecurity::ModSecurity* native() const { return modsecurity_.get(); }
+  std::string nextTransactionId() {
+    return absl::StrCat("envoy-", next_transaction_id_.fetch_add(1, std::memory_order_relaxed));
+  }
 
  private:
   std::unique_ptr<modsecurity::ModSecurity> modsecurity_;
   std::atomic<uint64_t> next_generation_id_{1};
+  std::atomic<uint64_t> next_transaction_id_{1};
 };
 
 absl::StatusOr<std::unique_ptr<Transaction>> RuleGenerationImpl::createTransaction() const {
   return catchLibraryExceptions(
       "transaction creation", [&]() -> absl::StatusOr<std::unique_ptr<Transaction>> {
+        const std::string transaction_id = runtime_->nextTransactionId();
         return std::unique_ptr<Transaction>(new TransactionImpl(
-            std::make_unique<modsecurity::Transaction>(runtime_->native(), rules_.get(), nullptr),
+            std::make_unique<modsecurity::Transaction>(runtime_->native(), rules_.get(),
+                                                       transaction_id.c_str(), nullptr),
             shared_from_this()));
       });
 }

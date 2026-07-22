@@ -6,15 +6,15 @@
 - Bazelisk or Bazel 8.7.0
 - curl and Python 3 for the full CRS compatibility runner
 - A Linux C++20 toolchain compatible with the pinned Envoy release
-- Autoconf, Automake, GNU Libtool, `pkg-config`, and development headers for PCRE2, LibXML2, and
-  YAJL
+- Autoconf, Automake, GNU Libtool, `patch`, `pkg-config`, and development headers for PCRE2,
+  LibXML2, and YAJL
 
 On Ubuntu, the native dependencies used by CI can be installed with:
 
 ```shell
 sudo apt-get update
 sudo apt-get install \
-  autoconf automake curl libpcre2-dev libtool libxml2-dev libyajl-dev pkg-config python3
+  autoconf automake curl libpcre2-dev libtool libxml2-dev libyajl-dev patch pkg-config python3
 ```
 
 On Apple Silicon macOS, the best-effort local build expects the Homebrew prefixes declared in
