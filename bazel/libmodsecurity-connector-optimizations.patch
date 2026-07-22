@@ -147,3 +147,29 @@ diff --git a/src/transaction.cc b/src/transaction.cc
 +                        m_it.log = strdup("Response body limit is marked to reject " \
 +                            "the request");
 +                    }
+diff --git a/src/anchored_set_variable.cc b/src/anchored_set_variable.cc
+--- a/src/anchored_set_variable.cc
++++ b/src/anchored_set_variable.cc
+@@ -33,4 +33,3 @@ AnchoredSetVariable::AnchoredSetVariable(Transaction *t,
+     : m_transaction(t),
+     m_name(name) {
+-        reserve(10);
+     }
+@@ -53,5 +52,8 @@ void AnchoredSetVariable::set(const std::string &key,
+ void AnchoredSetVariable::set(const std::string &key,
+     const std::string &value, size_t offset, size_t len) {
++    if (empty()) {
++        reserve(10);
++    }
+     VariableValue *var = new VariableValue(&m_name, &key, &value);
+     var->addOrigin(len, offset);
+     emplace(key, var);
+@@ -61,5 +63,8 @@ void AnchoredSetVariable::set(const std::string &key,
+ void AnchoredSetVariable::set(const std::string &key,
+     const std::string &value, size_t offset) {
++    if (empty()) {
++        reserve(10);
++    }
+     VariableValue *var = new VariableValue(&m_name, &key, &value);
+     var->addOrigin(value.size(), offset);
+     emplace(key, var);
