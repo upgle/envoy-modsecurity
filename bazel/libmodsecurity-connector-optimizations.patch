@@ -31,7 +31,24 @@ diff --git a/src/actions/set_var.cc b/src/actions/set_var.cc
 +}  // namespace
 +
 +
-@@ -96,21 +121,17 @@ bool SetVar::evaluate(RuleWithActions *rule, Transaction *t) {
+@@ -48,8 +72,8 @@
+     auto *v = m_variable.get();
+     auto tx = dynamic_cast<variables::Tx_DynamicElement *> (v);
+-    auto session = dynamic_cast<variables::Session_DynamicElement *> (v);
+-    auto ip = dynamic_cast<variables::Ip_DynamicElement *> (v);
+-    auto resource = dynamic_cast<variables::Resource_DynamicElement *> (v);
+-    auto global = dynamic_cast<variables::Global_DynamicElement *> (v);
+-    auto user = dynamic_cast<variables::User_DynamicElement *> (v);
++    auto session = tx ? nullptr : dynamic_cast<variables::Session_DynamicElement *> (v);
++    auto ip = tx || session ? nullptr : dynamic_cast<variables::Ip_DynamicElement *> (v);
++    auto resource = tx || session || ip ? nullptr : dynamic_cast<variables::Resource_DynamicElement *> (v);
++    auto global = tx || session || ip || resource ? nullptr : dynamic_cast<variables::Global_DynamicElement *> (v);
++    auto user = tx || session || ip || resource || global ? nullptr : dynamic_cast<variables::User_DynamicElement *> (v);
+     if (tx) {
+@@ -93,26 +117,22 @@ bool SetVar::evaluate(RuleWithActions *rule, Transaction *t) {
+         int pre = 0;
+         int value = 0;
+-
 -        try {
 -            pre = stoi(resolvedPre);
 -        } catch (...) {
@@ -53,6 +70,8 @@ diff --git a/src/actions/set_var.cc b/src/actions/set_var.cc
 -        } catch (...) {
 -            value = 0;
 -        }
+-
++
 +        pre = parseIntegerOrZero(resolvedPre);
 +
 +        std::vector<const VariableValue *> values;
@@ -70,6 +89,8 @@ diff --git a/src/actions/set_var.cc b/src/actions/set_var.cc
 +        for (const VariableValue *item : values) {
 +            delete item;
 +        }
++
+         if (m_operation == sumAndSetOperation) {
 diff --git a/headers/modsecurity/transaction.h b/headers/modsecurity/transaction.h
 --- a/headers/modsecurity/transaction.h
 +++ b/headers/modsecurity/transaction.h
