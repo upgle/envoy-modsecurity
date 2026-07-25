@@ -41,10 +41,24 @@ class NativeIntervention {
   modsecurity::ModSecurityIntervention value_;
 };
 
+struct TransactionKeys {
+  const std::string blocking_inbound_anomaly_score{"blocking_inbound_anomaly_score"};
+  const std::string detection_inbound_anomaly_score{"detection_inbound_anomaly_score"};
+  const std::string inbound_anomaly_score_threshold{"inbound_anomaly_score_threshold"};
+  const std::string blocking_outbound_anomaly_score{"blocking_outbound_anomaly_score"};
+  const std::string detection_outbound_anomaly_score{"detection_outbound_anomaly_score"};
+  const std::string outbound_anomaly_score_threshold{"outbound_anomaly_score_threshold"};
+};
+
+const TransactionKeys& transactionKeys() {
+  static const TransactionKeys keys;
+  return keys;
+}
+
 std::optional<int64_t> transactionInteger(const modsecurity::Transaction& transaction,
-                                          absl::string_view name) {
+                                          const std::string& name) {
   const std::unique_ptr<std::string> value =
-      transaction.m_collections.m_tx_collection->resolveFirst(std::string(name));
+      transaction.m_collections.m_tx_collection->resolveFirst(name);
   int64_t parsed = 0;
   if (value == nullptr || !absl::SimpleAtoi(*value, &parsed)) {
     return std::nullopt;
@@ -53,6 +67,7 @@ std::optional<int64_t> transactionInteger(const modsecurity::Transaction& transa
 }
 
 LoggingResult loggingResult(const modsecurity::Transaction& transaction) {
+  const TransactionKeys& keys = transactionKeys();
   LoggingResult result;
   result.rules.reserve(std::min(transaction.m_rulesMessages.size(), LoggingResult::MaxRuleEvents));
   for (const modsecurity::RuleMessage& message : transaction.m_rulesMessages) {
@@ -65,17 +80,17 @@ LoggingResult loggingResult(const modsecurity::Transaction& transaction) {
   }
 
   result.blocking_inbound_anomaly_score =
-      transactionInteger(transaction, "blocking_inbound_anomaly_score");
+      transactionInteger(transaction, keys.blocking_inbound_anomaly_score);
   result.detection_inbound_anomaly_score =
-      transactionInteger(transaction, "detection_inbound_anomaly_score");
+      transactionInteger(transaction, keys.detection_inbound_anomaly_score);
   result.inbound_anomaly_score_threshold =
-      transactionInteger(transaction, "inbound_anomaly_score_threshold");
+      transactionInteger(transaction, keys.inbound_anomaly_score_threshold);
   result.blocking_outbound_anomaly_score =
-      transactionInteger(transaction, "blocking_outbound_anomaly_score");
+      transactionInteger(transaction, keys.blocking_outbound_anomaly_score);
   result.detection_outbound_anomaly_score =
-      transactionInteger(transaction, "detection_outbound_anomaly_score");
+      transactionInteger(transaction, keys.detection_outbound_anomaly_score);
   result.outbound_anomaly_score_threshold =
-      transactionInteger(transaction, "outbound_anomaly_score_threshold");
+      transactionInteger(transaction, keys.outbound_anomaly_score_threshold);
   return result;
 }
 
@@ -172,6 +187,12 @@ absl::StatusOr<LoggingResult> TransactionImpl::processLogging() {
 absl::StatusOr<std::optional<Intervention>> TransactionImpl::intervention() {
   return catchLibraryExceptions("intervention check",
                                 [&]() -> absl::StatusOr<std::optional<Intervention>> {
+                                  // The transaction is stream-confined. Reading the pending flag
+                                  // avoids initializing and freeing an intervention structure on
+                                  // the overwhelmingly common non-disruptive path.
+                                  if (!transaction_->m_it.disruptive) {
+                                    return std::nullopt;
+                                  }
                                   NativeIntervention native;
                                   if (!transaction_->intervention(native.get())) {
                                     return std::nullopt;

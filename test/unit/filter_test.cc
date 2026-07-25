@@ -195,6 +195,7 @@ TEST_F(FilterTest, BuffersRequestAndRunsEachPhaseExactlyOnce) {
   EXPECT_EQ(state_->request_http_version, "1.1");
   EXPECT_EQ(state_->request_headers_calls, 1);
   EXPECT_EQ(state_->request_body_calls, 1);
+  EXPECT_EQ(state_->intervention_calls, 5);
   EXPECT_EQ(state_->logging_calls, 1);
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
@@ -677,6 +678,7 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
   state_->logging_result.blocking_inbound_anomaly_score = 5;
   state_->logging_result.inbound_anomaly_score_threshold = 5;
   Protobuf::Struct metadata;
+  std::function<void(Http::ResponseHeaderMap&)> modify_headers;
   EXPECT_CALL(decoder_callbacks_.stream_info_,
               setDynamicMetadata("envoy.filters.http.modsecurity", _))
       .WillOnce(SaveArg<1>(&metadata));
@@ -684,8 +686,10 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
 
   EXPECT_CALL(decoder_callbacks_,
               sendLocalReply(Http::Code::Forbidden, "request blocked by ModSecurity", _, _,
-                             "modsecurity_request_intervention"));
+                             "modsecurity_request_intervention"))
+      .WillOnce(SaveArg<2>(&modify_headers));
   EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
+  EXPECT_EQ(modify_headers, nullptr);
   EXPECT_EQ(stats_->request_interventions_.value(), 1);
   EXPECT_EQ(metadata.fields().at("outcome").string_value(), "blocked");
   EXPECT_EQ(metadata.fields().at("reason").string_value(), "rule_intervention");
@@ -703,6 +707,26 @@ TEST_F(FilterTest, DisruptiveInterventionSendsLocalReply) {
                   .bool_value());
   EXPECT_EQ(state_->destroyed_transactions, 1);
   EXPECT_EQ(stats_->active_transactions_.value(), 0);
+  filter_->onDestroy();
+}
+
+TEST_F(FilterTest, RequestHeaderInterventionSkipsUriAndBodyInterventionChecks) {
+  initialize();
+  state_->intervene_on_call = 2;
+  state_->intervention = Engine::Intervention{403, {}};
+  state_->logging_result.rules = {{949111, 1, true}};
+  auto headers = requestHeaders();
+
+  EXPECT_CALL(decoder_callbacks_,
+              sendLocalReply(Http::Code::Forbidden, "request blocked by ModSecurity", _, _,
+                             "modsecurity_request_intervention"));
+  EXPECT_EQ(filter_->decodeHeaders(headers, true), Http::FilterHeadersStatus::StopIteration);
+
+  EXPECT_EQ(state_->request_headers_calls, 1);
+  EXPECT_EQ(state_->request_body_calls, 0);
+  EXPECT_EQ(state_->intervention_calls, 2);
+  EXPECT_EQ(state_->logging_calls, 1);
+  EXPECT_EQ(stats_->request_interventions_.value(), 1);
   filter_->onDestroy();
 }
 

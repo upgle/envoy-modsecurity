@@ -43,6 +43,15 @@ class Filter final : public Http::StreamFilter {
  private:
   enum class Path { Request, Response };
   enum class StreamKind { Regular, Grpc, ConnectStreaming, Tunnel };
+  enum class SecurityOutcome { Allowed, Bypassed, Error, Blocked, Incomplete };
+  enum class SecurityReason {
+    None,
+    RuntimeError,
+    RuleIntervention,
+    BodyOverflow,
+    BodyMemoryBudgetExceeded,
+    StreamDestroyed
+  };
   struct BodyState {
     uint64_t bytes{0};
     bool finished{false};
@@ -52,9 +61,10 @@ class Filter final : public Http::StreamFilter {
   bool createTransaction();
   bool evaluate(const absl::Status& status, Path path, bool check_intervention = true);
   bool checkIntervention(Path path);
-  void sendIntervention(const Engine::Intervention& intervention, Path path);
+  void sendIntervention(Engine::Intervention intervention, Path path);
   void sendRuntimeError(Path path, absl::string_view details);
-  bool addHeaders(const Http::HeaderMap& headers, Path path, absl::string_view request_host = {});
+  bool addRequestHeaders(const Http::RequestHeaderMap& headers, absl::string_view request_host);
+  bool addResponseHeaders(const Http::ResponseHeaderMap& headers);
   bool inspectionEnabled(Path path) const;
   Http::FilterHeadersStatus stoppedOrContinue() const;
   Http::FilterDataStatus processData(Buffer::Instance& data, bool end_stream, Path path);
@@ -73,14 +83,16 @@ class Filter final : public Http::StreamFilter {
   Stats::Histogram& bodyDurationHistogram(Path path) const;
   void finishLogging();
   void recordCrsThresholdStats(const Engine::LoggingResult& logging_result);
-  void setSecurityOutcome(absl::string_view outcome, absl::string_view reason, Path path,
+  void setSecurityOutcome(SecurityOutcome outcome, SecurityReason reason, Path path,
                           std::optional<uint32_t> status = std::nullopt);
+  static const char* securityOutcomeName(SecurityOutcome outcome);
+  static const char* securityReasonName(SecurityReason reason);
   void publishSecurityEvent(const Engine::LoggingResult* logging_result,
                             bool logging_error = false);
   bool reserveBodyBytes(uint64_t bytes);
   void releaseResources();
-  std::string httpVersion() const;
-  std::string modSecurityRequestVersion() const;
+  absl::string_view httpVersion() const;
+  absl::string_view modSecurityRequestVersion() const;
 
   FilterConfigSharedPtr config_;
   EffectiveSettings settings_;
@@ -97,9 +109,9 @@ class Filter final : public Http::StreamFilter {
   uint64_t charged_body_bytes_{0};
   uint64_t rule_generation_id_{0};
   const Engine::RuleEngineMode rule_engine_mode_;
-  std::string security_outcome_{"allowed"};
-  std::string security_reason_;
-  std::string security_phase_{"complete"};
+  SecurityOutcome security_outcome_{SecurityOutcome::Allowed};
+  SecurityReason security_reason_{SecurityReason::None};
+  std::optional<Path> security_phase_;
   std::optional<uint32_t> security_status_;
   bool connect_tunnel_{false};
   bool settings_initialized_{false};
