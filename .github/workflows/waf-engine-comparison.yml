@@ -1,9 +1,6 @@
 name: waf-engine-comparison
 
 on:
-  push:
-    branches:
-      - codex/linux-waf-pgo-benchmark
   workflow_dispatch:
     inputs:
       repeats:
@@ -79,6 +76,12 @@ jobs:
         with:
           fetch-depth: 1
           submodules: recursive
+
+      - name: Test performance tooling
+        run: |
+          python3 -m unittest \
+            test/tools/render_waf_performance_chart_test.py \
+            test/tools/waf_engine_comparison_test.py
 
       # Keep the comparison module independent from the production dependency graph. The release
       # tag resolves to this commit, and the benchmark records the module binary checksum.

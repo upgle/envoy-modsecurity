@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="960" viewBox="0 0 1480 960" role="img" aria-labelledby="chart-title chart-description">
+<title id="chart-title">Paired WAF performance on Envoy</title>
+<desc id="chart-description">Three aligned forest plots compare libmodsecurity with the Coraza Dynamic Module for throughput, CPU per request, and p99 latency across twelve workloads. Points show paired medians and lines show the observed range across three runs. Values to the right of one favor libmodsecurity.</desc>
+<rect width="1480" height="960" fill="#FFFFFF"/>
+<g font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+<text x="58" y="50" font-size="30" font-weight="500" fill="#17212B" text-anchor="start" >Paired WAF performance on Envoy</text>
+<text x="58" y="82" font-size="17" font-weight="400" fill="#53606D" text-anchor="start" >Native libmodsecurity HTTP filter relative to the Coraza Dynamic Module</text>
+<line x1="59" y1="116" x2="105" y2="116" stroke="#53606D" stroke-width="3"/>
+<line x1="59" y1="109" x2="59" y2="123" stroke="#53606D" stroke-width="2"/>
+<line x1="105" y1="109" x2="105" y2="123" stroke="#53606D" stroke-width="2"/>
+<circle cx="82" cy="116" r="5.5" fill="#53606D" stroke="#FFFFFF" stroke-width="2"/>
+<text x="118" y="122" font-size="15" font-weight="400" fill="#53606D" text-anchor="start" >paired median / observed min–max</text>
+<text x="1422" y="122" font-size="15" font-weight="500" fill="#33404C" text-anchor="end" >Values right of 1× favor libmodsecurity</text>
+<rect x="45" y="203" width="1390" height="28" rx="3" fill="#F2F5F8"/>
+<text x="58" y="223" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >1 PERSISTENT HTTP/1.1 CONNECTION</text>
+<rect x="45" y="571" width="1390" height="28" rx="3" fill="#F2F5F8"/>
+<text x="58" y="591" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >16 CONCURRENT PERSISTENT HTTP/1.1 CONNECTIONS</text>
+<text x="205.0" y="158" font-size="20" font-weight="500" fill="#17212B" text-anchor="start" >A  Throughput</text>
+<text x="205.0" y="184" font-size="15" font-weight="400" fill="#53606D" text-anchor="start" >libmodsecurity / Coraza</text>
+<line x1="205.00" y1="232" x2="205.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="205.00" y1="773" x2="205.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="205.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0.5×</text>
+<line x1="268.83" y1="232" x2="268.83" y2="752" stroke="#82909D" stroke-width="2"/>
+<line x1="268.83" y1="773" x2="268.83" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="268.83" y="804" font-size="14" font-weight="500" fill="#33404C" text-anchor="middle" >1×</text>
+<line x1="332.67" y1="232" x2="332.67" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="332.67" y1="773" x2="332.67" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="332.67" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >2×</text>
+<line x1="396.50" y1="232" x2="396.50" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="396.50" y1="773" x2="396.50" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="396.50" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >4×</text>
+<line x1="460.33" y1="232" x2="460.33" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="460.33" y1="773" x2="460.33" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="460.33" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >8×</text>
+<line x1="524.17" y1="232" x2="524.17" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="524.17" y1="773" x2="524.17" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="524.17" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >16×</text>
+<line x1="588.00" y1="232" x2="588.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="588.00" y1="773" x2="588.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="588.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >32×</text>
+<line x1="205.00" y1="778" x2="588.00" y2="778" stroke="#82909D" stroke-width="1.5"/>
+<text x="396.50" y="834" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >Relative factor (×) · log₂ scale</text>
+<text x="622.0" y="158" font-size="20" font-weight="500" fill="#17212B" text-anchor="start" >B  CPU per request</text>
+<text x="622.0" y="184" font-size="15" font-weight="400" fill="#53606D" text-anchor="start" >Coraza / libmodsecurity</text>
+<line x1="622.00" y1="232" x2="622.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="622.00" y1="773" x2="622.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="622.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0.5×</text>
+<line x1="685.83" y1="232" x2="685.83" y2="752" stroke="#82909D" stroke-width="2"/>
+<line x1="685.83" y1="773" x2="685.83" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="685.83" y="804" font-size="14" font-weight="500" fill="#33404C" text-anchor="middle" >1×</text>
+<line x1="749.67" y1="232" x2="749.67" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="749.67" y1="773" x2="749.67" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="749.67" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >2×</text>
+<line x1="813.50" y1="232" x2="813.50" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="813.50" y1="773" x2="813.50" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="813.50" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >4×</text>
+<line x1="877.33" y1="232" x2="877.33" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="877.33" y1="773" x2="877.33" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="877.33" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >8×</text>
+<line x1="941.17" y1="232" x2="941.17" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="941.17" y1="773" x2="941.17" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="941.17" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >16×</text>
+<line x1="1005.00" y1="232" x2="1005.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1005.00" y1="773" x2="1005.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1005.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >32×</text>
+<line x1="622.00" y1="778" x2="1005.00" y2="778" stroke="#82909D" stroke-width="1.5"/>
+<text x="813.50" y="834" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >Relative factor (×) · log₂ scale</text>
+<text x="1039.0" y="158" font-size="20" font-weight="500" fill="#17212B" text-anchor="start" >C  p99 latency</text>
+<text x="1039.0" y="184" font-size="15" font-weight="400" fill="#53606D" text-anchor="start" >Coraza / libmodsecurity</text>
+<line x1="1039.00" y1="232" x2="1039.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1039.00" y1="773" x2="1039.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1039.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0.5×</text>
+<line x1="1102.83" y1="232" x2="1102.83" y2="752" stroke="#82909D" stroke-width="2"/>
+<line x1="1102.83" y1="773" x2="1102.83" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1102.83" y="804" font-size="14" font-weight="500" fill="#33404C" text-anchor="middle" >1×</text>
+<line x1="1166.67" y1="232" x2="1166.67" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1166.67" y1="773" x2="1166.67" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1166.67" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >2×</text>
+<line x1="1230.50" y1="232" x2="1230.50" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1230.50" y1="773" x2="1230.50" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1230.50" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >4×</text>
+<line x1="1294.33" y1="232" x2="1294.33" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1294.33" y1="773" x2="1294.33" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1294.33" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >8×</text>
+<line x1="1358.17" y1="232" x2="1358.17" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1358.17" y1="773" x2="1358.17" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1358.17" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >16×</text>
+<line x1="1422.00" y1="232" x2="1422.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1422.00" y1="773" x2="1422.00" y2="783" stroke="#82909D" stroke-width="1.5"/>
+<text x="1422.00" y="804" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >32×</text>
+<line x1="1039.00" y1="778" x2="1422.00" y2="778" stroke="#82909D" stroke-width="1.5"/>
+<text x="1230.50" y="834" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >Relative factor (×) · log₂ scale</text>
+<line x1="45" y1="274" x2="1435" y2="274" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="260" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Headers only</text>
+<line x1="279.87" y1="254" x2="285.28" y2="254" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="279.87" y1="248" x2="279.87" y2="260" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="285.28" y1="248" x2="285.28" y2="260" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="283.79" cy="254" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="293.79" y="245" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.18×</text>
+<line x1="702.25" y1="254" x2="709.25" y2="254" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="702.25" y1="248" x2="702.25" y2="260" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="709.25" y1="248" x2="709.25" y2="260" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="700.85" y="248" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="716.85" y="245" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.26×</text>
+<line x1="1182.69" y1="254" x2="1197.23" y2="254" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1182.69" y1="248" x2="1182.69" y2="260" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1197.23" y1="248" x2="1197.23" y2="260" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1192.61,247 1199.61,254 1192.61,261 1185.61,254" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1202.61" y="245" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">2.65×</text>
+<line x1="45" y1="316" x2="1435" y2="316" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="302" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Clean query</text>
+<line x1="396.14" y1="296" x2="396.60" y2="296" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="396.14" y1="290" x2="396.14" y2="302" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="396.60" y1="290" x2="396.60" y2="302" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="396.33" cy="296" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="406.33" y="287" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">3.99×</text>
+<line x1="827.87" y1="296" x2="829.86" y2="296" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="827.87" y1="290" x2="827.87" y2="302" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="829.86" y1="290" x2="829.86" y2="302" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="822.04" y="290" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="838.04" y="287" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">4.68×</text>
+<line x1="1288.61" y1="296" x2="1317.14" y2="296" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1288.61" y1="290" x2="1288.61" y2="302" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1317.14" y1="290" x2="1317.14" y2="302" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1298.04,289 1305.04,296 1298.04,303 1291.04,296" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1308.04" y="287" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">8.33×</text>
+<line x1="45" y1="358" x2="1435" y2="358" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="344" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >1 KiB form</text>
+<line x1="419.26" y1="338" x2="426.87" y2="338" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="419.26" y1="332" x2="419.26" y2="344" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="426.87" y1="332" x2="426.87" y2="344" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="424.56" cy="338" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="434.56" y="329" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">5.42×</text>
+<line x1="845.99" y1="338" x2="855.29" y2="338" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="845.99" y1="332" x2="845.99" y2="344" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="855.29" y1="332" x2="855.29" y2="344" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="847.23" y="332" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="863.23" y="329" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">6.16×</text>
+<line x1="1301.22" y1="338" x2="1314.91" y2="338" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1301.22" y1="332" x2="1301.22" y2="344" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1314.91" y1="332" x2="1314.91" y2="344" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1313.27,331 1320.27,338 1313.27,345 1306.27,338" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1323.27" y="329" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">9.83×</text>
+<line x1="45" y1="400" x2="1435" y2="400" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="386" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON</text>
+<line x1="463.22" y1="380" x2="489.29" y2="380" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="463.22" y1="374" x2="463.22" y2="386" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="489.29" y1="374" x2="489.29" y2="386" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="467.49" cy="380" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="477.49" y="371" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">8.65×</text>
+<line x1="888.04" y1="380" x2="913.90" y2="380" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="888.04" y1="374" x2="888.04" y2="386" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="913.90" y1="374" x2="913.90" y2="386" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="884.29" y="374" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="900.29" y="371" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">9.21×</text>
+<line x1="1299.16" y1="380" x2="1367.16" y2="380" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1299.16" y1="374" x2="1299.16" y2="386" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1367.16" y1="374" x2="1367.16" y2="386" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1318.29,373 1325.29,380 1318.29,387 1311.29,380" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1328.29" y="371" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">10.4×</text>
+<line x1="45" y1="442" x2="1435" y2="442" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="428" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >64 KiB JSON</text>
+<line x1="506.20" y1="422" x2="515.85" y2="422" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="506.20" y1="416" x2="506.20" y2="428" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="515.85" y1="416" x2="515.85" y2="428" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="513.38" cy="422" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="523.38" y="413" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">14.2×</text>
+<line x1="924.87" y1="422" x2="935.22" y2="422" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="924.87" y1="416" x2="924.87" y2="428" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="935.22" y1="416" x2="935.22" y2="428" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="925.75" y="416" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="941.75" y="413" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">14.4×</text>
+<line x1="1342.20" y1="422" x2="1407.07" y2="422" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1342.20" y1="416" x2="1342.20" y2="428" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1407.07" y1="416" x2="1407.07" y2="428" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1350.34,415 1357.34,422 1350.34,429 1343.34,422" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1360.34" y="413" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">14.7×</text>
+<line x1="45" y1="484" x2="1435" y2="484" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="470" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi</text>
+<line x1="298.17" y1="464" x2="308.84" y2="464" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="298.17" y1="458" x2="298.17" y2="470" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="308.84" y1="458" x2="308.84" y2="470" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="304.15" cy="464" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="314.15" y="455" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.47×</text>
+<line x1="725.92" y1="464" x2="734.70" y2="464" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="725.92" y1="458" x2="725.92" y2="470" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="734.70" y1="458" x2="734.70" y2="470" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="725.19" y="458" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="741.19" y="455" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.64×</text>
+<line x1="1191.70" y1="464" x2="1233.21" y2="464" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1191.70" y1="458" x2="1191.70" y2="470" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1233.21" y1="458" x2="1233.21" y2="470" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1193.61,457 1200.61,464 1193.61,471 1186.61,464" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1203.61" y="455" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">2.68×</text>
+<line x1="45" y1="526" x2="1435" y2="526" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="512" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked XSS</text>
+<line x1="312.69" y1="506" x2="317.28" y2="506" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="312.69" y1="500" x2="312.69" y2="512" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="317.28" y1="500" x2="317.28" y2="512" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="314.48" cy="506" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="324.48" y="497" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.64×</text>
+<line x1="732.88" y1="506" x2="732.88" y2="506" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="732.88" y1="500" x2="732.88" y2="512" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="732.88" y1="500" x2="732.88" y2="512" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="726.88" y="500" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="742.88" y="497" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.67×</text>
+<line x1="1214.52" y1="506" x2="1234.90" y2="506" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1214.52" y1="500" x2="1214.52" y2="512" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1234.90" y1="500" x2="1234.90" y2="512" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1228.69,499 1235.69,506 1228.69,513 1221.69,506" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1238.69" y="497" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">3.92×</text>
+<line x1="45" y1="568" x2="1435" y2="568" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="554" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block</text>
+<line x1="279.29" y1="548" x2="294.05" y2="548" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="279.29" y1="542" x2="279.29" y2="554" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="294.05" y1="542" x2="294.05" y2="554" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="288.76" cy="548" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="298.76" y="539" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.24×</text>
+<line x1="719.15" y1="548" x2="735.25" y2="548" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="719.15" y1="542" x2="719.15" y2="554" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="735.25" y1="542" x2="735.25" y2="554" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="720.43" y="542" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="736.43" y="539" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.55×</text>
+<line x1="1126.77" y1="548" x2="1139.83" y2="548" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1126.77" y1="542" x2="1126.77" y2="554" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1139.83" y1="542" x2="1139.83" y2="554" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1126.94,541 1133.94,548 1126.94,555 1119.94,548" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1136.94" y="539" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.30×</text>
+<line x1="45" y1="642" x2="1435" y2="642" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="628" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Headers only</text>
+<line x1="255.85" y1="622" x2="289.84" y2="622" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="255.85" y1="616" x2="255.85" y2="628" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="289.84" y1="616" x2="289.84" y2="628" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="283.01" cy="622" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="293.01" y="613" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.17×</text>
+<line x1="685.83" y1="622" x2="706.13" y2="622" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="685.83" y1="616" x2="685.83" y2="628" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="706.13" y1="616" x2="706.13" y2="628" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="692.28" y="616" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="708.28" y="613" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.14×</text>
+<line x1="1044.54" y1="622" x2="1177.55" y2="622" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1044.54" y1="616" x2="1044.54" y2="628" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1177.55" y1="616" x2="1177.55" y2="628" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1163.63,615 1170.63,622 1163.63,629 1156.63,622" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1173.63" y="613" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.94×</text>
+<line x1="45" y1="684" x2="1435" y2="684" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="670" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON</text>
+<line x1="470.73" y1="664" x2="475.15" y2="664" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="470.73" y1="658" x2="470.73" y2="670" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="475.15" y1="658" x2="475.15" y2="670" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="474.44" cy="664" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="484.44" y="655" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">9.32×</text>
+<line x1="888.42" y1="664" x2="892.61" y2="664" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="888.42" y1="658" x2="888.42" y2="670" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="892.61" y1="658" x2="892.61" y2="670" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="885.66" y="658" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="901.66" y="655" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">9.35×</text>
+<line x1="1275.18" y1="664" x2="1318.56" y2="664" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1275.18" y1="658" x2="1275.18" y2="670" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1318.56" y1="658" x2="1318.56" y2="670" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1304.48,657 1311.48,664 1304.48,671 1297.48,664" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1314.48" y="655" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">8.93×</text>
+<line x1="45" y1="726" x2="1435" y2="726" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="712" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi</text>
+<line x1="293.96" y1="706" x2="310.36" y2="706" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="293.96" y1="700" x2="293.96" y2="712" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="310.36" y1="700" x2="310.36" y2="712" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="301.69" cy="706" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="311.69" y="697" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.43×</text>
+<line x1="711.00" y1="706" x2="728.32" y2="706" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="711.00" y1="700" x2="711.00" y2="712" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="728.32" y1="700" x2="728.32" y2="712" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="710.82" y="700" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="726.82" y="697" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.40×</text>
+<line x1="1160.86" y1="706" x2="1174.67" y2="706" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1160.86" y1="700" x2="1160.86" y2="712" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1174.67" y1="700" x2="1174.67" y2="712" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1169.30,699 1176.30,706 1169.30,713 1162.30,706" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1179.30" y="697" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">2.06×</text>
+<line x1="45" y1="768" x2="1435" y2="768" stroke="#E8EDF2" stroke-width="1"/>
+<text x="190" y="754" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block</text>
+<line x1="296.85" y1="748" x2="311.16" y2="748" stroke="#0072B2" stroke-width="3" opacity="0.72"/>
+<line x1="296.85" y1="742" x2="296.85" y2="754" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<line x1="311.16" y1="742" x2="311.16" y2="754" stroke="#0072B2" stroke-width="2" opacity="0.86"/>
+<circle cx="306.19" cy="748" r="6" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="316.19" y="739" font-size="13" font-weight="500" fill="#0072B2" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.50×</text>
+<line x1="713.96" y1="748" x2="727.61" y2="748" stroke="#D55E00" stroke-width="3" opacity="0.72"/>
+<line x1="713.96" y1="742" x2="713.96" y2="754" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<line x1="727.61" y1="742" x2="727.61" y2="754" stroke="#D55E00" stroke-width="2" opacity="0.86"/>
+<rect x="716.90" y="742" width="12" height="12" rx="1.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<text x="732.90" y="739" font-size="13" font-weight="500" fill="#D55E00" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.50×</text>
+<line x1="1197.13" y1="748" x2="1210.30" y2="748" stroke="#009E73" stroke-width="3" opacity="0.72"/>
+<line x1="1197.13" y1="742" x2="1197.13" y2="754" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<line x1="1210.30" y1="742" x2="1210.30" y2="754" stroke="#009E73" stroke-width="2" opacity="0.86"/>
+<polygon points="1205.06,741 1212.06,748 1205.06,755 1198.06,748" fill="#009E73" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1215.06" y="739" font-size="13" font-weight="500" fill="#009E73" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">3.03×</text>
+<line x1="45" y1="860" x2="1435" y2="860" stroke="#D8DEE5" stroke-width="1"/>
+<text x="58" y="889" font-size="14" font-weight="400" fill="#33404C" text-anchor="start" >Point = median paired ratio; line = observed min–max across 3 order-rotated process runs. Ranges are not confidence intervals.</text>
+<text x="58" y="916" font-size="14" font-weight="400" fill="#53606D" text-anchor="start" >Linux x86_64 · Envoy 1.39.0 · OWASP CRS v4.28.0 · 1 Envoy worker · opt, unstripped, ThinLTO, instrumentation PGO</text>
+<text x="58" y="943" font-size="13" font-weight="400" fill="#687582" text-anchor="start" >Source: GitHub Actions run 29941453306 · input SHA-256 6d9a1a0c1d62…</text>
+</g>
+</svg>
