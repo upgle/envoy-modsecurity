@@ -1,0 +1,16 @@
+# started on Wed Jul 22 20:25:18 2026
+
+
+ Performance counter stats for process id '543776':
+
+           5484.01 msec task-clock                       #    0.954 CPUs utilized
+   <not supported>      cycles
+   <not supported>      instructions
+   <not supported>      branches
+   <not supported>      branch-misses
+   <not supported>      cache-misses
+               546      context-switches                 #   99.562 /sec
+                 0      cpu-migrations                   #    0.000 /sec
+                 0      page-faults                      #    0.000 /sec
+
+       5.745477150 seconds time elapsed

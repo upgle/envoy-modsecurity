@@ -1,0 +1,10 @@
+target=//test/performance/envoy_dynamic_comparison:envoy-waf-comparison
+bazel_version=bazel 8.7.0
+llvm_profdata_version=LLVM (http://llvm.org/):
+build_flags=--compilation_mode=opt --fission=no --features=-per_object_debug_info --per_file_copt=.*@-flto=thin --linkopt=-flto=thin --nocheck_visibility --strip=never --define=modsecurity_benchmark_pgo=use --fdo_optimize=<merged LLVM profile>
+perf_version=perf version 6.12.96
+profile_request_scale=50
+raw_profile_count=1
+merged_profile_sha256=14c53003a4ec4938a2359ddf69e0525b3efddddcaccff8d443b88646e2767108
+envoy_binary_sha256=055340adb0211b0fa41e530032ef7d565277591066b9670cb99195594d6ad84a
+comparison_module_sha256=70e2386f041840a8ecc2fc22dfe95621e07857cc4305819ac278f68c4d107264

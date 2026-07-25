@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="940" viewBox="0 0 1280 940" role="img" aria-labelledby="summary-title summary-description">
+<title id="summary-title">Paired median throughput by workload</title>
+<desc id="summary-description">Horizontal bars on a linear scale show the paired median throughput ratio of libmodsecurity to the Coraza Dynamic Module across twelve Envoy WAF workloads. Whiskers show the observed range across repeated runs; a dagger marks any range that crosses parity.</desc>
+<rect width="1280" height="940" fill="#FFFFFF"/>
+<g font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+<text x="48" y="50" font-size="30" font-weight="500" fill="#17212B" text-anchor="start" >Paired median throughput by workload</text>
+<text x="48" y="82" font-size="17" font-weight="400" fill="#53606D" text-anchor="start" >1.17×–14.2× paired-median range · libmodsecurity higher in 12/12 · same Envoy binary and OWASP CRS</text>
+<text x="199.73" y="121" font-size="14" font-weight="400" fill="#687582" text-anchor="end" >← Coraza higher throughput</text>
+<text x="257.73" y="121" font-size="14" font-weight="500" fill="#33404C" text-anchor="middle" >1× parity</text>
+<text x="1225" y="121" font-size="14" font-weight="500" fill="#005A8C" text-anchor="end" >libmodsecurity higher throughput →</text>
+<rect x="49" y="143" width="70" height="14" rx="4" fill="#0072B2"/>
+<text x="132" y="156" font-size="14" font-weight="400" fill="#53606D" text-anchor="start" >paired median</text>
+<line x1="284" y1="150" x2="340" y2="150" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="284" y1="143" x2="284" y2="157" stroke="#005A8C" stroke-width="2"/>
+<line x1="340" y1="143" x2="340" y2="157" stroke="#005A8C" stroke-width="2"/>
+<text x="353" y="156" font-size="14" font-weight="400" fill="#53606D" text-anchor="start" >observed min–max (3 runs)</text>
+<rect x="36" y="177" width="1208" height="27" rx="3" fill="#F2F5F8"/>
+<text x="48" y="197" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >1 PERSISTENT HTTP/1.1 CONNECTION</text>
+<rect x="36" y="553" width="1208" height="27" rx="3" fill="#F2F5F8"/>
+<text x="48" y="573" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >16 CONCURRENT PERSISTENT HTTP/1.1 CONNECTIONS</text>
+<line x1="257.73" y1="205" x2="257.73" y2="752" stroke="#536574" stroke-width="2.5"/>
+<line x1="257.73" y1="769" x2="257.73" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="257.73" y="800" font-size="14" font-weight="500" fill="#33404C" text-anchor="middle" >1×</text>
+<line x1="359.55" y1="205" x2="359.55" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="359.55" y1="769" x2="359.55" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="359.55" y="800" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >3×</text>
+<line x1="461.36" y1="205" x2="461.36" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="461.36" y1="769" x2="461.36" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="461.36" y="800" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >5×</text>
+<line x1="715.91" y1="205" x2="715.91" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="715.91" y1="769" x2="715.91" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="715.91" y="800" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >10×</text>
+<line x1="970.45" y1="205" x2="970.45" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="970.45" y1="769" x2="970.45" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="970.45" y="800" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >15×</text>
+<line x1="1225.00" y1="205" x2="1225.00" y2="752" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1225.00" y1="769" x2="1225.00" y2="779" stroke="#82909D" stroke-width="1.5"/>
+<text x="1225.00" y="800" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >20×</text>
+<line x1="245" y1="774" x2="1225" y2="774" stroke="#82909D" stroke-width="1.5"/>
+<text x="735.00" y="830" font-size="15" font-weight="500" fill="#33404C" text-anchor="middle" >Throughput ratio: libmodsecurity / Coraza (×, linear scale)</text>
+<line x1="36" y1="250" x2="1244" y2="250" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="236" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Headers only</text>
+<rect x="257.73" y="221" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="221" width="8.98" height="18" rx="4" fill="#0072B2"/>
+<line x1="264.21" y1="230" x2="267.68" y2="230" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="264.21" y1="223" x2="264.21" y2="237" stroke="#005A8C" stroke-width="2"/>
+<line x1="267.68" y1="223" x2="267.68" y2="237" stroke="#005A8C" stroke-width="2"/>
+<circle cx="266.70" cy="230" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="278.70" y="236" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.18×</text>
+<line x1="36" y1="292" x2="1244" y2="292" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="278" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Clean query</text>
+<rect x="257.73" y="263" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="263" width="152.35" height="18" rx="4" fill="#0072B2"/>
+<line x1="409.67" y1="272" x2="410.69" y2="272" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="409.67" y1="265" x2="409.67" y2="279" stroke="#005A8C" stroke-width="2"/>
+<line x1="410.69" y1="265" x2="410.69" y2="279" stroke="#005A8C" stroke-width="2"/>
+<circle cx="410.08" cy="272" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="422.08" y="278" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">3.99×</text>
+<line x1="36" y1="334" x2="1244" y2="334" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="320" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >1 KiB form</text>
+<rect x="257.73" y="305" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="305" width="225.26" height="18" rx="4" fill="#0072B2"/>
+<line x1="467.54" y1="314" x2="490.02" y2="314" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="467.54" y1="307" x2="467.54" y2="321" stroke="#005A8C" stroke-width="2"/>
+<line x1="490.02" y1="307" x2="490.02" y2="321" stroke="#005A8C" stroke-width="2"/>
+<circle cx="482.98" cy="314" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="494.98" y="320" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">5.42×</text>
+<line x1="36" y1="376" x2="1244" y2="376" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="362" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON</text>
+<rect x="257.73" y="347" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="347" width="389.27" height="18" rx="4" fill="#0072B2"/>
+<line x1="627.04" y1="356" x2="764.56" y2="356" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="627.04" y1="349" x2="627.04" y2="363" stroke="#005A8C" stroke-width="2"/>
+<line x1="764.56" y1="349" x2="764.56" y2="363" stroke="#005A8C" stroke-width="2"/>
+<circle cx="646.99" cy="356" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="635.99" y="362" font-size="15" font-weight="500" fill="#FFFFFF" text-anchor="end" >8.65×</text>
+<line x1="36" y1="418" x2="1244" y2="418" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="404" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >64 KiB JSON</text>
+<rect x="257.73" y="389" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="389" width="673.61" height="18" rx="4" fill="#0072B2"/>
+<line x1="877.02" y1="398" x2="951.06" y2="398" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="877.02" y1="391" x2="877.02" y2="405" stroke="#005A8C" stroke-width="2"/>
+<line x1="951.06" y1="391" x2="951.06" y2="405" stroke="#005A8C" stroke-width="2"/>
+<circle cx="931.34" cy="398" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="920.34" y="404" font-size="15" font-weight="500" fill="#FFFFFF" text-anchor="end" >14.2×</text>
+<line x1="36" y1="460" x2="1244" y2="460" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="446" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi</text>
+<rect x="257.73" y="431" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="431" width="23.79" height="18" rx="4" fill="#0072B2"/>
+<line x1="276.82" y1="440" x2="285.43" y2="440" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="276.82" y1="433" x2="276.82" y2="447" stroke="#005A8C" stroke-width="2"/>
+<line x1="285.43" y1="433" x2="285.43" y2="447" stroke="#005A8C" stroke-width="2"/>
+<circle cx="281.52" cy="440" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="293.52" y="446" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.47×</text>
+<line x1="36" y1="502" x2="1244" y2="502" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="488" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked XSS</text>
+<rect x="257.73" y="473" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="473" width="32.66" height="18" rx="4" fill="#0072B2"/>
+<line x1="288.78" y1="482" x2="292.97" y2="482" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="288.78" y1="475" x2="288.78" y2="489" stroke="#005A8C" stroke-width="2"/>
+<line x1="292.97" y1="475" x2="292.97" y2="489" stroke="#005A8C" stroke-width="2"/>
+<circle cx="290.39" cy="482" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="302.39" y="488" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.64×</text>
+<line x1="36" y1="544" x2="1244" y2="544" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="530" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block</text>
+<rect x="257.73" y="515" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="515" width="12.30" height="18" rx="4" fill="#0072B2"/>
+<line x1="263.85" y1="524" x2="273.76" y2="524" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="263.85" y1="517" x2="263.85" y2="531" stroke="#005A8C" stroke-width="2"/>
+<line x1="273.76" y1="517" x2="273.76" y2="531" stroke="#005A8C" stroke-width="2"/>
+<circle cx="270.03" cy="524" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="282.03" y="530" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.24×</text>
+<line x1="36" y1="626" x2="1244" y2="626" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="612" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Headers only</text>
+<rect x="257.73" y="597" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="597" width="8.47" height="18" rx="4" fill="#0072B2"/>
+<line x1="251.03" y1="606" x2="270.77" y2="606" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="251.03" y1="599" x2="251.03" y2="613" stroke="#005A8C" stroke-width="2"/>
+<line x1="270.77" y1="599" x2="270.77" y2="613" stroke="#005A8C" stroke-width="2"/>
+<circle cx="266.20" cy="606" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="278.20" y="612" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.17× †</text>
+<line x1="36" y1="668" x2="1244" y2="668" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="654" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON</text>
+<rect x="257.73" y="639" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="639" width="423.76" height="18" rx="4" fill="#0072B2"/>
+<line x1="662.75" y1="648" x2="685.16" y2="648" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="662.75" y1="641" x2="662.75" y2="655" stroke="#005A8C" stroke-width="2"/>
+<line x1="685.16" y1="641" x2="685.16" y2="655" stroke="#005A8C" stroke-width="2"/>
+<circle cx="681.48" cy="648" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="670.48" y="654" font-size="15" font-weight="500" fill="#FFFFFF" text-anchor="end" >9.32×</text>
+<line x1="36" y1="710" x2="1244" y2="710" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="696" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi</text>
+<rect x="257.73" y="681" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="681" width="21.82" height="18" rx="4" fill="#0072B2"/>
+<line x1="273.69" y1="690" x2="286.73" y2="690" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="273.69" y1="683" x2="273.69" y2="697" stroke="#005A8C" stroke-width="2"/>
+<line x1="286.73" y1="683" x2="286.73" y2="697" stroke="#005A8C" stroke-width="2"/>
+<circle cx="279.55" cy="690" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="291.55" y="696" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.43×</text>
+<line x1="36" y1="752" x2="1244" y2="752" stroke="#E8EDF2" stroke-width="1"/>
+<text x="226" y="738" font-size="16" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block</text>
+<rect x="257.73" y="723" width="967.27" height="18" rx="4" fill="#F2F5F8"/>
+<rect x="257.73" y="723" width="25.47" height="18" rx="4" fill="#0072B2"/>
+<line x1="275.83" y1="732" x2="287.43" y2="732" stroke="#005A8C" stroke-width="2.5"/>
+<line x1="275.83" y1="725" x2="275.83" y2="739" stroke="#005A8C" stroke-width="2"/>
+<line x1="287.43" y1="725" x2="287.43" y2="739" stroke="#005A8C" stroke-width="2"/>
+<circle cx="283.20" cy="732" r="5.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<text x="295.20" y="738" font-size="15" font-weight="500" fill="#005A8C" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round">1.50×</text>
+<line x1="36" y1="850" x2="1244" y2="850" stroke="#D8DEE5" stroke-width="1"/>
+<text x="48" y="876" font-size="14" font-weight="400" fill="#33404C" text-anchor="start" >Bar endpoint = paired median; whisker = observed min–max across 3 order-rotated process runs.</text>
+<text x="48" y="902" font-size="14" font-weight="400" fill="#53606D" text-anchor="start" >† Observed range crosses parity. Ranges are not confidence intervals.</text>
+<text x="48" y="928" font-size="13" font-weight="400" fill="#687582" text-anchor="start" >Linux x86_64 · Envoy 1.39.0 · OWASP CRS v4.28.0 · 1 Envoy worker · GitHub Actions run 29941453306 · input SHA-256 6d9a1a0c1d62…</text>
+</g>
+</svg>

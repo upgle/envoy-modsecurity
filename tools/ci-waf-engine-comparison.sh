@@ -161,7 +161,7 @@ python3 tools/waf-engine-comparison.py \
   --output-directory "${output_directory}" \
   --repeats "${benchmark_repeats}" \
   --request-scale "${benchmark_request_scale}" \
-  --build-profile "Linux x86_64 Bazel opt, stripped, ThinLTO, instrumentation PGO" \
+  --build-profile "Linux x86_64 Bazel opt, unstripped, ThinLTO, instrumentation PGO" \
   --coraza-release v0.6.2 \
   --coraza-engine-version v3.7.0 \
   --libmodsecurity-version v3.0.16 \
