@@ -69,7 +69,7 @@ jobs:
 
       - name: Test performance tooling
         run: |
-          python3 -m unittest test/tools/waf_engine_comparison_test.py
+          python3 test/tools/waf_engine_comparison_test.py
 
       - name: Build and compare both variants in pinned Envoy image
         env:
