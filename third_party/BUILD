@@ -23,6 +23,18 @@ config_setting(
     visibility = ["//visibility:private"],
 )
 
+config_setting(
+    name = "modsecurity_benchmark_thinlto",
+    define_values = {"modsecurity_benchmark_thinlto": "enabled"},
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "libmodsecurity_connector_optimizations_disabled",
+    define_values = {"libmodsecurity_connector_optimizations": "disabled"},
+    visibility = ["//visibility:private"],
+)
+
 selects.config_setting_group(
     name = "linux_modsecurity_benchmark_pgo_instrument",
     match_all = [
@@ -37,6 +49,15 @@ selects.config_setting_group(
     match_all = [
         ":linux",
         ":modsecurity_benchmark_pgo_use",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+selects.config_setting_group(
+    name = "linux_modsecurity_benchmark_thinlto",
+    match_all = [
+        ":linux",
+        ":modsecurity_benchmark_thinlto",
     ],
     visibility = ["//visibility:private"],
 )
@@ -74,7 +95,10 @@ configure_make(
         "//bazel:apply-libmodsecurity-patch.sh",
         "//bazel:libmodsecurity-connector-optimizations.patch",
     ],
-    configure_prefix = "bash $(execpath //bazel:apply-libmodsecurity-patch.sh) $(execpath //bazel:libmodsecurity-connector-optimizations.patch)",
+    configure_prefix = select({
+        ":libmodsecurity_connector_optimizations_disabled": "",
+        "//conditions:default": "bash $(execpath //bazel:apply-libmodsecurity-patch.sh) $(execpath //bazel:libmodsecurity-connector-optimizations.patch)",
+    }),
     configure_in_place = True,
     configure_options = [
         "--disable-shared",
@@ -111,6 +135,12 @@ configure_make(
             "CFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date",
             "CXXFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date",
             "LDFLAGS": "-flto=thin -fprofile-use=/build/waf-comparison-pgo/waf-comparison.profdata",
+            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
+        },
+        ":linux_modsecurity_benchmark_thinlto": {
+            "CFLAGS": "-flto=thin",
+            "CXXFLAGS": "-flto=thin",
+            "LDFLAGS": "-flto=thin",
             "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
         },
         "@platforms//os:linux": {

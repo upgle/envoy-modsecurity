@@ -4,6 +4,12 @@ licenses(["notice"])  # Apache-2.0 OR MIT
 
 envoy_package()
 
+config_setting(
+    name = "libmodsecurity_connector_optimizations_disabled",
+    define_values = {"libmodsecurity_connector_optimizations": "disabled"},
+    visibility = ["//visibility:private"],
+)
+
 envoy_cc_library(
     name = "engine_interface",
     repository = "@envoy",
@@ -58,6 +64,12 @@ envoy_cc_library(
     name = "engine_lib",
     repository = "@envoy",
     srcs = ["engine.cc"],
+    local_defines = select({
+        ":libmodsecurity_connector_optimizations_disabled": [
+            "ENVOY_MODSECURITY_CONNECTOR_OPTIMIZATIONS_DISABLED",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":engine_interface",
         ":exception_lib",

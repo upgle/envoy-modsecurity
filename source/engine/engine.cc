@@ -125,9 +125,11 @@ absl::StatusOr<std::unique_ptr<Transaction>> RuleGenerationImpl::createTransacti
         const std::string transaction_id = runtime_->nextTransactionId();
         auto native_transaction = std::make_unique<modsecurity::Transaction>(
             runtime_->native(), rules_.get(), transaction_id.c_str(), nullptr);
+#ifndef ENVOY_MODSECURITY_CONNECTOR_OPTIMIZATIONS_DISABLED
         // The connector consumes status and redirect fields plus bounded structured rule events;
         // it deliberately does not expose libmodsecurity's free-form intervention log payload.
         native_transaction->setInterventionLogEnabled(false);
+#endif
         return std::unique_ptr<Transaction>(
             new TransactionImpl(std::move(native_transaction), shared_from_this()));
       });

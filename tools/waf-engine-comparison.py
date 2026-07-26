@@ -9,10 +9,13 @@ import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import multiprocessing
 import os
 from pathlib import Path
 import platform
+import random
+import shutil
 import signal
 import statistics
 import subprocess
@@ -26,6 +29,12 @@ STARTUP_TIMEOUT_SECONDS = 45
 REQUEST_TIMEOUT_SECONDS = 15
 EXPECTED_CRS_RULE_FILE_COUNT = 27
 ENGINES = ("baseline", "libmodsecurity", "coraza")
+PATCH_AB_VARIANTS = ("patched", "unpatched")
+PATCH_AB_PRIMARY_WORKLOAD = "phase1_block_c1"
+PATCH_AB_MIN_CPU_IMPROVEMENT = 1.02
+PATCH_AB_MIN_CROSSOVER_BLOCKS = 5
+PATCH_AB_MIN_BLOCK_WIN_FRACTION = 0.8
+PATCH_AB_MAX_P99_REGRESSION = 1.05
 CLIENT_PROCESS_POOL = None
 ENVOY_CPU = None
 CLIENT_CPUS = None
@@ -36,7 +45,17 @@ def parse_args():
     repository = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser()
     parser.add_argument("--envoy-binary", required=True, type=Path)
-    parser.add_argument("--coraza-module", required=True, type=Path)
+    parser.add_argument("--coraza-module", type=Path)
+    parser.add_argument(
+        "--reference-envoy-binary",
+        type=Path,
+        help="Unpatched Envoy binary used by --libmodsecurity-patch-ab",
+    )
+    parser.add_argument(
+        "--libmodsecurity-patch-ab",
+        action="store_true",
+        help="Compare patched and unpatched native binaries instead of WAF engines",
+    )
     parser.add_argument(
         "--config-template",
         default=repository / "test/performance/waf_comparison_bootstrap.yaml.tmpl",
@@ -46,6 +65,11 @@ def parse_args():
         "--output-directory",
         default=repository / "artifacts/waf-engine-comparison",
         type=Path,
+    )
+    parser.add_argument(
+        "--run-log-directory",
+        type=Path,
+        help="Optional directory that retains each Envoy process log",
     )
     parser.add_argument(
         "--crs-rules-directory",
@@ -628,12 +652,19 @@ def run_engine(
     cases,
     enable_stage_timing=False,
     perf_data_path=None,
+    envoy_binary=None,
+    result_engine=None,
 ):
-    address_path = workdir / f"admin-{repeat}-{engine}.txt"
-    log_path = workdir / f"envoy-{repeat}-{engine}.log"
+    binary = envoy_binary.resolve() if envoy_binary is not None else ARGS.envoy_binary.resolve()
+    label = result_engine or engine
+    address_path = workdir / f"admin-{repeat}-{label}.txt"
+    log_path = workdir / f"envoy-{repeat}-{label}.log"
     environment = os.environ.copy()
-    environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(ARGS.coraza_module.parent.resolve())
-    environment["GODEBUG"] = "cgocheck=0"
+    if ARGS.coraza_module is not None:
+        environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(
+            ARGS.coraza_module.parent.resolve()
+        )
+        environment["GODEBUG"] = "cgocheck=0"
     if enable_stage_timing:
         environment["ENVOY_MODSECURITY_STAGE_TIMING"] = "1"
     log = log_path.open("w", encoding="utf-8")
@@ -643,7 +674,7 @@ def run_engine(
     perf_report_errors = []
     envoy = subprocess.Popen(
         [
-            str(ARGS.envoy_binary.resolve()),
+            str(binary),
             "-c",
             str(config_path),
             "--admin-address-path",
@@ -711,8 +742,20 @@ def run_engine(
             if "modsecurity" in histogram.get("name", "")
             or "coraza_comparison" in histogram.get("name", "")
         ]
+        if engine == "libmodsecurity":
+            for suffix in ("active_transactions", "modsecurity_buffer_bytes"):
+                terminal_values = [
+                    value
+                    for name, value in interesting_stats.items()
+                    if name == suffix or name.endswith(f".{suffix}")
+                ]
+                if len(terminal_values) != 1 or int(terminal_values[0]) != 0:
+                    raise RuntimeError(
+                        f"expected one zero terminal stat ending in {suffix!r}, "
+                        f"found {terminal_values}"
+                    )
         return {
-            "engine": engine,
+            "engine": label,
             "repeat": repeat,
             "startup_ms": startup_ms,
             "rss_after_warmup_bytes": rss_after_warmup,
@@ -741,6 +784,10 @@ def run_engine(
                     envoy.kill()
                     envoy.wait(timeout=5)
         log.close()
+        if ARGS.run_log_directory is not None and log_path.exists():
+            run_log_directory = ARGS.run_log_directory.resolve()
+            run_log_directory.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log_path, run_log_directory / log_path.name)
 
 
 def median(values):
@@ -852,6 +899,172 @@ def aggregate_results(runs, cases):
             },
         }
     return aggregate, comparisons
+
+
+def patch_ab_ratio_summary(values):
+    if not values:
+        return None
+    if len(values) % 2 != 0:
+        raise ValueError("patch A/B ratio summaries require balanced crossover pairs")
+    crossover_blocks = [
+        math.sqrt(values[index] * values[index + 1])
+        for index in range(0, len(values), 2)
+    ]
+    log_blocks = [math.log(value) for value in crossover_blocks]
+    randomizer = random.Random(20260726)
+    bootstrapped_medians = []
+    for _ in range(10000):
+        sample = [
+            log_blocks[randomizer.randrange(len(log_blocks))]
+            for _ in range(len(log_blocks))
+        ]
+        bootstrapped_medians.append(math.exp(median(sample)))
+    bootstrapped_medians.sort()
+    return {
+        "median": math.exp(median(log_blocks)),
+        "minimum": min(crossover_blocks),
+        "maximum": max(crossover_blocks),
+        "patched_wins": sum(value > 1.0 for value in crossover_blocks),
+        "crossover_blocks": len(crossover_blocks),
+        "repeats": len(values),
+        "paired_repeat_range": {
+            "minimum": min(values),
+            "maximum": max(values),
+        },
+        "bootstrap_95_ci": {
+            "minimum": percentile(bootstrapped_medians, 0.025),
+            "maximum": percentile(bootstrapped_medians, 0.975),
+        },
+    }
+
+
+def aggregate_patch_ab_results(runs, cases):
+    aggregate = {}
+    for variant in PATCH_AB_VARIANTS:
+        variant_runs = [run for run in runs if run["engine"] == variant]
+        aggregate[variant] = {
+            "startup_ms": median([run["startup_ms"] for run in variant_runs]),
+            "rss_after_warmup_bytes": median(
+                [run["rss_after_warmup_bytes"] for run in variant_runs]
+            ),
+            "rss_after_suite_bytes": median(
+                [run["rss_after_suite_bytes"] for run in variant_runs]
+            ),
+            "workloads": {},
+        }
+        for case in cases:
+            name = case["name"]
+            values = [run["workloads"][name] for run in variant_runs]
+            aggregate[variant]["workloads"][name] = {
+                "throughput_rps": median([value["throughput_rps"] for value in values]),
+                "envoy_cpu_ms_per_request": median(
+                    [value["envoy_cpu_ms_per_request"] for value in values]
+                ),
+                "latency_ms": {
+                    key: median([value["latency_ms"][key] for value in values])
+                    for key in ("median", "p95", "p99", "maximum")
+                },
+            }
+
+    runs_by_repeat_and_variant = {
+        (run["repeat"], run["engine"]): run for run in runs
+    }
+    comparisons = {}
+    for case in cases:
+        name = case["name"]
+        paired_throughput = []
+        paired_cpu = []
+        paired_p50 = []
+        paired_p99 = []
+        for repeat in range(ARGS.repeats):
+            patched = runs_by_repeat_and_variant[(repeat, "patched")]["workloads"][name]
+            unpatched = runs_by_repeat_and_variant[(repeat, "unpatched")]["workloads"][name]
+            paired_throughput.append(
+                patched["throughput_rps"] / unpatched["throughput_rps"]
+            )
+            if (
+                patched["envoy_cpu_ms_per_request"] > 0
+                and unpatched["envoy_cpu_ms_per_request"] > 0
+            ):
+                paired_cpu.append(
+                    unpatched["envoy_cpu_ms_per_request"]
+                    / patched["envoy_cpu_ms_per_request"]
+                )
+            paired_p50.append(
+                unpatched["latency_ms"]["median"]
+                / patched["latency_ms"]["median"]
+            )
+            paired_p99.append(
+                unpatched["latency_ms"]["p99"] / patched["latency_ms"]["p99"]
+            )
+        comparisons[name] = {
+            "paired_repeat_ratios": {
+                "throughput_patched_over_unpatched": patch_ab_ratio_summary(
+                    paired_throughput
+                ),
+                "cpu_unpatched_over_patched": (
+                    patch_ab_ratio_summary(paired_cpu)
+                    if len(paired_cpu) == ARGS.repeats
+                    else None
+                ),
+                "p50_unpatched_over_patched": patch_ab_ratio_summary(paired_p50),
+                "p99_unpatched_over_patched": patch_ab_ratio_summary(paired_p99),
+            }
+        }
+    return aggregate, comparisons
+
+
+def patch_ab_decision(comparisons):
+    workload = comparisons.get(PATCH_AB_PRIMARY_WORKLOAD)
+    if workload is None:
+        return {
+            "status": "not_evaluated",
+            "primary_workload": PATCH_AB_PRIMARY_WORKLOAD,
+            "reason": "primary workload was not measured",
+        }
+    ratios = workload["paired_repeat_ratios"]
+    cpu = ratios["cpu_unpatched_over_patched"]
+    throughput = ratios["throughput_patched_over_unpatched"]
+    p99 = ratios["p99_unpatched_over_patched"]
+    if cpu is None:
+        return {
+            "status": "not_evaluated",
+            "primary_workload": PATCH_AB_PRIMARY_WORKLOAD,
+            "reason": "one or more primary CPU measurements had zero timer resolution",
+        }
+    checks = {
+        "minimum_sample": (
+            cpu["crossover_blocks"] >= PATCH_AB_MIN_CROSSOVER_BLOCKS
+        ),
+        "cpu_effect_size": cpu["median"] >= PATCH_AB_MIN_CPU_IMPROVEMENT,
+        "cpu_interval_excludes_parity": (
+            cpu["bootstrap_95_ci"]["minimum"] > 1.0
+        ),
+        "cpu_block_consistency": (
+            cpu["patched_wins"] / cpu["crossover_blocks"]
+            >= PATCH_AB_MIN_BLOCK_WIN_FRACTION
+        ),
+        "throughput_corroborates": throughput["median"] > 1.0,
+        "p99_regression_guard": (
+            p99["median"] >= 1.0 / PATCH_AB_MAX_P99_REGRESSION
+        ),
+    }
+    return {
+        "status": (
+            "confirmed_improvement"
+            if all(checks.values())
+            else "not_confirmed"
+        ),
+        "primary_workload": PATCH_AB_PRIMARY_WORKLOAD,
+        "checks": checks,
+        "thresholds": {
+            "minimum_cpu_ratio": PATCH_AB_MIN_CPU_IMPROVEMENT,
+            "minimum_crossover_blocks": PATCH_AB_MIN_CROSSOVER_BLOCKS,
+            "minimum_block_win_fraction": PATCH_AB_MIN_BLOCK_WIN_FRACTION,
+            "minimum_throughput_ratio": 1.0,
+            "maximum_p99_regression": PATCH_AB_MAX_P99_REGRESSION,
+        },
+    }
 
 
 def sha256(path):
@@ -1055,6 +1268,8 @@ def write_markdown(path, result):
         "",
         f"Build profile: `{result['build_profile']}`",
         "",
+        f"Predeclared decision: `{result['decision']['status']}`",
+        "",
         f"CRS commit: `{result['crs_commit']}` ({result['crs_rule_file_count']} rule files)",
         "",
         f"Versions: libmodsecurity `{result['versions']['libmodsecurity']}`, Coraza engine `{result['versions']['coraza_engine']}`, Coraza Dynamic Module release `{result['versions']['coraza_release']}`, CRS `{result['versions']['crs']}`",
@@ -1161,6 +1376,100 @@ def write_markdown(path, result):
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_patch_ab_markdown(path, result):
+    def format_ratio(summary):
+        if summary is None:
+            return "n/a"
+        confidence = summary["bootstrap_95_ci"]
+        return (
+            f"{summary['median']:.4f}x "
+            f"[{confidence['minimum']:.4f}, {confidence['maximum']:.4f}], "
+            f"{summary['patched_wins']}/{summary['crossover_blocks']} blocks"
+        )
+
+    lines = [
+        "# libmodsecurity connector optimization patch A/B",
+        "",
+        f"Generated: {result['generated_at']}",
+        "",
+        f"Platform: `{result['platform']}`",
+        "",
+        f"Patched Envoy: `{result['binaries']['patched']['version']}`",
+        "",
+        f"Unpatched Envoy: `{result['binaries']['unpatched']['version']}`",
+        "",
+        f"Build profile: `{result['build_profile']}`",
+        "",
+        f"CRS commit: `{result['crs_commit']}` ({result['crs_rule_file_count']} rule files)",
+        "",
+        f"Repeats: {result['parameters']['repeats']}; Envoy workers: "
+        f"{result['parameters']['envoy_concurrency']}; request scale: "
+        f"{result['parameters']['request_scale']}",
+        "",
+        client_topology_description(result["parameters"]),
+        "",
+        "Both variants use the same project source, compiler flags, CRS files, and native filter configuration. The unpatched build disables only the downstream libmodsecurity source patch and its connector-only API call. Fresh Envoy processes run in alternating unpatched/patched order.",
+        "",
+        "All ratios above 1.0 favor the patched build. Each adjacent OFF-first/ON-first repeat pair forms one crossover block; its ratio is the geometric mean of the two paired ratios. Each cell reports the median block ratio, a deterministic 95% block-bootstrap interval, and patched wins/blocks. This cancels a symmetric multiplicative order effect. The interval describes this shared-runner sample and is not a hardware-independent confidence claim.",
+        "",
+        f"The predeclared primary endpoint is Envoy CPU/request for `{PATCH_AB_PRIMARY_WORKLOAD}`. Improvement is confirmed only with at least {PATCH_AB_MIN_CROSSOVER_BLOCKS} blocks, a median unpatched/patched CPU ratio of at least {PATCH_AB_MIN_CPU_IMPROVEMENT:.2f}, a bootstrap lower bound above parity, at least {PATCH_AB_MIN_BLOCK_WIN_FRACTION:.0%} winning blocks, corroborating throughput above parity, and no more than {PATCH_AB_MAX_P99_REGRESSION - 1:.0%} p99 regression.",
+        "",
+        "| Workload | Patched/unpatched throughput | Unpatched/patched CPU | Unpatched/patched p50 | Unpatched/patched p99 |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for workload in result["workload_names"]:
+        ratios = result["comparisons"][workload]["paired_repeat_ratios"]
+        lines.append(
+            f"| {workload} | "
+            f"{format_ratio(ratios['throughput_patched_over_unpatched'])} | "
+            f"{format_ratio(ratios['cpu_unpatched_over_patched'])} | "
+            f"{format_ratio(ratios['p50_unpatched_over_patched'])} | "
+            f"{format_ratio(ratios['p99_unpatched_over_patched'])} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Median measurements",
+            "",
+            "| Workload | Variant | Throughput (rps) | CPU (ms/request) | p50 (ms) | p99 (ms) |",
+            "| --- | --- | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for workload in result["workload_names"]:
+        for variant in PATCH_AB_VARIANTS:
+            value = result["aggregate"][variant]["workloads"][workload]
+            lines.append(
+                f"| {workload} | {variant} | {value['throughput_rps']:.2f} | "
+                f"{value['envoy_cpu_ms_per_request']:.4f} | "
+                f"{value['latency_ms']['median']:.3f} | "
+                f"{value['latency_ms']['p99']:.3f} |"
+            )
+    lines.extend(
+        [
+            "",
+            "## Process footprint",
+            "",
+            "| Variant | Startup (ms) | RSS after warmup (MiB) | RSS after suite (MiB) |",
+            "| --- | ---: | ---: | ---: |",
+        ]
+    )
+    for variant in PATCH_AB_VARIANTS:
+        value = result["aggregate"][variant]
+        lines.append(
+            f"| {variant} | {value['startup_ms']:.2f} | "
+            f"{value['rss_after_warmup_bytes'] / 1048576:.2f} | "
+            f"{value['rss_after_suite_bytes'] / 1048576:.2f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "Every measured request is response-validated. Each native run must also finish with zero active transactions and zero charged body bytes.",
+            "",
+        ]
+    )
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main():
     global CLIENT_CPUS, CLIENT_PROCESS_POOL, ENVOY_CPU
 
@@ -1168,13 +1477,40 @@ def main():
         raise ValueError("--repeats must be at least 1")
     if ARGS.request_scale <= 0:
         raise ValueError("--request-scale must be positive")
-    envoy_binary = ARGS.envoy_binary.resolve()
-    coraza_module = ARGS.coraza_module.resolve()
-    for path, description in (
-        (envoy_binary, "Envoy binary"),
-        (coraza_module, "Coraza module"),
-        (ARGS.config_template.resolve(), "config template"),
+    if ARGS.libmodsecurity_patch_ab and ARGS.native_phase1_profile:
+        raise ValueError(
+            "--libmodsecurity-patch-ab and --native-phase1-profile are mutually exclusive"
+        )
+    if ARGS.libmodsecurity_patch_ab and (
+        ARGS.repeats < 2 or ARGS.repeats % 2 != 0
     ):
+        raise ValueError(
+            "--libmodsecurity-patch-ab requires an even repeat count of at least 2"
+        )
+    if ARGS.libmodsecurity_patch_ab and ARGS.reference_envoy_binary is None:
+        raise ValueError(
+            "--reference-envoy-binary is required with --libmodsecurity-patch-ab"
+        )
+    if not ARGS.libmodsecurity_patch_ab and ARGS.coraza_module is None:
+        raise ValueError("--coraza-module is required for the WAF engine comparison")
+    envoy_binary = ARGS.envoy_binary.resolve()
+    reference_envoy_binary = (
+        ARGS.reference_envoy_binary.resolve()
+        if ARGS.reference_envoy_binary is not None
+        else None
+    )
+    coraza_module = (
+        ARGS.coraza_module.resolve() if ARGS.coraza_module is not None else None
+    )
+    required_paths = [
+        (envoy_binary, "Envoy binary"),
+        (ARGS.config_template.resolve(), "config template"),
+    ]
+    if reference_envoy_binary is not None:
+        required_paths.append((reference_envoy_binary, "reference Envoy binary"))
+    if coraza_module is not None:
+        required_paths.append((coraza_module, "Coraza module"))
+    for path, description in required_paths:
         if not path.is_file():
             raise RuntimeError(f"{description} is not a file: {path}")
     output_directory = ARGS.output_directory.resolve()
@@ -1223,8 +1559,9 @@ def main():
     upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
     upstream_thread.start()
     environment = os.environ.copy()
-    environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(coraza_module.parent)
-    environment["GODEBUG"] = "cgocheck=0"
+    if coraza_module is not None:
+        environment["ENVOY_DYNAMIC_MODULES_SEARCH_PATH"] = str(coraza_module.parent)
+        environment["GODEBUG"] = "cgocheck=0"
     with tempfile.TemporaryDirectory(
         prefix="envoy-waf-comparison-", dir=os.environ.get("TEST_TMPDIR")
     ) as temporary_directory:
@@ -1232,24 +1569,32 @@ def main():
         crs_config_path, rule_files = write_common_crs_config(workdir)
         template = ARGS.config_template.resolve().read_text(encoding="utf-8")
         configs = {}
-        for engine in ENGINES:
+        configured_engines = (
+            ("libmodsecurity",) if ARGS.libmodsecurity_patch_ab else ENGINES
+        )
+        validation_binaries = {"patched": envoy_binary}
+        if reference_envoy_binary is not None:
+            validation_binaries["unpatched"] = reference_envoy_binary
+        for engine in configured_engines:
             config_path = workdir / f"bootstrap-{engine}.yaml"
             config_path.write_text(
                 render_config(template, upstream.server_port, engine, crs_config_path),
                 encoding="utf-8",
             )
-            validation = subprocess.run(
-                [str(envoy_binary), "--mode", "validate", "-c", str(config_path)],
-                capture_output=True,
-                check=False,
-                text=True,
-                timeout=STARTUP_TIMEOUT_SECONDS,
-                env=environment,
-            )
-            if validation.returncode != 0:
-                raise RuntimeError(
-                    f"Envoy rejected {engine} config:\n{validation.stdout}\n{validation.stderr}"
+            for variant, binary in validation_binaries.items():
+                validation = subprocess.run(
+                    [str(binary), "--mode", "validate", "-c", str(config_path)],
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    timeout=STARTUP_TIMEOUT_SECONDS,
+                    env=environment,
                 )
+                if validation.returncode != 0:
+                    raise RuntimeError(
+                        f"{variant} Envoy rejected {engine} config:\n"
+                        f"{validation.stdout}\n{validation.stderr}"
+                    )
             configs[engine] = config_path
         crs_repository = ARGS.crs_rules_directory.resolve().parent
         try:
@@ -1269,7 +1614,59 @@ def main():
                 "crs": ARGS.crs_version,
             },
         }
-        if ARGS.native_phase1_profile:
+        if ARGS.libmodsecurity_patch_ab:
+            variant_binaries = {
+                "patched": envoy_binary,
+                "unpatched": reference_envoy_binary,
+            }
+            order_patterns = [
+                ("unpatched", "patched"),
+                ("patched", "unpatched"),
+            ]
+            for repeat in range(ARGS.repeats):
+                for variant in order_patterns[repeat % len(order_patterns)]:
+                    print(
+                        f"repeat {repeat + 1}/{ARGS.repeats}: {variant}", flush=True
+                    )
+                    runs.append(
+                        run_engine(
+                            "libmodsecurity",
+                            repeat,
+                            configs["libmodsecurity"],
+                            workdir,
+                            upstream.server_port,
+                            cases,
+                            envoy_binary=variant_binaries[variant],
+                            result_engine=variant,
+                        )
+                    )
+            aggregate, comparisons = aggregate_patch_ab_results(runs, cases)
+            result = {
+                **common_result,
+                "binaries": {
+                    variant: {
+                        "path": str(binary),
+                        "sha256": sha256(binary),
+                        "version": command_output([str(binary), "--version"]),
+                    }
+                    for variant, binary in variant_binaries.items()
+                },
+                "parameters": {
+                    "repeats": ARGS.repeats,
+                    "request_scale": ARGS.request_scale,
+                    "envoy_concurrency": ARGS.envoy_concurrency,
+                    "client_processes": client_processes,
+                    "envoy_cpu": ENVOY_CPU,
+                    "client_cpus": CLIENT_CPUS,
+                    "order_patterns": order_patterns,
+                },
+                "workload_names": [case["name"] for case in cases],
+                "runs": runs,
+                "aggregate": aggregate,
+                "comparisons": comparisons,
+                "decision": patch_ab_decision(comparisons),
+            }
+        elif ARGS.native_phase1_profile:
             profile_runs = []
             for repeat in range(ARGS.repeats):
                 for case in cases:
@@ -1369,11 +1766,18 @@ def main():
     CLIENT_PROCESS_POOL = None
     if original_cpu_affinity is not None and ENVOY_CPU is not None:
         os.sched_setaffinity(0, set(original_cpu_affinity))
-    stem = "waf-phase1-profile" if ARGS.native_phase1_profile else "waf-engine-comparison"
+    if ARGS.libmodsecurity_patch_ab:
+        stem = "libmodsecurity-patch-ab"
+    elif ARGS.native_phase1_profile:
+        stem = "waf-phase1-profile"
+    else:
+        stem = "waf-engine-comparison"
     json_path = output_directory / f"{stem}.json"
     markdown_path = output_directory / f"{stem}.md"
     json_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    if ARGS.native_phase1_profile:
+    if ARGS.libmodsecurity_patch_ab:
+        write_patch_ab_markdown(markdown_path, result)
+    elif ARGS.native_phase1_profile:
         write_phase1_profile_markdown(markdown_path, result)
     else:
         write_markdown(markdown_path, result)

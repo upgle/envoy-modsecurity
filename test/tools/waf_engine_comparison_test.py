@@ -138,6 +138,107 @@ class MeasurementHelpersTest(unittest.TestCase):
         self.assertIn("Envoy threads are pinned to CPU 2", description)
         self.assertIn("CPUs 5,9", description)
 
+    def test_patch_ab_ratio_summary_reports_paired_wins_and_interval(self):
+        summary = WAF_COMPARISON.patch_ab_ratio_summary(
+            [1.01, 1.02, 0.99, 1.03, 1.04, 0.98]
+        )
+
+        self.assertEqual(summary["patched_wins"], 3)
+        self.assertEqual(summary["crossover_blocks"], 3)
+        self.assertEqual(summary["repeats"], 6)
+        self.assertLessEqual(
+            summary["bootstrap_95_ci"]["minimum"], summary["median"]
+        )
+        self.assertGreaterEqual(
+            summary["bootstrap_95_ci"]["maximum"], summary["median"]
+        )
+
+    def test_patch_ab_ratio_summary_is_deterministic(self):
+        values = [0.98, 1.01, 1.02, 1.03, 1.05, 0.99]
+
+        self.assertEqual(
+            WAF_COMPARISON.patch_ab_ratio_summary(values),
+            WAF_COMPARISON.patch_ab_ratio_summary(values),
+        )
+
+    def test_patch_ab_aggregation_uses_same_repeat_pairs(self):
+        def run(variant, repeat, throughput, cpu, p50, p99):
+            return {
+                "engine": variant,
+                "repeat": repeat,
+                "startup_ms": 10,
+                "rss_after_warmup_bytes": 100,
+                "rss_after_suite_bytes": 120,
+                "workloads": {
+                    "headers": {
+                        "throughput_rps": throughput,
+                        "envoy_cpu_ms_per_request": cpu,
+                        "latency_ms": {
+                            "median": p50,
+                            "p95": p99,
+                            "p99": p99,
+                            "maximum": p99,
+                        },
+                    }
+                },
+            }
+
+        runs = [
+            run("patched", 0, 110, 1.0, 1.0, 2.0),
+            run("unpatched", 0, 100, 1.1, 1.1, 2.2),
+            run("patched", 1, 200, 2.0, 2.0, 4.0),
+            run("unpatched", 1, 200, 2.0, 2.0, 4.0),
+        ]
+        with mock.patch.object(WAF_COMPARISON.ARGS, "repeats", 2):
+            _aggregate, comparisons = WAF_COMPARISON.aggregate_patch_ab_results(
+                runs, [{"name": "headers"}]
+            )
+
+        ratios = comparisons["headers"]["paired_repeat_ratios"]
+        expected_crossover_ratio = 1.1**0.5
+        self.assertAlmostEqual(
+            ratios["throughput_patched_over_unpatched"]["median"],
+            expected_crossover_ratio,
+        )
+        self.assertAlmostEqual(
+            ratios["cpu_unpatched_over_patched"]["median"],
+            expected_crossover_ratio,
+        )
+        self.assertEqual(
+            ratios["throughput_patched_over_unpatched"]["patched_wins"], 1
+        )
+
+    def test_patch_ab_decision_uses_predeclared_primary_thresholds(self):
+        def summary(median, lower=1.01, wins=4):
+            return {
+                "median": median,
+                "bootstrap_95_ci": {"minimum": lower, "maximum": 1.06},
+                "patched_wins": wins,
+                "crossover_blocks": 5,
+            }
+
+        comparisons = {
+            "phase1_block_c1": {
+                "paired_repeat_ratios": {
+                    "cpu_unpatched_over_patched": summary(1.03),
+                    "throughput_patched_over_unpatched": summary(1.01),
+                    "p99_unpatched_over_patched": summary(0.99),
+                }
+            }
+        }
+
+        self.assertEqual(
+            WAF_COMPARISON.patch_ab_decision(comparisons)["status"],
+            "confirmed_improvement",
+        )
+        comparisons["phase1_block_c1"]["paired_repeat_ratios"][
+            "cpu_unpatched_over_patched"
+        ] = summary(1.01)
+        self.assertEqual(
+            WAF_COMPARISON.patch_ab_decision(comparisons)["status"],
+            "not_confirmed",
+        )
+
     def test_concurrent_workload_uses_shared_process_pool(self):
         class FakePool:
             def __init__(self):
