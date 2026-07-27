@@ -21,6 +21,7 @@ apt-get install --yes \
   libxml2-dev \
   libyajl-dev \
   make \
+  patch \
   pkg-config
 
 # The native ModSecurity build consumes packages from the container sysroot. Include the pinned
@@ -29,7 +30,7 @@ export CI_SYSROOT_FINGERPRINT="$({
   printf '%s\n' "${ENVOY_BUILD_IMAGE:?ENVOY_BUILD_IMAGE must be set}"
   dpkg-query --show \
     --showformat='${binary:Package}=${Version}\n' \
-    autoconf automake libpcre2-dev libtool libxml2-dev libyajl-dev make pkg-config
+    autoconf automake libpcre2-dev libtool libxml2-dev libyajl-dev make patch pkg-config
 } | sha256sum | cut --delimiter=' ' --fields=1)"
 
 buildbuddy_bazelrc="${HOME}/.bazelrc"
