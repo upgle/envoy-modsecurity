@@ -30,6 +30,21 @@ namespace ModSecurityFilter {
   COUNTER(runtime_errors)                                               \
   COUNTER(security_event_rule_truncations)                              \
   COUNTER(security_events)                                              \
+  COUNTER(stage_profile_add_request_headers_ns)                         \
+  COUNTER(stage_profile_decode_headers_ns)                              \
+  COUNTER(stage_profile_intervention_lookup_ns)                         \
+  COUNTER(stage_profile_intervention_lookups)                           \
+  COUNTER(stage_profile_intervention_response_ns)                       \
+  COUNTER(stage_profile_local_reply_ns)                                 \
+  COUNTER(stage_profile_logging_ns)                                     \
+  COUNTER(stage_profile_process_connection_ns)                          \
+  COUNTER(stage_profile_process_logging_ns)                             \
+  COUNTER(stage_profile_process_request_headers_ns)                     \
+  COUNTER(stage_profile_process_uri_ns)                                 \
+  COUNTER(stage_profile_release_resources_ns)                           \
+  COUNTER(stage_profile_samples)                                        \
+  COUNTER(stage_profile_security_event_ns)                              \
+  COUNTER(stage_profile_transaction_create_ns)                          \
   GAUGE(active_rule_generations, Accumulate)                            \
   GAUGE(active_transactions, Accumulate)                                \
   GAUGE(modsecurity_buffer_bytes, Accumulate)                           \

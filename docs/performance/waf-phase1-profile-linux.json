@@ -1,0 +1,443 @@
+{
+  "generated_at": "2026-07-22T20:24:44.114956+00:00",
+  "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.41",
+  "envoy_binary": "/build/.cache/bazel/_bazel_root/b570b5ccd0454dc9af9f65ab1833764d/execroot/envoy_modsecurity/bazel-out/k8-opt/bin/test/performance/envoy_dynamic_comparison/envoy-waf-comparison",
+  "envoy_version": "/build/.cache/bazel/_bazel_root/b570b5ccd0454dc9af9f65ab1833764d/execroot/envoy_modsecurity/bazel-out/k8-opt/bin/test/performance/envoy_dynamic_comparison/envoy-waf-comparison  version: 6c396c920970bc4d09b7a2f1c8b14b4f7775eaba/1.39.0/Clean/RELEASE/BoringSSL",
+  "build_profile": "Linux x86_64 Bazel opt, unstripped, ThinLTO, instrumentation PGO",
+  "crs_commit": "55b09f5acfd16413e7b31041100711ceb7adc89c",
+  "crs_rule_file_count": 27,
+  "versions": {
+    "libmodsecurity": "v3.0.16",
+    "crs": "v4.28.0"
+  },
+  "perf_version": "perf version 6.12.96",
+  "parameters": {
+    "repeats": 1,
+    "request_scale": 50.0,
+    "envoy_concurrency": 1,
+    "perf_frequency": 499,
+    "client_processes": 16,
+    "envoy_cpu": 0,
+    "client_cpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "profile_runs": [
+    {
+      "workload": "phase1_block_c1",
+      "stage_run": {
+        "engine": "libmodsecurity",
+        "repeat": 0,
+        "startup_ms": 94.31202800078609,
+        "rss_after_warmup_bytes": 71217152,
+        "rss_after_suite_bytes": 71217152,
+        "workloads": {
+          "phase1_block_c1": {
+            "requests": 30000,
+            "concurrency": 1,
+            "elapsed_seconds": 6.344743715000732,
+            "throughput_rps": 4728.323372474713,
+            "envoy_cpu_seconds": 3.2700000000000005,
+            "envoy_cpu_ms_per_request": 0.10900000000000001,
+            "latency_ms": {
+              "median": 0.195427,
+              "p95": 0.251633,
+              "p99": 0.267983,
+              "maximum": 1.183893
+            }
+          }
+        },
+        "terminal_stats": {
+          "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+          "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_interventions": 30000,
+          "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_events": 30000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 90314561,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 1087309085,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 3979870,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 490169459,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 80897673,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 305601175,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 29150860,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 237475882,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 235049264,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 31363773,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 93466152,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 30000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 46667011,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 155087464
+        },
+        "terminal_histograms": [],
+        "perf_data": null,
+        "perf_report_errors": []
+      },
+      "perf_run": {
+        "engine": "libmodsecurity",
+        "repeat": 1,
+        "startup_ms": 94.8964489998616,
+        "rss_after_warmup_bytes": 72626176,
+        "rss_after_suite_bytes": 72626176,
+        "workloads": {
+          "phase1_block_c1": {
+            "requests": 30000,
+            "concurrency": 1,
+            "elapsed_seconds": 6.585703002001537,
+            "throughput_rps": 4555.322338538855,
+            "envoy_cpu_seconds": 3.5,
+            "envoy_cpu_ms_per_request": 0.11666666666666667,
+            "latency_ms": {
+              "median": 0.200847,
+              "p95": 0.272231,
+              "p99": 0.285376,
+              "maximum": 0.749338
+            }
+          }
+        },
+        "terminal_stats": {
+          "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+          "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_interventions": 30000,
+          "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_events": 30000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 0
+        },
+        "terminal_histograms": [],
+        "perf_data": "/source/artifacts/waf-engine-comparison/phase1_block_c1.perf.data",
+        "perf_report_errors": []
+      },
+      "stage_timing": {
+        "samples": 30000,
+        "intervention_lookups": 60000,
+        "intervention_lookups_per_request": 2.0,
+        "decode_headers": {
+          "total_ns": 1087309085,
+          "ns_per_request": 36243.63616666666
+        },
+        "additive_residual": {
+          "total_ns": 52193834,
+          "ns_per_request": 1739.7944666666667,
+          "percent_of_decode_headers": 4.800275719208214
+        },
+        "stages": {
+          "transaction_create": {
+            "total_ns": 155087464,
+            "ns_per_request": 5169.582133333333,
+            "percent_of_decode_headers": 14.26342023068813
+          },
+          "process_connection": {
+            "total_ns": 29150860,
+            "ns_per_request": 971.6953333333333,
+            "percent_of_decode_headers": 2.6810095125803164
+          },
+          "process_uri": {
+            "total_ns": 31363773,
+            "ns_per_request": 1045.4591,
+            "percent_of_decode_headers": 2.8845314945565823
+          },
+          "add_request_headers": {
+            "total_ns": 90314561,
+            "ns_per_request": 3010.485366666667,
+            "percent_of_decode_headers": 8.30624541318902
+          },
+          "process_request_headers": {
+            "total_ns": 235049264,
+            "ns_per_request": 7834.975466666667,
+            "percent_of_decode_headers": 21.617520467972547
+          },
+          "intervention_lookup": {
+            "total_ns": 3979870,
+            "ns_per_request": 132.66233333333332,
+            "percent_of_decode_headers": 0.36602931539011285
+          },
+          "intervention_response": {
+            "total_ns": 490169459,
+            "ns_per_request": 16338.981966666666,
+            "percent_of_decode_headers": 45.08096784641508
+          },
+          "logging": {
+            "total_ns": 305601175,
+            "ns_per_request": 10186.705833333333,
+            "percent_of_decode_headers": 28.106191626275248
+          },
+          "process_logging": {
+            "total_ns": 237475882,
+            "ns_per_request": 7915.862733333333,
+            "percent_of_decode_headers": 21.840696934855465
+          },
+          "security_event": {
+            "total_ns": 46667011,
+            "ns_per_request": 1555.5670333333333,
+            "percent_of_decode_headers": 4.291972875403685
+          },
+          "local_reply": {
+            "total_ns": 80897673,
+            "ns_per_request": 2696.5891,
+            "percent_of_decode_headers": 7.440172634996423
+          },
+          "release_resources": {
+            "total_ns": 93466152,
+            "ns_per_request": 3115.5384,
+            "percent_of_decode_headers": 8.596097769200558
+          }
+        }
+      }
+    },
+    {
+      "workload": "phase1_block_c16",
+      "stage_run": {
+        "engine": "libmodsecurity",
+        "repeat": 0,
+        "startup_ms": 96.36527400107298,
+        "rss_after_warmup_bytes": 71798784,
+        "rss_after_suite_bytes": 71811072,
+        "workloads": {
+          "phase1_block_c16": {
+            "requests": 60000,
+            "concurrency": 16,
+            "elapsed_seconds": 6.037253316000715,
+            "throughput_rps": 9938.29426387993,
+            "envoy_cpu_seconds": 6.0200000000000005,
+            "envoy_cpu_ms_per_request": 0.10033333333333334,
+            "latency_ms": {
+              "median": 1.594715,
+              "p95": 1.807095,
+              "p99": 1.896632,
+              "maximum": 6.985994
+            }
+          }
+        },
+        "terminal_stats": {
+          "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+          "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_interventions": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_events": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 226169301,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 2742973128,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 10250369,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 120000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 1356471703,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 184899613,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 744905371,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 64915127,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 603551235,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 513726810,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 73839312,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 406592508,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 101757437,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 377418061
+        },
+        "terminal_histograms": [],
+        "perf_data": null,
+        "perf_report_errors": []
+      },
+      "perf_run": {
+        "engine": "libmodsecurity",
+        "repeat": 1,
+        "startup_ms": 95.5922749999445,
+        "rss_after_warmup_bytes": 71409664,
+        "rss_after_suite_bytes": 71409664,
+        "workloads": {
+          "phase1_block_c16": {
+            "requests": 60000,
+            "concurrency": 16,
+            "elapsed_seconds": 5.492655812000521,
+            "throughput_rps": 10923.677370955991,
+            "envoy_cpu_seconds": 5.49,
+            "envoy_cpu_ms_per_request": 0.0915,
+            "latency_ms": {
+              "median": 1.451981,
+              "p95": 1.670826,
+              "p99": 1.799759,
+              "maximum": 15.763783
+            }
+          }
+        },
+        "terminal_stats": {
+          "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+          "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+          "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.request_interventions": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+          "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+          "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+          "http.waf_comparison_http.modsecurity.comparison.security_events": 60000,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 0,
+          "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 0
+        },
+        "terminal_histograms": [],
+        "perf_data": "/source/artifacts/waf-engine-comparison/phase1_block_c16.perf.data",
+        "perf_report_errors": []
+      },
+      "stage_timing": {
+        "samples": 60000,
+        "intervention_lookups": 120000,
+        "intervention_lookups_per_request": 2.0,
+        "decode_headers": {
+          "total_ns": 2742973128,
+          "ns_per_request": 45716.2188
+        },
+        "additive_residual": {
+          "total_ns": 120182445,
+          "ns_per_request": 2003.04075,
+          "percent_of_decode_headers": 4.38146636484293
+        },
+        "stages": {
+          "transaction_create": {
+            "total_ns": 377418061,
+            "ns_per_request": 6290.301016666666,
+            "percent_of_decode_headers": 13.75945163834649
+          },
+          "process_connection": {
+            "total_ns": 64915127,
+            "ns_per_request": 1081.9187833333333,
+            "percent_of_decode_headers": 2.366597264018111
+          },
+          "process_uri": {
+            "total_ns": 73839312,
+            "ns_per_request": 1230.6552,
+            "percent_of_decode_headers": 2.6919444177653644
+          },
+          "add_request_headers": {
+            "total_ns": 226169301,
+            "ns_per_request": 3769.48835,
+            "percent_of_decode_headers": 8.24540709827909
+          },
+          "process_request_headers": {
+            "total_ns": 513726810,
+            "ns_per_request": 8562.1135,
+            "percent_of_decode_headers": 18.728831309207052
+          },
+          "intervention_lookup": {
+            "total_ns": 10250369,
+            "ns_per_request": 170.83948333333333,
+            "percent_of_decode_headers": 0.3736955676074709
+          },
+          "intervention_response": {
+            "total_ns": 1356471703,
+            "ns_per_request": 22607.861716666666,
+            "percent_of_decode_headers": 49.45260633993349
+          },
+          "logging": {
+            "total_ns": 744905371,
+            "ns_per_request": 12415.089516666667,
+            "percent_of_decode_headers": 27.156859955939023
+          },
+          "process_logging": {
+            "total_ns": 603551235,
+            "ns_per_request": 10059.18725,
+            "percent_of_decode_headers": 22.00354166211139
+          },
+          "security_event": {
+            "total_ns": 101757437,
+            "ns_per_request": 1695.9572833333334,
+            "percent_of_decode_headers": 3.7097496858890118
+          },
+          "local_reply": {
+            "total_ns": 184899613,
+            "ns_per_request": 3081.6602166666667,
+            "percent_of_decode_headers": 6.740846678830461
+          },
+          "release_resources": {
+            "total_ns": 406592508,
+            "ns_per_request": 6776.5418,
+            "percent_of_decode_headers": 14.82305837594775
+          }
+        }
+      }
+    }
+  ]
+}

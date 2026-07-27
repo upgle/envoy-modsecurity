@@ -7,3 +7,18 @@ py_test(
     srcs = ["crs_compatibility_report_test.py"],
     data = ["//tools:crs-compatibility-report.py"],
 )
+
+py_test(
+    name = "waf_engine_comparison_test",
+    srcs = ["waf_engine_comparison_test.py"],
+    data = [
+        "//:test/performance/waf_comparison_bootstrap.yaml.tmpl",
+        "//tools:waf-engine-comparison.py",
+    ],
+)
+
+py_test(
+    name = "render_waf_performance_chart_test",
+    srcs = ["render_waf_performance_chart_test.py"],
+    data = ["//tools:render-waf-performance-chart.py"],
+)

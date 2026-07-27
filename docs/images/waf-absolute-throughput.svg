@@ -1,0 +1,274 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1200" viewBox="0 0 1480 1200" role="img" aria-labelledby="absolute-title absolute-description">
+<title id="absolute-title">Median request throughput by workload</title>
+<desc id="absolute-description">A faceted grouped bar chart shows actual median requests per second for Envoy with libmodsecurity and Envoy with the Coraza Dynamic Module. Workloads are grouped into three panels with explicitly labeled independent linear ranges. Envoy-only throughput is shown as a numeric, uninspected reference outside the panel axes.</desc>
+<rect width="1480" height="1200" fill="#FFFFFF"/>
+<g font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+<text x="48" y="50" font-size="30" font-weight="500" fill="#17212B" text-anchor="start" >Median request throughput by workload</text>
+<text x="48" y="82" font-size="17" font-weight="400" fill="#53606D" text-anchor="start" >Requests/s · higher is faster · independent linear ranges (compare within each section) · 3 runs</text>
+<rect x="48" y="117" width="42" height="12" rx="2" fill="#0072B2"/>
+<text x="102" y="129" font-size="14" font-weight="500" fill="#33404C" text-anchor="start" >Envoy + libmodsecurity</text>
+<rect x="340" y="117" width="42" height="12" rx="2" fill="#D55E00"/>
+<text x="394" y="129" font-size="14" font-weight="500" fill="#33404C" text-anchor="start" >Envoy + Coraza Dynamic Module</text>
+<circle cx="750.00" cy="123" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="770" y="129" font-size="14" font-weight="500" fill="#33404C" text-anchor="start" >Envoy-only reference value</text>
+<rect x="36" y="158" width="1408" height="30" rx="3" fill="#F2F5F8"/>
+<text x="48" y="179" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >HEADERS, QUERY, FORM &amp; RULE BLOCKS</text>
+<text x="1210" y="179" font-size="13" font-weight="500" fill="#53606D" text-anchor="end" >LINEAR RANGE 0–1.8k RPS</text>
+<text x="1360" y="179" font-size="13" font-weight="500" fill="#53606D" text-anchor="middle" >ENVOY ONLY · NO WAF</text>
+<line x1="1280" y1="188" x2="1280" y2="544" stroke="#E1E6EB" stroke-width="1"/>
+<line x1="310.00" y1="188" x2="310.00" y2="544" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="310.00" y1="539" x2="310.00" y2="549" stroke="#82909D" stroke-width="1.5"/>
+<text x="310.00" y="570" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0</text>
+<line x1="610.00" y1="188" x2="610.00" y2="544" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="610.00" y1="539" x2="610.00" y2="549" stroke="#82909D" stroke-width="1.5"/>
+<text x="610.00" y="570" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >600</text>
+<line x1="910.00" y1="188" x2="910.00" y2="544" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="910.00" y1="539" x2="910.00" y2="549" stroke="#82909D" stroke-width="1.5"/>
+<text x="910.00" y="570" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >1.2k</text>
+<line x1="1210.00" y1="188" x2="1210.00" y2="544" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1210.00" y1="539" x2="1210.00" y2="549" stroke="#82909D" stroke-width="1.5"/>
+<text x="1210.00" y="570" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >1.8k</text>
+<line x1="310" y1="544" x2="1210" y2="544" stroke="#82909D" stroke-width="1.5"/>
+<text x="760.00" y="594" font-size="15" font-weight="500" fill="#33404C" text-anchor="middle" >Median throughput (requests/s, linear scale)</text>
+<line x1="36" y1="238" x2="1444" y2="238" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="219" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Headers only · 1 connection</text>
+<rect x="310" y="200" width="574.12" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="217" width="488.06" height="13" rx="2" fill="#D55E00"/>
+<line x1="860.20" y1="206.5" x2="900.19" y2="206.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="860.20" y1="201.5" x2="860.20" y2="211.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="900.19" y1="201.5" x2="900.19" y2="211.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="798.04" y1="223.5" x2="803.67" y2="223.5" stroke="#A94700" stroke-width="2"/>
+<line x1="798.04" y1="218.5" x2="798.04" y2="228.5" stroke="#A94700" stroke-width="2"/>
+<line x1="803.67" y1="218.5" x2="803.67" y2="228.5" stroke="#A94700" stroke-width="2"/>
+<rect x="878.12" y="200.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="798.06,216.5 805.06,223.5 798.06,230.5 791.06,223.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="214" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="219" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.46k</text>
+<text x="894.12" y="211" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.15k</text>
+<text x="808.06" y="228" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">976</text>
+<line x1="36" y1="288" x2="1444" y2="288" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="269" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Headers only · 16 connections</text>
+<rect x="310" y="250" width="792.49" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="267" width="654.18" height="13" rx="2" fill="#D55E00"/>
+<line x1="877.46" y1="256.5" x2="1131.79" y2="256.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="877.46" y1="251.5" x2="877.46" y2="261.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1131.79" y1="251.5" x2="1131.79" y2="261.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="963.38" y1="273.5" x2="989.45" y2="273.5" stroke="#A94700" stroke-width="2"/>
+<line x1="963.38" y1="268.5" x2="963.38" y2="278.5" stroke="#A94700" stroke-width="2"/>
+<line x1="989.45" y1="268.5" x2="989.45" y2="278.5" stroke="#A94700" stroke-width="2"/>
+<rect x="1096.49" y="250.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="964.18,266.5 971.18,273.5 964.18,280.5 957.18,273.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="264" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="269" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >5.89k</text>
+<text x="1112.49" y="261" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.58k</text>
+<text x="974.18" y="278" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.31k</text>
+<line x1="36" y1="338" x2="1444" y2="338" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="319" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Clean query · 1 connection</text>
+<rect x="310" y="300" width="432.49" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="317" width="108.54" height="13" rx="2" fill="#D55E00"/>
+<line x1="736.68" y1="306.5" x2="748.74" y2="306.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="736.68" y1="301.5" x2="736.68" y2="311.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="748.74" y1="301.5" x2="748.74" y2="311.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="416.55" y1="323.5" x2="419.89" y2="323.5" stroke="#A94700" stroke-width="2"/>
+<line x1="416.55" y1="318.5" x2="416.55" y2="328.5" stroke="#A94700" stroke-width="2"/>
+<line x1="419.89" y1="318.5" x2="419.89" y2="328.5" stroke="#A94700" stroke-width="2"/>
+<rect x="736.49" y="300.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="418.54,316.5 425.54,323.5 418.54,330.5 411.54,323.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="314" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="319" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.46k</text>
+<text x="752.49" y="311" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">865</text>
+<text x="428.54" y="328" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">217</text>
+<line x1="36" y1="388" x2="1444" y2="388" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="369" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >1 KiB form · 1 connection</text>
+<rect x="310" y="350" width="334.34" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="367" width="61.63" height="13" rx="2" fill="#D55E00"/>
+<line x1="640.78" y1="356.5" x2="648.68" y2="356.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="640.78" y1="351.5" x2="640.78" y2="361.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="648.68" y1="351.5" x2="648.68" y2="361.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="370.88" y1="373.5" x2="374.59" y2="373.5" stroke="#A94700" stroke-width="2"/>
+<line x1="370.88" y1="368.5" x2="370.88" y2="378.5" stroke="#A94700" stroke-width="2"/>
+<line x1="374.59" y1="368.5" x2="374.59" y2="378.5" stroke="#A94700" stroke-width="2"/>
+<rect x="638.34" y="350.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="371.63,366.5 378.63,373.5 371.63,380.5 364.63,373.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="364" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="369" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.46k</text>
+<text x="654.34" y="361" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">669</text>
+<text x="381.63" y="378" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">123</text>
+<line x1="36" y1="438" x2="1444" y2="438" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="419" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi · 1 connection</text>
+<rect x="310" y="400" width="566.56" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="417" width="394.22" height="13" rx="2" fill="#D55E00"/>
+<line x1="875.40" y1="406.5" x2="918.74" y2="406.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="875.40" y1="401.5" x2="875.40" y2="411.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="918.74" y1="401.5" x2="918.74" y2="411.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="695.32" y1="423.5" x2="722.01" y2="423.5" stroke="#A94700" stroke-width="2"/>
+<line x1="695.32" y1="418.5" x2="695.32" y2="428.5" stroke="#A94700" stroke-width="2"/>
+<line x1="722.01" y1="418.5" x2="722.01" y2="428.5" stroke="#A94700" stroke-width="2"/>
+<rect x="870.56" y="400.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="704.22,416.5 711.22,423.5 704.22,430.5 697.22,423.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="414" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="419" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.53k</text>
+<text x="886.56" y="411" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.13k</text>
+<text x="714.22" y="428" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">788</text>
+<line x1="36" y1="488" x2="1444" y2="488" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="469" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Blocked SQLi · 16 connections</text>
+<rect x="310" y="450" width="669.89" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="467" width="434.65" height="13" rx="2" fill="#D55E00"/>
+<line x1="880.97" y1="456.5" x2="992.02" y2="456.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="880.97" y1="451.5" x2="880.97" y2="461.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="992.02" y1="451.5" x2="992.02" y2="461.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="744.47" y1="473.5" x2="778.89" y2="473.5" stroke="#A94700" stroke-width="2"/>
+<line x1="744.47" y1="468.5" x2="744.47" y2="478.5" stroke="#A94700" stroke-width="2"/>
+<line x1="778.89" y1="468.5" x2="778.89" y2="478.5" stroke="#A94700" stroke-width="2"/>
+<rect x="973.89" y="450.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="744.65,466.5 751.65,473.5 744.65,480.5 737.65,473.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="464" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="469" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >5.35k</text>
+<text x="989.89" y="461" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.34k</text>
+<text x="754.65" y="478" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">869</text>
+<line x1="36" y1="538" x2="1444" y2="538" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="519" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Blocked XSS · 1 connection</text>
+<rect x="310" y="500" width="578.90" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="517" width="349.16" height="13" rx="2" fill="#D55E00"/>
+<line x1="872.17" y1="506.5" x2="891.21" y2="506.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="872.17" y1="501.5" x2="872.17" y2="511.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="891.21" y1="501.5" x2="891.21" y2="511.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="652.08" y1="523.5" x2="664.07" y2="523.5" stroke="#A94700" stroke-width="2"/>
+<line x1="652.08" y1="518.5" x2="652.08" y2="528.5" stroke="#A94700" stroke-width="2"/>
+<line x1="664.07" y1="518.5" x2="664.07" y2="528.5" stroke="#A94700" stroke-width="2"/>
+<rect x="882.90" y="500.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="659.16,516.5 666.16,523.5 659.16,530.5 652.16,523.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="514" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="519" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.73k</text>
+<text x="898.90" y="511" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">1.16k</text>
+<text x="669.16" y="528" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">698</text>
+<rect x="36" y="616" width="1408" height="30" rx="3" fill="#F2F5F8"/>
+<text x="48" y="637" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >JSON REQUEST BODIES</text>
+<text x="1210" y="637" font-size="13" font-weight="500" fill="#53606D" text-anchor="end" >LINEAR RANGE 0–400 RPS</text>
+<text x="1360" y="637" font-size="13" font-weight="500" fill="#53606D" text-anchor="middle" >ENVOY ONLY · NO WAF</text>
+<line x1="1280" y1="646" x2="1280" y2="802" stroke="#E1E6EB" stroke-width="1"/>
+<line x1="310.00" y1="646" x2="310.00" y2="802" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="310.00" y1="797" x2="310.00" y2="807" stroke="#82909D" stroke-width="1.5"/>
+<text x="310.00" y="828" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0</text>
+<line x1="535.00" y1="646" x2="535.00" y2="802" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="535.00" y1="797" x2="535.00" y2="807" stroke="#82909D" stroke-width="1.5"/>
+<text x="535.00" y="828" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >100</text>
+<line x1="760.00" y1="646" x2="760.00" y2="802" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="760.00" y1="797" x2="760.00" y2="807" stroke="#82909D" stroke-width="1.5"/>
+<text x="760.00" y="828" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >200</text>
+<line x1="985.00" y1="646" x2="985.00" y2="802" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="985.00" y1="797" x2="985.00" y2="807" stroke="#82909D" stroke-width="1.5"/>
+<text x="985.00" y="828" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >300</text>
+<line x1="1210.00" y1="646" x2="1210.00" y2="802" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1210.00" y1="797" x2="1210.00" y2="807" stroke="#82909D" stroke-width="1.5"/>
+<text x="1210.00" y="828" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >400</text>
+<line x1="310" y1="802" x2="1210" y2="802" stroke="#82909D" stroke-width="1.5"/>
+<text x="760.00" y="852" font-size="15" font-weight="500" fill="#33404C" text-anchor="middle" >Median throughput (requests/s, linear scale)</text>
+<line x1="36" y1="696" x2="1444" y2="696" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="677" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON · 1 connection</text>
+<rect x="310" y="658" width="720.20" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="675" width="83.30" height="13" rx="2" fill="#D55E00"/>
+<line x1="1024.56" y1="664.5" x2="1041.69" y2="664.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1024.56" y1="659.5" x2="1024.56" y2="669.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1041.69" y1="659.5" x2="1041.69" y2="669.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="376.79" y1="681.5" x2="396.57" y2="681.5" stroke="#A94700" stroke-width="2"/>
+<line x1="376.79" y1="676.5" x2="376.79" y2="686.5" stroke="#A94700" stroke-width="2"/>
+<line x1="396.57" y1="676.5" x2="396.57" y2="686.5" stroke="#A94700" stroke-width="2"/>
+<rect x="1024.20" y="658.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="393.30,674.5 400.30,681.5 393.30,688.5 386.30,681.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="672" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="677" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.43k</text>
+<text x="1040.20" y="669" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">320</text>
+<text x="403.30" y="686" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">37.0</text>
+<line x1="36" y1="746" x2="1444" y2="746" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="727" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >4 KiB JSON · 16 connections</text>
+<rect x="310" y="708" width="783.92" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="725" width="85.56" height="13" rx="2" fill="#D55E00"/>
+<line x1="1087.91" y1="714.5" x2="1113.93" y2="714.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1087.91" y1="709.5" x2="1087.91" y2="719.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1113.93" y1="709.5" x2="1113.93" y2="719.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="393.43" y1="731.5" x2="397.53" y2="731.5" stroke="#A94700" stroke-width="2"/>
+<line x1="393.43" y1="726.5" x2="393.43" y2="736.5" stroke="#A94700" stroke-width="2"/>
+<line x1="397.53" y1="726.5" x2="397.53" y2="736.5" stroke="#A94700" stroke-width="2"/>
+<rect x="1087.92" y="708.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="395.56,724.5 402.56,731.5 395.56,738.5 388.56,731.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="722" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="727" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >5.31k</text>
+<text x="1103.92" y="719" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">348</text>
+<text x="405.56" y="736" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">38.0</text>
+<line x1="36" y1="796" x2="1444" y2="796" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="777" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >64 KiB JSON · 1 connection</text>
+<rect x="310" y="758" width="81.08" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="775" width="5.68" height="13" rx="2" fill="#D55E00"/>
+<line x1="390.78" y1="764.5" x2="392.32" y2="764.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="390.78" y1="759.5" x2="390.78" y2="769.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="392.32" y1="759.5" x2="392.32" y2="769.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="315.63" y1="781.5" x2="316.16" y2="781.5" stroke="#A94700" stroke-width="2"/>
+<line x1="315.63" y1="776.5" x2="315.63" y2="786.5" stroke="#A94700" stroke-width="2"/>
+<line x1="316.16" y1="776.5" x2="316.16" y2="786.5" stroke="#A94700" stroke-width="2"/>
+<rect x="385.08" y="758.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="315.68,774.5 322.68,781.5 315.68,788.5 308.68,781.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="772" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="777" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >2.26k</text>
+<text x="401.08" y="769" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">36.0</text>
+<text x="325.68" y="786" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">2.52</text>
+<rect x="36" y="874" width="1408" height="30" rx="3" fill="#F2F5F8"/>
+<text x="48" y="895" font-size="14" font-weight="500" fill="#53606D" text-anchor="start" >PHASE-1 BLOCKING</text>
+<text x="1210" y="895" font-size="13" font-weight="500" fill="#53606D" text-anchor="end" >LINEAR RANGE 0–12k RPS</text>
+<text x="1360" y="895" font-size="13" font-weight="500" fill="#53606D" text-anchor="middle" >ENVOY ONLY · NO WAF</text>
+<line x1="1280" y1="904" x2="1280" y2="1010" stroke="#E1E6EB" stroke-width="1"/>
+<line x1="310.00" y1="904" x2="310.00" y2="1010" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="310.00" y1="1005" x2="310.00" y2="1015" stroke="#82909D" stroke-width="1.5"/>
+<text x="310.00" y="1036" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >0</text>
+<line x1="535.00" y1="904" x2="535.00" y2="1010" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="535.00" y1="1005" x2="535.00" y2="1015" stroke="#82909D" stroke-width="1.5"/>
+<text x="535.00" y="1036" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >3k</text>
+<line x1="760.00" y1="904" x2="760.00" y2="1010" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="760.00" y1="1005" x2="760.00" y2="1015" stroke="#82909D" stroke-width="1.5"/>
+<text x="760.00" y="1036" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >6k</text>
+<line x1="985.00" y1="904" x2="985.00" y2="1010" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="985.00" y1="1005" x2="985.00" y2="1015" stroke="#82909D" stroke-width="1.5"/>
+<text x="985.00" y="1036" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >9k</text>
+<line x1="1210.00" y1="904" x2="1210.00" y2="1010" stroke="#D8DEE5" stroke-width="1"/>
+<line x1="1210.00" y1="1005" x2="1210.00" y2="1015" stroke="#82909D" stroke-width="1.5"/>
+<text x="1210.00" y="1036" font-size="14" font-weight="400" fill="#53606D" text-anchor="middle" >12k</text>
+<line x1="310" y1="1010" x2="1210" y2="1010" stroke="#82909D" stroke-width="1.5"/>
+<text x="760.00" y="1060" font-size="15" font-weight="500" fill="#33404C" text-anchor="middle" >Median throughput (requests/s, linear scale)</text>
+<line x1="36" y1="954" x2="1444" y2="954" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="935" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block ‡ · 1 connection</text>
+<rect x="310" y="916" width="320.96" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="933" width="258.51" height="13" rx="2" fill="#D55E00"/>
+<line x1="611.56" y1="922.5" x2="644.92" y2="922.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="611.56" y1="917.5" x2="611.56" y2="927.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="644.92" y1="917.5" x2="644.92" y2="927.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="564.71" y1="939.5" x2="579.19" y2="939.5" stroke="#A94700" stroke-width="2"/>
+<line x1="564.71" y1="934.5" x2="564.71" y2="944.5" stroke="#A94700" stroke-width="2"/>
+<line x1="579.19" y1="934.5" x2="579.19" y2="944.5" stroke="#A94700" stroke-width="2"/>
+<rect x="624.96" y="916.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="568.51,932.5 575.51,939.5 568.51,946.5 561.51,939.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="930" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="935" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >6.09k</text>
+<text x="640.96" y="927" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">4.28k</text>
+<text x="578.51" y="944" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">3.45k</text>
+<line x1="36" y1="1004" x2="1444" y2="1004" stroke="#E8EDF2" stroke-width="1"/>
+<text x="280" y="985" font-size="15" font-weight="500" fill="#26333F" text-anchor="end" >Phase-1 block ‡ · 16 connections</text>
+<rect x="310" y="966" width="814.32" height="13" rx="2" fill="#0072B2"/>
+<rect x="310" y="983" width="529.69" height="13" rx="2" fill="#D55E00"/>
+<line x1="1022.74" y1="972.5" x2="1148.77" y2="972.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1022.74" y1="967.5" x2="1022.74" y2="977.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="1148.77" y1="967.5" x2="1148.77" y2="977.5" stroke="#005A8C" stroke-width="2"/>
+<line x1="835.77" y1="989.5" x2="852.77" y2="989.5" stroke="#A94700" stroke-width="2"/>
+<line x1="835.77" y1="984.5" x2="835.77" y2="994.5" stroke="#A94700" stroke-width="2"/>
+<line x1="852.77" y1="984.5" x2="852.77" y2="994.5" stroke="#A94700" stroke-width="2"/>
+<rect x="1118.32" y="966.5" width="12" height="12" rx="1.5" fill="#0072B2" stroke="#FFFFFF" stroke-width="2"/>
+<polygon points="839.69,982.5 846.69,989.5 839.69,996.5 832.69,989.5" fill="#D55E00" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="1320.00" cy="980" r="6" fill="#98A3AD" stroke="#FFFFFF" stroke-width="2"/>
+<text x="1340" y="985" font-size="14" font-weight="500" fill="#687582" text-anchor="start" >20.0k</text>
+<text x="1134.32" y="977" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">10.9k</text>
+<text x="849.69" y="994" font-size="13" font-weight="500" fill="#26333F" text-anchor="start" paint-order="stroke" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round">7.06k</text>
+<line x1="36" y1="1082" x2="1444" y2="1082" stroke="#D8DEE5" stroke-width="1"/>
+<text x="48" y="1108" font-size="14" font-weight="400" fill="#33404C" text-anchor="start" >Sections use independent linear ranges; compare bar lengths only within a section. Bar/marker = median; line = observed min–max (not a confidence interval).</text>
+<text x="48" y="1136" font-size="14" font-weight="400" fill="#53606D" text-anchor="start" >Envoy-only numbers are uninspected references outside the panel axes; attack rows are not security-equivalent; ‡ baseline uses direct-response 403.</text>
+<text x="48" y="1164" font-size="13" font-weight="400" fill="#687582" text-anchor="start" >Linux x86_64 · Envoy 1.39.0 · OWASP CRS v4.28.0 · 1 Envoy worker · GitHub Actions run 29941453306 · input SHA-256 6d9a1a0c1d62…</text>
+</g>
+</svg>

@@ -10,6 +10,31 @@ Envoy binary, and HTTP integration tests. It is pre-release and is not yet suppo
 use. OWASP CRS regression coverage, sanitizer and concurrency testing, performance baselines, and
 release packaging are still required.
 
+## Performance snapshot
+
+<p align="center">
+  <img
+    src="docs/images/waf-absolute-throughput.svg"
+    alt="Faceted linear bar charts showing actual median request throughput for the libmodsecurity and Coraza Envoy integrations, with Envoy-only reference values"
+    width="100%"
+  >
+</p>
+
+On one controlled Linux x86_64 run, libmodsecurity recorded higher median throughput in each of the
+12 workloads. The chart reports actual requests per second and groups workloads into three sections
+with independent, explicitly labeled linear ranges. Compare bar lengths only within the same
+section. Bars and markers show medians from three order-rotated process runs; thin lines show the
+observed minima and maxima rather than confidence intervals.
+
+The benchmark uses either one or 16 concurrent persistent HTTP/1.1 client connections, while Envoy
+runs with one worker. Envoy-only numbers are uninspected reference values outside the chart axes,
+are not security-equivalent on attack workloads, and use an Envoy direct-response 403 path for the
+`phase1_block` baseline. These results include the complete Envoy filter or module integration path
+and should not be read as a universal engine-only ranking.
+
+See the [full performance report](docs/performance/README.md) for the environment, workload
+definitions, paired-run detail, CPU and p99 results, limitations, and reproduction links.
+
 ## Quick start
 
 The fastest way to try the filter is the loopback-only OWASP CRS web lab. Install the

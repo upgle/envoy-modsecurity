@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "Cargo.Bazel.lock",
     "DEPENDENCIES.lock",
+    "test/performance/waf_comparison_bootstrap.yaml.tmpl",
 ])
 
 # Build the public language bindings consumed by the filter and downstream tooling.

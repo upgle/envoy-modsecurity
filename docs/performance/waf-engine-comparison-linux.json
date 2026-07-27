@@ -1,0 +1,609 @@
+{
+  "schema": "waf-performance-chart/v2",
+  "source": {
+    "build_profile": "Linux x86_64 Bazel opt, unstripped, ThinLTO, instrumentation PGO",
+    "crs_commit": "55b09f5acfd16413e7b31041100711ceb7adc89c",
+    "envoy_version": "/build/.cache/bazel/_bazel_root/b570b5ccd0454dc9af9f65ab1833764d/execroot/envoy_modsecurity/bazel-out/k8-opt/bin/test/performance/envoy_dynamic_comparison/envoy-waf-comparison  version: 6c396c920970bc4d09b7a2f1c8b14b4f7775eaba/1.39.0/Clean/RELEASE/BoringSSL",
+    "generated_at": "2026-07-22T20:21:27.285060+00:00",
+    "input_sha256": "6d9a1a0c1d62ab49b99e883dd3c5f1e36e574d18b18fba9382c8a4afea51eef1",
+    "parameters": {
+      "client_cpus": [
+        1,
+        2,
+        3
+      ],
+      "client_processes": 16,
+      "envoy_concurrency": 1,
+      "envoy_cpu": 0,
+      "repeats": 3,
+      "request_scale": 1.0
+    },
+    "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.41",
+    "reported_build_profile": "Linux x86_64 Bazel opt, stripped, ThinLTO, instrumentation PGO",
+    "run_url": "https://github.com/upgle/envoy-modsecurity/actions/runs/29941453306",
+    "versions": {
+      "coraza_engine": "v3.7.0",
+      "coraza_release": "v0.6.2",
+      "crs": "v4.28.0",
+      "libmodsecurity": "v3.0.16"
+    }
+  },
+  "workloads": [
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "Headers only",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.2894736842105263,
+          "median": 1.2564102564102566,
+          "minimum": 1.195121951219512,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 2.787270195936162,
+          "median": 2.6508049359380537,
+          "minimum": 2.380028919472792,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.1955203275150676,
+          "median": 1.1763169724779405,
+          "minimum": 1.127379891794648,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "headers_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2916.590924443294,
+          "median": 2463.3533390035536,
+          "minimum": 2435.8683168619273,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 987.3326082049799,
+          "median": 976.1238670469952,
+          "minimum": 976.0730495658369,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 1180.3762031275235,
+          "median": 1148.2310720481812,
+          "minimum": 1100.4051290032053,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "Clean query",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 4.777777777777778,
+          "median": 4.684210526315789,
+          "minimum": 4.675675675675675,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 10.248413132989134,
+          "median": 8.328718452010927,
+          "minimum": 7.518032143877819,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 4.004536675200608,
+          "median": 3.9925570183725116,
+          "minimum": 3.9845785299797583,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "clean_query_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2809.258346331634,
+          "median": 2463.39903271205,
+          "minimum": 2350.039168376827,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 219.7809263396468,
+          "median": 217.08255490890878,
+          "minimum": 213.0963111366349,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 877.4878799617688,
+          "median": 864.9824875231899,
+          "minimum": 853.3519932966143,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "1 KiB form",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 6.297297297297297,
+          "median": 6.157894736842105,
+          "minimum": 5.6923076923076925,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 10.002536889752704,
+          "median": 9.826245200290883,
+          "minimum": 8.62101077879309,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 5.562857380379034,
+          "median": 5.424652275485264,
+          "minimum": 5.121332295397384,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "form_1k_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2496.4908908226125,
+          "median": 2462.053659526811,
+          "minimum": 2187.83662599928,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 129.17632300039426,
+          "median": 123.26562107333622,
+          "minimum": 121.7650066139631,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 677.3613657143865,
+          "median": 668.6731318445776,
+          "minimum": 661.554874782603,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "4 KiB JSON",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 11.9,
+          "median": 9.208333333333334,
+          "minimum": 8.985915492957746,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 17.641493484848816,
+          "median": 10.377137544394428,
+          "minimum": 8.430822260046599,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 10.955588375465506,
+          "median": 8.646295017967923,
+          "minimum": 8.254407820520267,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "json_4k_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2484.121668218993,
+          "median": 2434.227892620864,
+          "minimum": 2331.3488705359346,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 38.47428088292687,
+          "median": 37.02018300914232,
+          "minimum": 29.68323569930846,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 325.1973119735465,
+          "median": 320.087423916208,
+          "minimum": 317.582405008925,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "64 KiB JSON",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 15.000000000000002,
+          "median": 14.445255474452557,
+          "minimum": 13.404411764705879,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 27.212174204614797,
+          "median": 14.696383600645651,
+          "minimum": 13.453555211267703,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 14.619070716518149,
+          "median": 14.231622769180738,
+          "minimum": 13.164636776030543,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "json_64k_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2587.6104075427816,
+          "median": 2262.442619924931,
+          "minimum": 2177.9080845481267,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 2.737303364829915,
+          "median": 2.5227398078566234,
+          "minimum": 2.5027193249273605,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 36.58743079470965,
+          "median": 36.03560454379205,
+          "minimum": 35.902681290210964,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "Blocked SQLi",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.6999999999999804,
+          "median": 1.6363636363636358,
+          "minimum": 1.5454545454545625,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 4.11926126124343,
+          "median": 2.6797638880133996,
+          "minimum": 2.624722855200062,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.544137972780809,
+          "median": 1.4673562219216578,
+          "minimum": 1.3751069908277704,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "blocked_sqli_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 2778.5680231207302,
+          "median": 2527.03863963275,
+          "minimum": 2404.9254797796552,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 824.0284724875376,
+          "median": 788.448957847837,
+          "minimum": 770.6393319492075,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 1217.4739754123007,
+          "median": 1133.127313158742,
+          "minimum": 1130.8024185932195,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "Blocked XSS",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.666666666666689,
+          "median": 1.6666666666666654,
+          "minimum": 1.6666666666666297,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 4.195567568041911,
+          "median": 3.9221855152086467,
+          "minimum": 3.3628775945647686,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.6922884681266417,
+          "median": 1.6415314925131264,
+          "minimum": 1.6100554894633565,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "blocked_xss_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 3021.7912243745827,
+          "median": 2727.306248337754,
+          "minimum": 2690.493775201861,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 708.1331834247386,
+          "median": 698.3196724745961,
+          "minimum": 684.1605672291392,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 1162.4229214852826,
+          "median": 1157.7970382688543,
+          "minimum": 1124.3334220679767,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "1 persistent HTTP/1.1 connection",
+      "label": "Phase-1 block",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.7101449275362328,
+          "median": 1.5540540540540573,
+          "minimum": 1.4358974358974415,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 1.4944360479661671,
+          "median": 1.299289076901609,
+          "minimum": 1.2968011781192168,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.3149160444289896,
+          "median": 1.241566573044314,
+          "minimum": 1.120271630028272,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "phase1_block_c1",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 6327.269578361993,
+          "median": 6089.733885203644,
+          "minimum": 6033.176983221124,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 3589.1753021178006,
+          "median": 3446.799712647295,
+          "minimum": 3396.1409912533336,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 4465.640278541981,
+          "median": 4279.431307201628,
+          "minimum": 4020.851266160724,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "16 concurrent persistent HTTP/1.1 connections",
+      "label": "Headers only",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.2465753424657529,
+          "median": 1.1447368421052588,
+          "minimum": 0.9999999999999962,
+          "repeats": 3,
+          "wins": 2
+        },
+        "p99_latency": {
+          "maximum": 2.25093498968518,
+          "median": 1.935045607498491,
+          "minimum": 0.5310242786209723,
+          "repeats": 3,
+          "wins": 2
+        },
+        "throughput": {
+          "maximum": 1.2562169990164203,
+          "median": 1.166368798763909,
+          "minimum": 0.8685034639223246,
+          "repeats": 3,
+          "wins": 2
+        }
+      },
+      "name": "headers_c16",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 5957.379536591343,
+          "median": 5891.808224740416,
+          "minimum": 5739.694796517219,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 1358.904109788142,
+          "median": 1308.3514583437423,
+          "minimum": 1306.7601906217378,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 1643.5733426593329,
+          "median": 1584.9833541689345,
+          "minimum": 1134.9257520707765,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "16 concurrent persistent HTTP/1.1 connections",
+      "label": "4 KiB JSON",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 9.44311377245509,
+          "median": 9.346820809248559,
+          "minimum": 9.023391812865496,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 10.407451407684038,
+          "median": 8.932224828666387,
+          "minimum": 6.497885469560806,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 9.396013933141546,
+          "median": 9.323773478963657,
+          "minimum": 8.95576720577287,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "json_4k_c16",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 5483.68525947826,
+          "median": 5309.924965718396,
+          "minimum": 5258.134900013137,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 38.9033410193637,
+          "median": 38.02718799806175,
+          "minimum": 37.081142746774994,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 357.30398826798114,
+          "median": 348.4092656962159,
+          "minimum": 345.73617531204627,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "16 concurrent persistent HTTP/1.1 connections",
+      "label": "Blocked SQLi",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.5862068965517269,
+          "median": 1.4000000000000066,
+          "minimum": 1.314285714285718,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 2.1815876939480447,
+          "median": 2.0580156703359767,
+          "minimum": 1.8776983989155935,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.5697677879499703,
+          "median": 1.4286773659484697,
+          "minimum": 1.31363432199139,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "blocked_sqli_c16",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 5523.431736856952,
+          "median": 5353.744663213109,
+          "minimum": 5200.581555080756,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 937.7765693554364,
+          "median": 869.2974019796696,
+          "minimum": 868.9483905970216,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 1364.0471929501732,
+          "median": 1339.7801589549174,
+          "minimum": 1141.9389032584402,
+          "repeats": 3
+        }
+      }
+    },
+    {
+      "group": "16 concurrent persistent HTTP/1.1 connections",
+      "label": "Phase-1 block",
+      "metrics": {
+        "cpu_per_request": {
+          "maximum": 1.5740740740740777,
+          "median": 1.4954954954954922,
+          "minimum": 1.3571428571428572,
+          "repeats": 3,
+          "wins": 3
+        },
+        "p99_latency": {
+          "maximum": 3.2121461915255294,
+          "median": 3.034555948525225,
+          "minimum": 2.7842520202660506,
+          "repeats": 3,
+          "wins": 3
+        },
+        "throughput": {
+          "maximum": 1.5835283727634444,
+          "median": 1.5003047264851235,
+          "minimum": 1.3555952195073089,
+          "repeats": 3,
+          "wins": 3
+        }
+      },
+      "name": "phase1_block_c16",
+      "throughput_rps": {
+        "baseline": {
+          "maximum": 20964.13036243693,
+          "median": 19962.168164696766,
+          "minimum": 19668.591284746468,
+          "repeats": 3
+        },
+        "coraza": {
+          "maximum": 7236.9357525558235,
+          "median": 7062.4678916317425,
+          "minimum": 7010.303298628644,
+          "repeats": 3
+        },
+        "libmodsecurity": {
+          "maximum": 11183.618288129686,
+          "median": 10857.608914828676,
+          "minimum": 9503.133638917308,
+          "repeats": 3
+        }
+      }
+    }
+  ]
+}

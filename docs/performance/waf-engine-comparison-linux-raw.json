@@ -1,0 +1,2578 @@
+{
+  "generated_at": "2026-07-22T20:21:27.285060+00:00",
+  "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.41",
+  "envoy_binary": "/build/.cache/bazel/_bazel_root/b570b5ccd0454dc9af9f65ab1833764d/execroot/envoy_modsecurity/bazel-out/k8-opt/bin/test/performance/envoy_dynamic_comparison/envoy-waf-comparison",
+  "envoy_version": "/build/.cache/bazel/_bazel_root/b570b5ccd0454dc9af9f65ab1833764d/execroot/envoy_modsecurity/bazel-out/k8-opt/bin/test/performance/envoy_dynamic_comparison/envoy-waf-comparison  version: 6c396c920970bc4d09b7a2f1c8b14b4f7775eaba/1.39.0/Clean/RELEASE/BoringSSL",
+  "build_profile": "Linux x86_64 Bazel opt, stripped, ThinLTO, instrumentation PGO",
+  "crs_commit": "55b09f5acfd16413e7b31041100711ceb7adc89c",
+  "crs_rule_file_count": 27,
+  "versions": {
+    "libmodsecurity": "v3.0.16",
+    "crs": "v4.28.0",
+    "coraza_release": "v0.6.2",
+    "coraza_engine": "v3.7.0"
+  },
+  "coraza_module": "/source/.waf-comparison/built-on-envoy/extensions/composer/libcomposer.so",
+  "coraza_module_sha256": "70e2386f041840a8ecc2fc22dfe95621e07857cc4305819ac278f68c4d107264",
+  "parameters": {
+    "repeats": 3,
+    "request_scale": 1.0,
+    "envoy_concurrency": 1,
+    "client_processes": 16,
+    "envoy_cpu": 0,
+    "client_cpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "workload_names": [
+    "headers_c1",
+    "clean_query_c1",
+    "form_1k_c1",
+    "json_4k_c1",
+    "json_64k_c1",
+    "blocked_sqli_c1",
+    "blocked_xss_c1",
+    "phase1_block_c1",
+    "headers_c16",
+    "json_4k_c16",
+    "blocked_sqli_c16",
+    "phase1_block_c16"
+  ],
+  "runs": [
+    {
+      "engine": "baseline",
+      "repeat": 0,
+      "startup_ms": 26.916323999103042,
+      "rss_after_warmup_bytes": 42459136,
+      "rss_after_suite_bytes": 42487808,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.2435704170002282,
+          "throughput_rps": 2463.3533390035536,
+          "envoy_cpu_seconds": 0.11000000000000001,
+          "envoy_cpu_ms_per_request": 0.18333333333333335,
+          "latency_ms": {
+            "median": 0.412366,
+            "p95": 0.437644,
+            "p99": 0.486837,
+            "maximum": 0.63726
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.17020992900143028,
+          "throughput_rps": 2350.039168376827,
+          "envoy_cpu_seconds": 0.06999999999999998,
+          "envoy_cpu_ms_per_request": 0.17499999999999996,
+          "latency_ms": {
+            "median": 0.4220695,
+            "p95": 0.444386,
+            "p99": 0.455738,
+            "maximum": 0.540959
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.13712175600085175,
+          "throughput_rps": 2187.83662599928,
+          "envoy_cpu_seconds": 0.07000000000000003,
+          "envoy_cpu_ms_per_request": 0.23333333333333342,
+          "latency_ms": {
+            "median": 0.4516305,
+            "p95": 0.479933,
+            "p99": 0.51543,
+            "maximum": 0.74889
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.10723405799944885,
+          "throughput_rps": 2331.3488705359346,
+          "envoy_cpu_seconds": 0.04999999999999999,
+          "envoy_cpu_ms_per_request": 0.19999999999999996,
+          "latency_ms": {
+            "median": 0.44045449999999997,
+            "p95": 0.482749,
+            "p99": 0.509349,
+            "maximum": 0.661685
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 0.019322846999784815,
+          "throughput_rps": 2587.6104075427816,
+          "envoy_cpu_seconds": 0.010000000000000009,
+          "envoy_cpu_ms_per_request": 0.20000000000000018,
+          "latency_ms": {
+            "median": 0.3839975,
+            "p95": 0.399732,
+            "p99": 0.40881,
+            "maximum": 0.57373
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.05398464199970476,
+          "throughput_rps": 2778.5680231207302,
+          "envoy_cpu_seconds": 0.019999999999999962,
+          "envoy_cpu_ms_per_request": 0.13333333333333308,
+          "latency_ms": {
+            "median": 0.351797,
+            "p95": 0.411305,
+            "p99": 0.443826,
+            "maximum": 0.462471
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.04963943199982168,
+          "throughput_rps": 3021.7912243745827,
+          "envoy_cpu_seconds": 0.020000000000000018,
+          "envoy_cpu_ms_per_request": 0.13333333333333344,
+          "latency_ms": {
+            "median": 0.322557,
+            "p95": 0.372722,
+            "p99": 0.418367,
+            "maximum": 0.512475
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 0.9482763340001839,
+          "throughput_rps": 6327.269578361993,
+          "envoy_cpu_seconds": 0.37,
+          "envoy_cpu_ms_per_request": 0.06166666666666667,
+          "latency_ms": {
+            "median": 0.145524,
+            "p95": 0.201399,
+            "p99": 0.215586,
+            "maximum": 1.457013
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.20907034999981988,
+          "throughput_rps": 5739.694796517219,
+          "envoy_cpu_seconds": 0.18000000000000005,
+          "envoy_cpu_ms_per_request": 0.15000000000000005,
+          "latency_ms": {
+            "median": 2.18282,
+            "p95": 5.231138,
+            "p99": 7.554913,
+            "maximum": 20.944681
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 0.11299594699994486,
+          "throughput_rps": 5309.924965718396,
+          "envoy_cpu_seconds": 0.09999999999999998,
+          "envoy_cpu_ms_per_request": 0.16666666666666663,
+          "latency_ms": {
+            "median": 2.5032325,
+            "p95": 5.663342,
+            "p99": 7.333556,
+            "maximum": 8.80823
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.07241874600003939,
+          "throughput_rps": 5523.431736856952,
+          "envoy_cpu_seconds": 0.08000000000000007,
+          "envoy_cpu_ms_per_request": 0.20000000000000018,
+          "latency_ms": {
+            "median": 2.3602585,
+            "p95": 4.905735,
+            "p99": 6.051522,
+            "maximum": 9.841007
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 0.6011371059994417,
+          "throughput_rps": 19962.168164696766,
+          "envoy_cpu_seconds": 0.5999999999999999,
+          "envoy_cpu_ms_per_request": 0.04999999999999999,
+          "latency_ms": {
+            "median": 0.7874675,
+            "p95": 0.903291,
+            "p99": 0.978782,
+            "maximum": 2.24689
+          }
+        }
+      },
+      "terminal_stats": {},
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "libmodsecurity",
+      "repeat": 0,
+      "startup_ms": 94.53465200022038,
+      "rss_after_warmup_bytes": 71409664,
+      "rss_after_suite_bytes": 73916416,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.5225429050005914,
+          "throughput_rps": 1148.2310720481812,
+          "envoy_cpu_seconds": 0.39,
+          "envoy_cpu_ms_per_request": 0.65,
+          "latency_ms": {
+            "median": 0.86557,
+            "p95": 0.922737,
+            "p99": 0.96129,
+            "maximum": 1.131921
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.4558467520000704,
+          "throughput_rps": 877.4878799617688,
+          "envoy_cpu_seconds": 0.36,
+          "envoy_cpu_ms_per_request": 0.9,
+          "latency_ms": {
+            "median": 1.1339545,
+            "p95": 1.187195,
+            "p99": 1.208986,
+            "maximum": 1.434501
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.4534771210001054,
+          "throughput_rps": 661.554874782603,
+          "envoy_cpu_seconds": 0.39,
+          "envoy_cpu_ms_per_request": 1.3,
+          "latency_ms": {
+            "median": 1.492064,
+            "p95": 1.599631,
+            "p99": 1.77942,
+            "maximum": 2.312434
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.7687640419990203,
+          "throughput_rps": 325.1973119735465,
+          "envoy_cpu_seconds": 0.7,
+          "envoy_cpu_ms_per_request": 2.8,
+          "latency_ms": {
+            "median": 3.063522,
+            "p95": 3.167734,
+            "p99": 3.213049,
+            "maximum": 3.251711
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 1.3665895340000134,
+          "throughput_rps": 36.58743079470965,
+          "envoy_cpu_seconds": 1.33,
+          "envoy_cpu_ms_per_request": 26.6,
+          "latency_ms": {
+            "median": 27.322888499999998,
+            "p95": 27.717711,
+            "p99": 27.735775,
+            "maximum": 27.73789
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.12320591900061117,
+          "throughput_rps": 1217.4739754123007,
+          "envoy_cpu_seconds": 0.10999999999999988,
+          "envoy_cpu_ms_per_request": 0.7333333333333325,
+          "latency_ms": {
+            "median": 0.8098045,
+            "p95": 0.883183,
+            "p99": 1.11049,
+            "maximum": 1.406057
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.1290408139993815,
+          "throughput_rps": 1162.4229214852826,
+          "envoy_cpu_seconds": 0.1200000000000001,
+          "envoy_cpu_ms_per_request": 0.8000000000000007,
+          "latency_ms": {
+            "median": 0.865434,
+            "p95": 0.90823,
+            "p99": 0.937756,
+            "maximum": 0.98245
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.4922213240006386,
+          "throughput_rps": 4020.851266160724,
+          "envoy_cpu_seconds": 0.7800000000000002,
+          "envoy_cpu_ms_per_request": 0.13000000000000003,
+          "latency_ms": {
+            "median": 0.249725,
+            "p95": 0.274747,
+            "p99": 0.291789,
+            "maximum": 1.53483
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 1.057337889998962,
+          "throughput_rps": 1134.9257520707765,
+          "envoy_cpu_seconds": 0.9100000000000001,
+          "envoy_cpu_ms_per_request": 0.7583333333333334,
+          "latency_ms": {
+            "median": 10.8618275,
+            "p95": 30.174897,
+            "p99": 42.877806,
+            "maximum": 46.574457
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 1.7354273079999984,
+          "throughput_rps": 345.73617531204627,
+          "envoy_cpu_seconds": 1.7299999999999995,
+          "envoy_cpu_ms_per_request": 2.8833333333333324,
+          "latency_ms": {
+            "median": 45.9949355,
+            "p95": 56.710272,
+            "p99": 78.060593,
+            "maximum": 79.985046
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.3502814370003762,
+          "throughput_rps": 1141.9389032584402,
+          "envoy_cpu_seconds": 0.34999999999999964,
+          "envoy_cpu_ms_per_request": 0.8749999999999991,
+          "latency_ms": {
+            "median": 12.640517,
+            "p95": 16.906384,
+            "p99": 17.15962,
+            "maximum": 17.453353
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.26274137099972,
+          "throughput_rps": 9503.133638917308,
+          "envoy_cpu_seconds": 1.2600000000000007,
+          "envoy_cpu_ms_per_request": 0.10500000000000005,
+          "latency_ms": {
+            "median": 1.701459,
+            "p95": 1.888646,
+            "p99": 2.12967,
+            "maximum": 4.225216
+          }
+        }
+      },
+      "terminal_stats": {
+        "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+        "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 700,
+        "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_interventions": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_events": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 0
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "coraza",
+      "repeat": 0,
+      "startup_ms": 237.6009449999401,
+      "rss_after_warmup_bytes": 125210624,
+      "rss_after_suite_bytes": 134692864,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.6146760880001239,
+          "throughput_rps": 976.1238670469952,
+          "envoy_cpu_seconds": 0.49000000000000005,
+          "envoy_cpu_ms_per_request": 0.8166666666666668,
+          "latency_ms": {
+            "median": 0.966941,
+            "p95": 1.266625,
+            "p99": 2.287898,
+            "maximum": 6.588245
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 1.8199941490001947,
+          "throughput_rps": 219.7809263396468,
+          "envoy_cpu_seconds": 1.7199999999999998,
+          "envoy_cpu_ms_per_request": 4.3,
+          "latency_ms": {
+            "median": 4.135612,
+            "p95": 6.70723,
+            "p99": 12.390188,
+            "maximum": 20.48336
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 2.3224070250016666,
+          "throughput_rps": 129.17632300039426,
+          "envoy_cpu_seconds": 2.22,
+          "envoy_cpu_ms_per_request": 7.4,
+          "latency_ms": {
+            "median": 7.3856345,
+            "p95": 8.452527,
+            "p99": 15.340399,
+            "maximum": 22.482801
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 8.422262402000342,
+          "throughput_rps": 29.68323569930846,
+          "envoy_cpu_seconds": 8.33,
+          "envoy_cpu_ms_per_request": 33.32,
+          "latency_ms": {
+            "median": 25.4865455,
+            "p95": 50.904839,
+            "p99": 56.682983,
+            "maximum": 78.963924
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 19.97826903799978,
+          "throughput_rps": 2.5027193249273605,
+          "envoy_cpu_seconds": 19.950000000000003,
+          "envoy_cpu_ms_per_request": 399.00000000000006,
+          "latency_ms": {
+            "median": 362.1436655,
+            "p95": 753.404416,
+            "p99": 754.750741,
+            "maximum": 754.971305
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.19024693800020032,
+          "throughput_rps": 788.448957847837,
+          "envoy_cpu_seconds": 0.1700000000000017,
+          "envoy_cpu_ms_per_request": 1.1333333333333446,
+          "latency_ms": {
+            "median": 1.112374,
+            "p95": 1.73227,
+            "p99": 2.975851,
+            "maximum": 4.703192
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.21182455999951344,
+          "throughput_rps": 708.1331834247386,
+          "envoy_cpu_seconds": 0.19999999999999574,
+          "envoy_cpu_ms_per_request": 1.3333333333333048,
+          "latency_ms": {
+            "median": 1.2594349999999999,
+            "p95": 1.70004,
+            "p99": 3.678053,
+            "maximum": 5.915173
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.6716932150011417,
+          "throughput_rps": 3589.1753021178006,
+          "envoy_cpu_seconds": 1.1200000000000045,
+          "envoy_cpu_ms_per_request": 0.18666666666666742,
+          "latency_ms": {
+            "median": 0.279726,
+            "p95": 0.328227,
+            "p99": 0.43606,
+            "maximum": 4.456924
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.9183016200004204,
+          "throughput_rps": 1306.7601906217378,
+          "envoy_cpu_seconds": 0.9099999999999966,
+          "envoy_cpu_ms_per_request": 0.7583333333333305,
+          "latency_ms": {
+            "median": 10.940698000000001,
+            "p95": 19.105032,
+            "p99": 22.769156,
+            "maximum": 30.497144
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 16.18073110899968,
+          "throughput_rps": 37.081142746774994,
+          "envoy_cpu_seconds": 16.17,
+          "envoy_cpu_ms_per_request": 26.950000000000003,
+          "latency_ms": {
+            "median": 427.53673649999996,
+            "p95": 503.223485,
+            "p99": 507.228793,
+            "maximum": 527.27785
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.460141718000159,
+          "throughput_rps": 869.2974019796696,
+          "envoy_cpu_seconds": 0.46000000000000085,
+          "envoy_cpu_ms_per_request": 1.1500000000000021,
+          "latency_ms": {
+            "median": 16.666818,
+            "p95": 25.841717,
+            "p99": 32.220591,
+            "maximum": 32.553408
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.7117661660013255,
+          "throughput_rps": 7010.303298628644,
+          "envoy_cpu_seconds": 1.7100000000000009,
+          "envoy_cpu_ms_per_request": 0.14250000000000007,
+          "latency_ms": {
+            "median": 2.254447,
+            "p95": 2.656098,
+            "p99": 5.929538,
+            "maximum": 11.23425
+          }
+        }
+      },
+      "terminal_stats": {
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.1.rule_id.1400002": 18000,
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.2.rule_id.949110": 700,
+        "coraza_comparison.waf_tx_total": 22200
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "coraza",
+      "repeat": 1,
+      "startup_ms": 160.9798019999289,
+      "rss_after_warmup_bytes": 127299584,
+      "rss_after_suite_bytes": 135741440,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.6076979480003502,
+          "throughput_rps": 987.3326082049799,
+          "envoy_cpu_seconds": 0.49,
+          "envoy_cpu_ms_per_request": 0.8166666666666667,
+          "latency_ms": {
+            "median": 0.9431145000000001,
+            "p95": 1.061888,
+            "p99": 2.468244,
+            "maximum": 8.499023
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 1.8426169719987229,
+          "throughput_rps": 217.08255490890878,
+          "envoy_cpu_seconds": 1.7300000000000002,
+          "envoy_cpu_ms_per_request": 4.325,
+          "latency_ms": {
+            "median": 4.4518525,
+            "p95": 4.953922,
+            "p99": 11.653649,
+            "maximum": 12.667848
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 2.463762031000442,
+          "throughput_rps": 121.7650066139631,
+          "envoy_cpu_seconds": 2.34,
+          "envoy_cpu_ms_per_request": 7.8,
+          "latency_ms": {
+            "median": 7.8613245,
+            "p95": 8.959741,
+            "p99": 15.645168,
+            "maximum": 21.662538
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 6.497847243999786,
+          "throughput_rps": 38.47428088292687,
+          "envoy_cpu_seconds": 6.38,
+          "envoy_cpu_ms_per_request": 25.52,
+          "latency_ms": {
+            "median": 25.6150755,
+            "p95": 26.469383,
+            "p99": 28.228273,
+            "maximum": 53.239601
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 18.266152244001205,
+          "throughput_rps": 2.737303364829915,
+          "envoy_cpu_seconds": 18.229999999999997,
+          "envoy_cpu_ms_per_request": 364.5999999999999,
+          "latency_ms": {
+            "median": 364.1995625,
+            "p95": 373.014413,
+            "p99": 384.599339,
+            "maximum": 386.903553
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.19464358199911658,
+          "throughput_rps": 770.6393319492075,
+          "envoy_cpu_seconds": 0.17999999999999972,
+          "envoy_cpu_ms_per_request": 1.1999999999999982,
+          "latency_ms": {
+            "median": 1.164349,
+            "p95": 1.473444,
+            "p99": 4.162427,
+            "maximum": 5.695332
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.2192467780005245,
+          "throughput_rps": 684.1605672291392,
+          "envoy_cpu_seconds": 0.20000000000000284,
+          "envoy_cpu_ms_per_request": 1.3333333333333524,
+          "latency_ms": {
+            "median": 1.3270140000000001,
+            "p95": 1.574994,
+            "p99": 3.824864,
+            "maximum": 6.025782
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.7667111040009331,
+          "throughput_rps": 3396.1409912533336,
+          "envoy_cpu_seconds": 1.1799999999999997,
+          "envoy_cpu_ms_per_request": 0.19666666666666663,
+          "latency_ms": {
+            "median": 0.2921195,
+            "p95": 0.326293,
+            "p99": 0.353825,
+            "maximum": 4.636922
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.9171847460002027,
+          "throughput_rps": 1308.3514583437423,
+          "envoy_cpu_seconds": 0.9100000000000001,
+          "envoy_cpu_ms_per_request": 0.7583333333333334,
+          "latency_ms": {
+            "median": 10.98353,
+            "p95": 18.057877,
+            "p99": 24.89056,
+            "maximum": 28.503234
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 15.778184808999868,
+          "throughput_rps": 38.02718799806175,
+          "envoy_cpu_seconds": 15.77,
+          "envoy_cpu_ms_per_request": 26.283333333333335,
+          "latency_ms": {
+            "median": 416.041108,
+            "p95": 463.640846,
+            "p99": 497.338168,
+            "maximum": 519.578454
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.4603265330006252,
+          "throughput_rps": 868.9483905970216,
+          "envoy_cpu_seconds": 0.46000000000000085,
+          "envoy_cpu_ms_per_request": 1.1500000000000021,
+          "latency_ms": {
+            "median": 16.2815195,
+            "p95": 28.864014,
+            "p99": 29.823628,
+            "maximum": 31.389703
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.658160361001137,
+          "throughput_rps": 7236.9357525558235,
+          "envoy_cpu_seconds": 1.6599999999999966,
+          "envoy_cpu_ms_per_request": 0.13833333333333306,
+          "latency_ms": {
+            "median": 2.2067595,
+            "p95": 2.586994,
+            "p99": 5.154081,
+            "maximum": 9.521053
+          }
+        }
+      },
+      "terminal_stats": {
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.1.rule_id.1400002": 18000,
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.2.rule_id.949110": 700,
+        "coraza_comparison.waf_tx_total": 22200
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "baseline",
+      "repeat": 1,
+      "startup_ms": 26.547628000116674,
+      "rss_after_warmup_bytes": 42090496,
+      "rss_after_suite_bytes": 42115072,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.20571962799840549,
+          "throughput_rps": 2916.590924443294,
+          "envoy_cpu_seconds": 0.09,
+          "envoy_cpu_ms_per_request": 0.15,
+          "latency_ms": {
+            "median": 0.33708899999999997,
+            "p95": 0.376378,
+            "p99": 0.391957,
+            "maximum": 0.554012
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.14238633499917341,
+          "throughput_rps": 2809.258346331634,
+          "envoy_cpu_seconds": 0.06,
+          "envoy_cpu_ms_per_request": 0.15,
+          "latency_ms": {
+            "median": 0.3531035,
+            "p95": 0.394773,
+            "p99": 0.41461,
+            "maximum": 0.5049
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.12184949699985737,
+          "throughput_rps": 2462.053659526811,
+          "envoy_cpu_seconds": 0.04000000000000001,
+          "envoy_cpu_ms_per_request": 0.13333333333333336,
+          "latency_ms": {
+            "median": 0.4022115,
+            "p95": 0.426001,
+            "p99": 0.451309,
+            "maximum": 0.552008
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.1006391929986421,
+          "throughput_rps": 2484.121668218993,
+          "envoy_cpu_seconds": 0.05000000000000002,
+          "envoy_cpu_ms_per_request": 0.20000000000000007,
+          "latency_ms": {
+            "median": 0.39911050000000003,
+            "p95": 0.422104,
+            "p99": 0.437522,
+            "maximum": 0.564892
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 0.022100008000052185,
+          "throughput_rps": 2262.442619924931,
+          "envoy_cpu_seconds": 0.019999999999999962,
+          "envoy_cpu_ms_per_request": 0.39999999999999925,
+          "latency_ms": {
+            "median": 0.4377075,
+            "p95": 0.458432,
+            "p99": 0.463732,
+            "maximum": 0.630836
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.05935801599844126,
+          "throughput_rps": 2527.03863963275,
+          "envoy_cpu_seconds": 0.020000000000000018,
+          "envoy_cpu_ms_per_request": 0.13333333333333344,
+          "latency_ms": {
+            "median": 0.3927085,
+            "p95": 0.412295,
+            "p99": 0.432843,
+            "maximum": 0.511801
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.05575184799999988,
+          "throughput_rps": 2690.493775201861,
+          "envoy_cpu_seconds": 0.030000000000000027,
+          "envoy_cpu_ms_per_request": 0.20000000000000018,
+          "latency_ms": {
+            "median": 0.36843250000000005,
+            "p95": 0.387418,
+            "p99": 0.400192,
+            "maximum": 0.497715
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 0.9945009099992603,
+          "throughput_rps": 6033.176983221124,
+          "envoy_cpu_seconds": 0.39999999999999997,
+          "envoy_cpu_ms_per_request": 0.06666666666666665,
+          "latency_ms": {
+            "median": 0.14831850000000002,
+            "p95": 0.202991,
+            "p99": 0.213922,
+            "maximum": 0.291958
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.20367261700084782,
+          "throughput_rps": 5891.808224740416,
+          "envoy_cpu_seconds": 0.18000000000000005,
+          "envoy_cpu_ms_per_request": 0.15000000000000005,
+          "latency_ms": {
+            "median": 2.2009974999999997,
+            "p95": 5.520568,
+            "p99": 7.909647,
+            "maximum": 19.266382
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 0.10941547000038554,
+          "throughput_rps": 5483.68525947826,
+          "envoy_cpu_seconds": 0.09999999999999998,
+          "envoy_cpu_ms_per_request": 0.16666666666666663,
+          "latency_ms": {
+            "median": 2.385178,
+            "p95": 5.319939,
+            "p99": 7.199221,
+            "maximum": 8.303327
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.07471406000149727,
+          "throughput_rps": 5353.744663213109,
+          "envoy_cpu_seconds": 0.06000000000000005,
+          "envoy_cpu_ms_per_request": 0.15000000000000013,
+          "latency_ms": {
+            "median": 2.27197,
+            "p95": 5.338344,
+            "p99": 7.184924,
+            "maximum": 11.114049
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 0.5724062860008416,
+          "throughput_rps": 20964.13036243693,
+          "envoy_cpu_seconds": 0.5699999999999998,
+          "envoy_cpu_ms_per_request": 0.047499999999999994,
+          "latency_ms": {
+            "median": 0.753216,
+            "p95": 0.820973,
+            "p99": 0.979438,
+            "maximum": 2.179086
+          }
+        }
+      },
+      "terminal_stats": {},
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "libmodsecurity",
+      "repeat": 1,
+      "startup_ms": 96.38240499953099,
+      "rss_after_warmup_bytes": 72310784,
+      "rss_after_suite_bytes": 74801152,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.508312518000821,
+          "throughput_rps": 1180.3762031275235,
+          "envoy_cpu_seconds": 0.38,
+          "envoy_cpu_ms_per_request": 0.6333333333333333,
+          "latency_ms": {
+            "median": 0.8442419999999999,
+            "p95": 0.901876,
+            "p99": 0.93113,
+            "maximum": 1.41511
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.4624371079989942,
+          "throughput_rps": 864.9824875231899,
+          "envoy_cpu_seconds": 0.37,
+          "envoy_cpu_ms_per_request": 0.925,
+          "latency_ms": {
+            "median": 1.142678,
+            "p95": 1.221666,
+            "p99": 1.550093,
+            "maximum": 1.685037
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.4428950559995428,
+          "throughput_rps": 677.3613657143865,
+          "envoy_cpu_seconds": 0.38,
+          "envoy_cpu_ms_per_request": 1.2666666666666666,
+          "latency_ms": {
+            "median": 1.472067,
+            "p95": 1.539433,
+            "p99": 1.56412,
+            "maximum": 1.683505
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.7871972630000528,
+          "throughput_rps": 317.582405008925,
+          "envoy_cpu_seconds": 0.71,
+          "envoy_cpu_ms_per_request": 2.84,
+          "latency_ms": {
+            "median": 3.136771,
+            "p95": 3.262392,
+            "p99": 3.348223,
+            "maximum": 3.516179
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 1.3875166139987414,
+          "throughput_rps": 36.03560454379205,
+          "envoy_cpu_seconds": 1.36,
+          "envoy_cpu_ms_per_request": 27.2,
+          "latency_ms": {
+            "median": 27.7481985,
+            "p95": 28.397144,
+            "p99": 28.58719,
+            "maximum": 28.781215
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.1326491680010804,
+          "throughput_rps": 1130.8024185932195,
+          "envoy_cpu_seconds": 0.10999999999999988,
+          "envoy_cpu_ms_per_request": 0.7333333333333325,
+          "latency_ms": {
+            "median": 0.8773235,
+            "p95": 0.909329,
+            "p99": 1.010479,
+            "maximum": 1.494739
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.12955638600033126,
+          "throughput_rps": 1157.7970382688543,
+          "envoy_cpu_seconds": 0.1200000000000001,
+          "envoy_cpu_ms_per_request": 0.8000000000000007,
+          "latency_ms": {
+            "median": 0.8606575000000001,
+            "p95": 0.896535,
+            "p99": 0.911644,
+            "maximum": 1.058229
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.3435923240012926,
+          "throughput_rps": 4465.640278541981,
+          "envoy_cpu_seconds": 0.6899999999999995,
+          "envoy_cpu_ms_per_request": 0.11499999999999992,
+          "latency_ms": {
+            "median": 0.238157,
+            "p95": 0.260149,
+            "p99": 0.272322,
+            "maximum": 0.418307
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.7301164900000003,
+          "throughput_rps": 1643.5733426593329,
+          "envoy_cpu_seconds": 0.7300000000000004,
+          "envoy_cpu_ms_per_request": 0.6083333333333337,
+          "latency_ms": {
+            "median": 9.635445,
+            "p95": 10.063237,
+            "p99": 11.057876,
+            "maximum": 14.501215
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 1.679242381000222,
+          "throughput_rps": 357.30398826798114,
+          "envoy_cpu_seconds": 1.67,
+          "envoy_cpu_ms_per_request": 2.783333333333333,
+          "latency_ms": {
+            "median": 44.782134,
+            "p95": 53.59227,
+            "p99": 55.679092,
+            "maximum": 56.761267
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.2932449859999906,
+          "throughput_rps": 1364.0471929501732,
+          "envoy_cpu_seconds": 0.29000000000000004,
+          "envoy_cpu_ms_per_request": 0.7250000000000001,
+          "latency_ms": {
+            "median": 11.563868,
+            "p95": 12.99128,
+            "p99": 13.670607,
+            "maximum": 14.357929
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.1052157150006678,
+          "throughput_rps": 10857.608914828676,
+          "envoy_cpu_seconds": 1.1100000000000003,
+          "envoy_cpu_ms_per_request": 0.09250000000000001,
+          "latency_ms": {
+            "median": 1.4665465,
+            "p95": 1.651745,
+            "p99": 1.698463,
+            "maximum": 2.20341
+          }
+        }
+      },
+      "terminal_stats": {
+        "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+        "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 700,
+        "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_interventions": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_events": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 0
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "libmodsecurity",
+      "repeat": 2,
+      "startup_ms": 95.65676100100973,
+      "rss_after_warmup_bytes": 70692864,
+      "rss_after_suite_bytes": 73240576,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.545253729000251,
+          "throughput_rps": 1100.4051290032053,
+          "envoy_cpu_seconds": 0.41000000000000003,
+          "envoy_cpu_ms_per_request": 0.6833333333333335,
+          "latency_ms": {
+            "median": 0.9152199999999999,
+            "p95": 0.9474,
+            "p99": 0.967509,
+            "maximum": 1.130044
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.468739750000168,
+          "throughput_rps": 853.3519932966143,
+          "envoy_cpu_seconds": 0.38,
+          "envoy_cpu_ms_per_request": 0.95,
+          "latency_ms": {
+            "median": 1.1488745,
+            "p95": 1.263976,
+            "p99": 1.317477,
+            "maximum": 1.51073
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.4486496999998053,
+          "throughput_rps": 668.6731318445776,
+          "envoy_cpu_seconds": 0.37,
+          "envoy_cpu_ms_per_request": 1.2333333333333334,
+          "latency_ms": {
+            "median": 1.4760645000000001,
+            "p95": 1.594297,
+            "p99": 1.688644,
+            "maximum": 1.903999
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.7810366209996573,
+          "throughput_rps": 320.087423916208,
+          "envoy_cpu_seconds": 0.72,
+          "envoy_cpu_ms_per_request": 2.88,
+          "latency_ms": {
+            "median": 3.111078,
+            "p95": 3.230412,
+            "p99": 3.316013,
+            "maximum": 3.371678
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 1.3926536460003263,
+          "throughput_rps": 35.902681290210964,
+          "envoy_cpu_seconds": 1.37,
+          "envoy_cpu_ms_per_request": 27.4,
+          "latency_ms": {
+            "median": 27.8160475,
+            "p95": 28.279999,
+            "p99": 28.536782,
+            "maximum": 28.70042
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.1323770050003077,
+          "throughput_rps": 1133.127313158742,
+          "envoy_cpu_seconds": 0.10000000000000009,
+          "envoy_cpu_ms_per_request": 0.6666666666666672,
+          "latency_ms": {
+            "median": 0.8796485,
+            "p95": 0.922845,
+            "p99": 1.072093,
+            "maximum": 1.551737
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.13341238199973304,
+          "throughput_rps": 1124.3334220679767,
+          "envoy_cpu_seconds": 0.11999999999999966,
+          "envoy_cpu_ms_per_request": 0.7999999999999977,
+          "latency_ms": {
+            "median": 0.887027,
+            "p95": 0.930179,
+            "p99": 0.966877,
+            "maximum": 1.081012
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.4020554529997753,
+          "throughput_rps": 4279.431307201628,
+          "envoy_cpu_seconds": 0.7399999999999998,
+          "envoy_cpu_ms_per_request": 0.1233333333333333,
+          "latency_ms": {
+            "median": 0.243819,
+            "p95": 0.267372,
+            "p99": 0.280447,
+            "maximum": 0.432752
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.7571057429995562,
+          "throughput_rps": 1584.9833541689345,
+          "envoy_cpu_seconds": 0.7600000000000007,
+          "envoy_cpu_ms_per_request": 0.6333333333333339,
+          "latency_ms": {
+            "median": 10.0417845,
+            "p95": 10.643589,
+            "p99": 12.161487,
+            "maximum": 13.759895
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 1.7221126389995334,
+          "throughput_rps": 348.4092656962159,
+          "envoy_cpu_seconds": 1.71,
+          "envoy_cpu_ms_per_request": 2.85,
+          "latency_ms": {
+            "median": 45.971089,
+            "p95": 52.097413,
+            "p99": 53.905385,
+            "maximum": 55.215683
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.2985564440004964,
+          "throughput_rps": 1339.7801589549174,
+          "envoy_cpu_seconds": 0.2999999999999998,
+          "envoy_cpu_ms_per_request": 0.7499999999999996,
+          "latency_ms": {
+            "median": 11.811906,
+            "p95": 13.381826,
+            "p99": 13.769073,
+            "maximum": 14.33833
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.0729979949992412,
+          "throughput_rps": 11183.618288129686,
+          "envoy_cpu_seconds": 1.0799999999999992,
+          "envoy_cpu_ms_per_request": 0.08999999999999993,
+          "latency_ms": {
+            "median": 1.425915,
+            "p95": 1.592457,
+            "p99": 1.659549,
+            "maximum": 2.950406
+          }
+        }
+      },
+      "terminal_stats": {
+        "http.waf_comparison_http.modsecurity.comparison.active_rule_generations": 1,
+        "http.waf_comparison_http.modsecurity.comparison.active_transactions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.body_memory_budget_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.crs_inbound_anomaly_score_threshold_exceeded": 700,
+        "http.waf_comparison_http.modsecurity.comparison.crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_inbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.detection_only_crs_outbound_anomaly_score_threshold_exceeded": 0,
+        "http.waf_comparison_http.modsecurity.comparison.failure_mode_allowed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.logging_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.modsecurity_buffer_bytes": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.request_interventions": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.request_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_bypassed": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_body_overflow": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_interventions": 0,
+        "http.waf_comparison_http.modsecurity.comparison.response_trailers_uninspected": 0,
+        "http.waf_comparison_http.modsecurity.comparison.runtime_errors": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_event_rule_truncations": 0,
+        "http.waf_comparison_http.modsecurity.comparison.security_events": 18700,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_add_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_decode_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookup_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_lookups": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_intervention_response_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_local_reply_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_connection_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_logging_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_request_headers_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_process_uri_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_release_resources_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_samples": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_security_event_ns": 0,
+        "http.waf_comparison_http.modsecurity.comparison.stage_profile_transaction_create_ns": 0
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "coraza",
+      "repeat": 2,
+      "startup_ms": 171.90120899977046,
+      "rss_after_warmup_bytes": 126091264,
+      "rss_after_suite_bytes": 138584064,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.6147080900009314,
+          "throughput_rps": 976.0730495658369,
+          "envoy_cpu_seconds": 0.49,
+          "envoy_cpu_ms_per_request": 0.8166666666666667,
+          "latency_ms": {
+            "median": 0.974111,
+            "p95": 1.064571,
+            "p99": 2.696709,
+            "maximum": 9.270014
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 1.877085520000037,
+          "throughput_rps": 213.0963111366349,
+          "envoy_cpu_seconds": 1.7799999999999998,
+          "envoy_cpu_ms_per_request": 4.449999999999999,
+          "latency_ms": {
+            "median": 4.4411625,
+            "p95": 5.31496,
+            "p99": 10.972895,
+            "maximum": 12.774772
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 2.4337686159997247,
+          "throughput_rps": 123.26562107333622,
+          "envoy_cpu_seconds": 2.33,
+          "envoy_cpu_ms_per_request": 7.766666666666667,
+          "latency_ms": {
+            "median": 7.8442045,
+            "p95": 8.977153,
+            "p99": 16.59303,
+            "maximum": 20.709267
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 6.753073044999837,
+          "throughput_rps": 37.02018300914232,
+          "envoy_cpu_seconds": 6.630000000000001,
+          "envoy_cpu_ms_per_request": 26.520000000000003,
+          "latency_ms": {
+            "median": 26.680667,
+            "p95": 27.719365,
+            "p99": 34.410723,
+            "maximum": 51.392132
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 19.819721338000818,
+          "throughput_rps": 2.5227398078566234,
+          "envoy_cpu_seconds": 19.79,
+          "envoy_cpu_ms_per_request": 395.8,
+          "latency_ms": {
+            "median": 395.2645385,
+            "p95": 400.203459,
+            "p99": 419.387495,
+            "maximum": 423.268167
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.18203254500076582,
+          "throughput_rps": 824.0284724875376,
+          "envoy_cpu_seconds": 0.16999999999999815,
+          "envoy_cpu_ms_per_request": 1.133333333333321,
+          "latency_ms": {
+            "median": 1.0984385,
+            "p95": 1.355817,
+            "p99": 2.813947,
+            "maximum": 5.102846
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.2148013380010525,
+          "throughput_rps": 698.3196724745961,
+          "envoy_cpu_seconds": 0.1999999999999993,
+          "envoy_cpu_ms_per_request": 1.3333333333333286,
+          "latency_ms": {
+            "median": 1.272696,
+            "p95": 1.698721,
+            "p99": 3.251489,
+            "maximum": 6.495533
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 1.7407451839990244,
+          "throughput_rps": 3446.799712647295,
+          "envoy_cpu_seconds": 1.1500000000000021,
+          "envoy_cpu_ms_per_request": 0.191666666666667,
+          "latency_ms": {
+            "median": 0.2892535,
+            "p95": 0.331322,
+            "p99": 0.363684,
+            "maximum": 4.215279
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.8830645159996493,
+          "throughput_rps": 1358.904109788142,
+          "envoy_cpu_seconds": 0.8699999999999974,
+          "envoy_cpu_ms_per_request": 0.7249999999999979,
+          "latency_ms": {
+            "median": 10.79996,
+            "p95": 18.169124,
+            "p99": 23.533032,
+            "maximum": 25.848893
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 15.422839896998994,
+          "throughput_rps": 38.9033410193637,
+          "envoy_cpu_seconds": 15.43,
+          "envoy_cpu_ms_per_request": 25.716666666666665,
+          "latency_ms": {
+            "median": 407.3040165,
+            "p95": 436.568969,
+            "p99": 561.017675,
+            "maximum": 637.631818
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.42654083400157106,
+          "throughput_rps": 937.7765693554364,
+          "envoy_cpu_seconds": 0.4200000000000017,
+          "envoy_cpu_ms_per_request": 1.0500000000000043,
+          "latency_ms": {
+            "median": 15.8082865,
+            "p95": 24.704775,
+            "p99": 28.336968,
+            "maximum": 28.839426
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 1.6991227689995867,
+          "throughput_rps": 7062.4678916317425,
+          "envoy_cpu_seconds": 1.7000000000000028,
+          "envoy_cpu_ms_per_request": 0.14166666666666689,
+          "latency_ms": {
+            "median": 2.2474730000000003,
+            "p95": 2.60194,
+            "p99": 5.330714,
+            "maximum": 10.908309
+          }
+        }
+      },
+      "terminal_stats": {
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.1.rule_id.1400002": 18000,
+        "coraza_comparison.waf_tx_blocked.authority.comparison.test.phase.2.rule_id.949110": 700,
+        "coraza_comparison.waf_tx_total": 22200
+      },
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    },
+    {
+      "engine": "baseline",
+      "repeat": 2,
+      "startup_ms": 52.10163799893053,
+      "rss_after_warmup_bytes": 42885120,
+      "rss_after_suite_bytes": 42905600,
+      "workloads": {
+        "headers_c1": {
+          "requests": 600,
+          "concurrency": 1,
+          "elapsed_seconds": 0.2463187339999422,
+          "throughput_rps": 2435.8683168619273,
+          "envoy_cpu_seconds": 0.1,
+          "envoy_cpu_ms_per_request": 0.16666666666666666,
+          "latency_ms": {
+            "median": 0.4124395,
+            "p95": 0.43657,
+            "p99": 0.469632,
+            "maximum": 0.550054
+          }
+        },
+        "clean_query_c1": {
+          "requests": 400,
+          "concurrency": 1,
+          "elapsed_seconds": 0.16237726600047608,
+          "throughput_rps": 2463.39903271205,
+          "envoy_cpu_seconds": 0.07999999999999999,
+          "envoy_cpu_ms_per_request": 0.19999999999999996,
+          "latency_ms": {
+            "median": 0.415566,
+            "p95": 0.439586,
+            "p99": 0.454333,
+            "maximum": 0.571524
+          }
+        },
+        "form_1k_c1": {
+          "requests": 300,
+          "concurrency": 1,
+          "elapsed_seconds": 0.12016867399870534,
+          "throughput_rps": 2496.4908908226125,
+          "envoy_cpu_seconds": 0.05000000000000002,
+          "envoy_cpu_ms_per_request": 0.1666666666666667,
+          "latency_ms": {
+            "median": 0.3977075,
+            "p95": 0.418967,
+            "p99": 0.436901,
+            "maximum": 0.563699
+          }
+        },
+        "json_4k_c1": {
+          "requests": 250,
+          "concurrency": 1,
+          "elapsed_seconds": 0.10270196999954351,
+          "throughput_rps": 2434.227892620864,
+          "envoy_cpu_seconds": 0.04999999999999999,
+          "envoy_cpu_ms_per_request": 0.19999999999999996,
+          "latency_ms": {
+            "median": 0.399331,
+            "p95": 0.486434,
+            "p99": 0.581943,
+            "maximum": 0.718049
+          }
+        },
+        "json_64k_c1": {
+          "requests": 50,
+          "concurrency": 1,
+          "elapsed_seconds": 0.022957809998843004,
+          "throughput_rps": 2177.9080845481267,
+          "envoy_cpu_seconds": 0.010000000000000009,
+          "envoy_cpu_ms_per_request": 0.20000000000000018,
+          "latency_ms": {
+            "median": 0.4382425,
+            "p95": 0.556726,
+            "p99": 0.629913,
+            "maximum": 0.683455
+          }
+        },
+        "blocked_sqli_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.0623719949999213,
+          "throughput_rps": 2404.9254797796552,
+          "envoy_cpu_seconds": 0.019999999999999962,
+          "envoy_cpu_ms_per_request": 0.13333333333333308,
+          "latency_ms": {
+            "median": 0.3944465,
+            "p95": 0.518123,
+            "p99": 0.578267,
+            "maximum": 0.759226
+          }
+        },
+        "blocked_xss_c1": {
+          "requests": 150,
+          "concurrency": 1,
+          "elapsed_seconds": 0.05499932400016405,
+          "throughput_rps": 2727.306248337754,
+          "envoy_cpu_seconds": 0.020000000000000018,
+          "envoy_cpu_ms_per_request": 0.13333333333333344,
+          "latency_ms": {
+            "median": 0.36475,
+            "p95": 0.382919,
+            "p99": 0.390764,
+            "maximum": 0.555754
+          }
+        },
+        "phase1_block_c1": {
+          "requests": 6000,
+          "concurrency": 1,
+          "elapsed_seconds": 0.9852647280004021,
+          "throughput_rps": 6089.733885203644,
+          "envoy_cpu_seconds": 0.4,
+          "envoy_cpu_ms_per_request": 0.06666666666666667,
+          "latency_ms": {
+            "median": 0.147176,
+            "p95": 0.202851,
+            "p99": 0.225995,
+            "maximum": 0.395202
+          }
+        },
+        "headers_c16": {
+          "requests": 1200,
+          "concurrency": 16,
+          "elapsed_seconds": 0.2014308460002212,
+          "throughput_rps": 5957.379536591343,
+          "envoy_cpu_seconds": 0.18999999999999995,
+          "envoy_cpu_ms_per_request": 0.1583333333333333,
+          "latency_ms": {
+            "median": 2.24086,
+            "p95": 5.010974,
+            "p99": 6.964214,
+            "maximum": 14.697661
+          }
+        },
+        "json_4k_c16": {
+          "requests": 600,
+          "concurrency": 16,
+          "elapsed_seconds": 0.11410890199840651,
+          "throughput_rps": 5258.134900013137,
+          "envoy_cpu_seconds": 0.10000000000000009,
+          "envoy_cpu_ms_per_request": 0.1666666666666668,
+          "latency_ms": {
+            "median": 2.406863,
+            "p95": 5.752588,
+            "p99": 8.188684,
+            "maximum": 10.643645
+          }
+        },
+        "blocked_sqli_c16": {
+          "requests": 400,
+          "concurrency": 16,
+          "elapsed_seconds": 0.07691447499928472,
+          "throughput_rps": 5200.581555080756,
+          "envoy_cpu_seconds": 0.07999999999999985,
+          "envoy_cpu_ms_per_request": 0.19999999999999962,
+          "latency_ms": {
+            "median": 2.488876,
+            "p95": 5.462051,
+            "p99": 7.108151,
+            "maximum": 9.402905
+          }
+        },
+        "phase1_block_c16": {
+          "requests": 12000,
+          "concurrency": 16,
+          "elapsed_seconds": 0.6101097850005317,
+          "throughput_rps": 19668.591284746468,
+          "envoy_cpu_seconds": 0.6000000000000001,
+          "envoy_cpu_ms_per_request": 0.05000000000000001,
+          "latency_ms": {
+            "median": 0.801165,
+            "p95": 0.909869,
+            "p99": 0.988557,
+            "maximum": 1.496722
+          }
+        }
+      },
+      "terminal_stats": {},
+      "terminal_histograms": [],
+      "perf_data": null,
+      "perf_report_errors": []
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "startup_ms": 26.916323999103042,
+      "rss_after_warmup_bytes": 42459136,
+      "rss_after_suite_bytes": 42487808,
+      "workloads": {
+        "headers_c1": {
+          "throughput_rps": 2463.3533390035536,
+          "envoy_cpu_ms_per_request": 0.16666666666666666,
+          "latency_ms": {
+            "median": 0.412366,
+            "p95": 0.43657,
+            "p99": 0.469632,
+            "maximum": 0.554012
+          }
+        },
+        "clean_query_c1": {
+          "throughput_rps": 2463.39903271205,
+          "envoy_cpu_ms_per_request": 0.17499999999999996,
+          "latency_ms": {
+            "median": 0.415566,
+            "p95": 0.439586,
+            "p99": 0.454333,
+            "maximum": 0.540959
+          }
+        },
+        "form_1k_c1": {
+          "throughput_rps": 2462.053659526811,
+          "envoy_cpu_ms_per_request": 0.1666666666666667,
+          "latency_ms": {
+            "median": 0.4022115,
+            "p95": 0.426001,
+            "p99": 0.451309,
+            "maximum": 0.563699
+          }
+        },
+        "json_4k_c1": {
+          "throughput_rps": 2434.227892620864,
+          "envoy_cpu_ms_per_request": 0.19999999999999996,
+          "latency_ms": {
+            "median": 0.399331,
+            "p95": 0.482749,
+            "p99": 0.509349,
+            "maximum": 0.661685
+          }
+        },
+        "json_64k_c1": {
+          "throughput_rps": 2262.442619924931,
+          "envoy_cpu_ms_per_request": 0.20000000000000018,
+          "latency_ms": {
+            "median": 0.4377075,
+            "p95": 0.458432,
+            "p99": 0.463732,
+            "maximum": 0.630836
+          }
+        },
+        "blocked_sqli_c1": {
+          "throughput_rps": 2527.03863963275,
+          "envoy_cpu_ms_per_request": 0.13333333333333308,
+          "latency_ms": {
+            "median": 0.3927085,
+            "p95": 0.412295,
+            "p99": 0.443826,
+            "maximum": 0.511801
+          }
+        },
+        "blocked_xss_c1": {
+          "throughput_rps": 2727.306248337754,
+          "envoy_cpu_ms_per_request": 0.13333333333333344,
+          "latency_ms": {
+            "median": 0.36475,
+            "p95": 0.382919,
+            "p99": 0.400192,
+            "maximum": 0.512475
+          }
+        },
+        "phase1_block_c1": {
+          "throughput_rps": 6089.733885203644,
+          "envoy_cpu_ms_per_request": 0.06666666666666665,
+          "latency_ms": {
+            "median": 0.147176,
+            "p95": 0.202851,
+            "p99": 0.215586,
+            "maximum": 0.395202
+          }
+        },
+        "headers_c16": {
+          "throughput_rps": 5891.808224740416,
+          "envoy_cpu_ms_per_request": 0.15000000000000005,
+          "latency_ms": {
+            "median": 2.2009974999999997,
+            "p95": 5.231138,
+            "p99": 7.554913,
+            "maximum": 19.266382
+          }
+        },
+        "json_4k_c16": {
+          "throughput_rps": 5309.924965718396,
+          "envoy_cpu_ms_per_request": 0.16666666666666663,
+          "latency_ms": {
+            "median": 2.406863,
+            "p95": 5.663342,
+            "p99": 7.333556,
+            "maximum": 8.80823
+          }
+        },
+        "blocked_sqli_c16": {
+          "throughput_rps": 5353.744663213109,
+          "envoy_cpu_ms_per_request": 0.19999999999999962,
+          "latency_ms": {
+            "median": 2.3602585,
+            "p95": 5.338344,
+            "p99": 7.108151,
+            "maximum": 9.841007
+          }
+        },
+        "phase1_block_c16": {
+          "throughput_rps": 19962.168164696766,
+          "envoy_cpu_ms_per_request": 0.04999999999999999,
+          "latency_ms": {
+            "median": 0.7874675,
+            "p95": 0.903291,
+            "p99": 0.979438,
+            "maximum": 2.179086
+          }
+        }
+      }
+    },
+    "libmodsecurity": {
+      "startup_ms": 95.65676100100973,
+      "rss_after_warmup_bytes": 71409664,
+      "rss_after_suite_bytes": 73916416,
+      "workloads": {
+        "headers_c1": {
+          "throughput_rps": 1148.2310720481812,
+          "envoy_cpu_ms_per_request": 0.65,
+          "latency_ms": {
+            "median": 0.86557,
+            "p95": 0.922737,
+            "p99": 0.96129,
+            "maximum": 1.131921
+          }
+        },
+        "clean_query_c1": {
+          "throughput_rps": 864.9824875231899,
+          "envoy_cpu_ms_per_request": 0.925,
+          "latency_ms": {
+            "median": 1.142678,
+            "p95": 1.221666,
+            "p99": 1.317477,
+            "maximum": 1.51073
+          }
+        },
+        "form_1k_c1": {
+          "throughput_rps": 668.6731318445776,
+          "envoy_cpu_ms_per_request": 1.2666666666666666,
+          "latency_ms": {
+            "median": 1.4760645000000001,
+            "p95": 1.594297,
+            "p99": 1.688644,
+            "maximum": 1.903999
+          }
+        },
+        "json_4k_c1": {
+          "throughput_rps": 320.087423916208,
+          "envoy_cpu_ms_per_request": 2.84,
+          "latency_ms": {
+            "median": 3.111078,
+            "p95": 3.230412,
+            "p99": 3.316013,
+            "maximum": 3.371678
+          }
+        },
+        "json_64k_c1": {
+          "throughput_rps": 36.03560454379205,
+          "envoy_cpu_ms_per_request": 27.2,
+          "latency_ms": {
+            "median": 27.7481985,
+            "p95": 28.279999,
+            "p99": 28.536782,
+            "maximum": 28.70042
+          }
+        },
+        "blocked_sqli_c1": {
+          "throughput_rps": 1133.127313158742,
+          "envoy_cpu_ms_per_request": 0.7333333333333325,
+          "latency_ms": {
+            "median": 0.8773235,
+            "p95": 0.909329,
+            "p99": 1.072093,
+            "maximum": 1.494739
+          }
+        },
+        "blocked_xss_c1": {
+          "throughput_rps": 1157.7970382688543,
+          "envoy_cpu_ms_per_request": 0.8000000000000007,
+          "latency_ms": {
+            "median": 0.865434,
+            "p95": 0.90823,
+            "p99": 0.937756,
+            "maximum": 1.058229
+          }
+        },
+        "phase1_block_c1": {
+          "throughput_rps": 4279.431307201628,
+          "envoy_cpu_ms_per_request": 0.1233333333333333,
+          "latency_ms": {
+            "median": 0.243819,
+            "p95": 0.267372,
+            "p99": 0.280447,
+            "maximum": 0.432752
+          }
+        },
+        "headers_c16": {
+          "throughput_rps": 1584.9833541689345,
+          "envoy_cpu_ms_per_request": 0.6333333333333339,
+          "latency_ms": {
+            "median": 10.0417845,
+            "p95": 10.643589,
+            "p99": 12.161487,
+            "maximum": 14.501215
+          }
+        },
+        "json_4k_c16": {
+          "throughput_rps": 348.4092656962159,
+          "envoy_cpu_ms_per_request": 2.85,
+          "latency_ms": {
+            "median": 45.971089,
+            "p95": 53.59227,
+            "p99": 55.679092,
+            "maximum": 56.761267
+          }
+        },
+        "blocked_sqli_c16": {
+          "throughput_rps": 1339.7801589549174,
+          "envoy_cpu_ms_per_request": 0.7499999999999996,
+          "latency_ms": {
+            "median": 11.811906,
+            "p95": 13.381826,
+            "p99": 13.769073,
+            "maximum": 14.357929
+          }
+        },
+        "phase1_block_c16": {
+          "throughput_rps": 10857.608914828676,
+          "envoy_cpu_ms_per_request": 0.09250000000000001,
+          "latency_ms": {
+            "median": 1.4665465,
+            "p95": 1.651745,
+            "p99": 1.698463,
+            "maximum": 2.950406
+          }
+        }
+      }
+    },
+    "coraza": {
+      "startup_ms": 171.90120899977046,
+      "rss_after_warmup_bytes": 126091264,
+      "rss_after_suite_bytes": 135741440,
+      "workloads": {
+        "headers_c1": {
+          "throughput_rps": 976.1238670469952,
+          "envoy_cpu_ms_per_request": 0.8166666666666667,
+          "latency_ms": {
+            "median": 0.966941,
+            "p95": 1.064571,
+            "p99": 2.468244,
+            "maximum": 8.499023
+          }
+        },
+        "clean_query_c1": {
+          "throughput_rps": 217.08255490890878,
+          "envoy_cpu_ms_per_request": 4.325,
+          "latency_ms": {
+            "median": 4.4411625,
+            "p95": 5.31496,
+            "p99": 11.653649,
+            "maximum": 12.774772
+          }
+        },
+        "form_1k_c1": {
+          "throughput_rps": 123.26562107333622,
+          "envoy_cpu_ms_per_request": 7.766666666666667,
+          "latency_ms": {
+            "median": 7.8442045,
+            "p95": 8.959741,
+            "p99": 15.645168,
+            "maximum": 21.662538
+          }
+        },
+        "json_4k_c1": {
+          "throughput_rps": 37.02018300914232,
+          "envoy_cpu_ms_per_request": 26.520000000000003,
+          "latency_ms": {
+            "median": 25.6150755,
+            "p95": 27.719365,
+            "p99": 34.410723,
+            "maximum": 53.239601
+          }
+        },
+        "json_64k_c1": {
+          "throughput_rps": 2.5227398078566234,
+          "envoy_cpu_ms_per_request": 395.8,
+          "latency_ms": {
+            "median": 364.1995625,
+            "p95": 400.203459,
+            "p99": 419.387495,
+            "maximum": 423.268167
+          }
+        },
+        "blocked_sqli_c1": {
+          "throughput_rps": 788.448957847837,
+          "envoy_cpu_ms_per_request": 1.1333333333333446,
+          "latency_ms": {
+            "median": 1.112374,
+            "p95": 1.473444,
+            "p99": 2.975851,
+            "maximum": 5.102846
+          }
+        },
+        "blocked_xss_c1": {
+          "throughput_rps": 698.3196724745961,
+          "envoy_cpu_ms_per_request": 1.3333333333333286,
+          "latency_ms": {
+            "median": 1.272696,
+            "p95": 1.698721,
+            "p99": 3.678053,
+            "maximum": 6.025782
+          }
+        },
+        "phase1_block_c1": {
+          "throughput_rps": 3446.799712647295,
+          "envoy_cpu_ms_per_request": 0.191666666666667,
+          "latency_ms": {
+            "median": 0.2892535,
+            "p95": 0.328227,
+            "p99": 0.363684,
+            "maximum": 4.456924
+          }
+        },
+        "headers_c16": {
+          "throughput_rps": 1308.3514583437423,
+          "envoy_cpu_ms_per_request": 0.7583333333333305,
+          "latency_ms": {
+            "median": 10.940698000000001,
+            "p95": 18.169124,
+            "p99": 23.533032,
+            "maximum": 28.503234
+          }
+        },
+        "json_4k_c16": {
+          "throughput_rps": 38.02718799806175,
+          "envoy_cpu_ms_per_request": 26.283333333333335,
+          "latency_ms": {
+            "median": 416.041108,
+            "p95": 463.640846,
+            "p99": 507.228793,
+            "maximum": 527.27785
+          }
+        },
+        "blocked_sqli_c16": {
+          "throughput_rps": 869.2974019796696,
+          "envoy_cpu_ms_per_request": 1.1500000000000021,
+          "latency_ms": {
+            "median": 16.2815195,
+            "p95": 25.841717,
+            "p99": 29.823628,
+            "maximum": 31.389703
+          }
+        },
+        "phase1_block_c16": {
+          "throughput_rps": 7062.4678916317425,
+          "envoy_cpu_ms_per_request": 0.14166666666666689,
+          "latency_ms": {
+            "median": 2.2474730000000003,
+            "p95": 2.60194,
+            "p99": 5.330714,
+            "maximum": 10.908309
+          }
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "headers_c1": {
+      "throughput_native_over_coraza": 1.1763169724779405,
+      "p99_coraza_over_native": 2.56763723746216,
+      "raw_cpu_coraza_over_native": 1.2564102564102564,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.4833333333333334,
+        "coraza": 0.65
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 1.3448275862068964,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.1763169724779405,
+          "minimum": 1.127379891794648,
+          "maximum": 1.1955203275150676,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.2564102564102566,
+          "minimum": 1.195121951219512,
+          "maximum": 1.2894736842105263,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 2.6508049359380537,
+          "minimum": 2.380028919472792,
+          "maximum": 2.787270195936162,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "clean_query_c1": {
+      "throughput_native_over_coraza": 3.9845785299797583,
+      "p99_coraza_over_native": 8.845428800654584,
+      "raw_cpu_coraza_over_native": 4.675675675675675,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.7500000000000001,
+        "coraza": 4.15
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 5.533333333333333,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 3.9925570183725116,
+          "minimum": 3.9845785299797583,
+          "maximum": 4.004536675200608,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 4.684210526315789,
+          "minimum": 4.675675675675675,
+          "maximum": 4.777777777777778,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 8.328718452010927,
+          "minimum": 7.518032143877819,
+          "maximum": 10.248413132989134,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "form_1k_c1": {
+      "throughput_native_over_coraza": 5.424652275485264,
+      "p99_coraza_over_native": 9.26492973060041,
+      "raw_cpu_coraza_over_native": 6.131578947368421,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 1.0999999999999999,
+        "coraza": 7.6
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 6.909090909090909,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 5.424652275485264,
+          "minimum": 5.121332295397384,
+          "maximum": 5.562857380379034,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 6.157894736842105,
+          "minimum": 5.6923076923076925,
+          "maximum": 6.297297297297297,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 9.826245200290883,
+          "minimum": 8.62101077879309,
+          "maximum": 10.002536889752704,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "json_4k_c1": {
+      "throughput_native_over_coraza": 8.646295017967923,
+      "p99_coraza_over_native": 10.377137544394428,
+      "raw_cpu_coraza_over_native": 9.338028169014086,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 2.6399999999999997,
+        "coraza": 26.320000000000004
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 9.969696969696972,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 8.646295017967923,
+          "minimum": 8.254407820520267,
+          "maximum": 10.955588375465506,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 9.208333333333334,
+          "minimum": 8.985915492957746,
+          "maximum": 11.9,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 10.377137544394428,
+          "minimum": 8.430822260046599,
+          "maximum": 17.641493484848816,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "json_64k_c1": {
+      "throughput_native_over_coraza": 14.284312806087089,
+      "p99_coraza_over_native": 14.696383600645651,
+      "raw_cpu_coraza_over_native": 14.551470588235295,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 27.0,
+        "coraza": 395.6
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 14.651851851851852,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 14.231622769180738,
+          "minimum": 13.164636776030543,
+          "maximum": 14.619070716518149,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 14.445255474452557,
+          "minimum": 13.404411764705879,
+          "maximum": 15.000000000000002,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 14.696383600645651,
+          "minimum": 13.453555211267703,
+          "maximum": 27.212174204614797,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "blocked_sqli_c1": {
+      "throughput_native_over_coraza": 1.4371600112856318,
+      "p99_coraza_over_native": 2.775739604679818,
+      "raw_cpu_coraza_over_native": 1.5454545454545625,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.5999999999999994,
+        "coraza": 1.0000000000000115
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 1.6666666666666876,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.4673562219216578,
+          "minimum": 1.3751069908277704,
+          "maximum": 1.544137972780809,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.6363636363636358,
+          "minimum": 1.5454545454545625,
+          "maximum": 1.6999999999999804,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 2.6797638880133996,
+          "minimum": 2.624722855200062,
+          "maximum": 4.11926126124343,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "blocked_xss_c1": {
+      "throughput_native_over_coraza": 1.6579756863587045,
+      "p99_coraza_over_native": 3.9221855152086467,
+      "raw_cpu_coraza_over_native": 1.6666666666666592,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.6666666666666673,
+        "coraza": 1.199999999999995
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 1.799999999999991,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.6415314925131264,
+          "minimum": 1.6100554894633565,
+          "maximum": 1.6922884681266417,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.6666666666666654,
+          "minimum": 1.6666666666666297,
+          "maximum": 1.666666666666689,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 3.9221855152086467,
+          "minimum": 3.3628775945647686,
+          "maximum": 4.195567568041911,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "phase1_block_c1": {
+      "throughput_native_over_coraza": 1.241566573044314,
+      "p99_coraza_over_native": 1.2968011781192168,
+      "raw_cpu_coraza_over_native": 1.5540540540540573,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.05666666666666664,
+        "coraza": 0.12500000000000036
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 2.2058823529411837,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.241566573044314,
+          "minimum": 1.120271630028272,
+          "maximum": 1.3149160444289896,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.5540540540540573,
+          "minimum": 1.4358974358974415,
+          "maximum": 1.7101449275362328,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 1.299289076901609,
+          "minimum": 1.2968011781192168,
+          "maximum": 1.4944360479661671,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "headers_c16": {
+      "throughput_native_over_coraza": 1.2114354625899861,
+      "p99_coraza_over_native": 1.935045607498491,
+      "raw_cpu_coraza_over_native": 1.197368421052626,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.48333333333333384,
+        "coraza": 0.6083333333333305
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 1.2586206896551653,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.166368798763909,
+          "minimum": 0.8685034639223246,
+          "maximum": 1.2562169990164203,
+          "native_wins": 2,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.1447368421052588,
+          "minimum": 0.9999999999999962,
+          "maximum": 1.2465753424657529,
+          "native_wins": 2,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 1.935045607498491,
+          "minimum": 0.5310242786209723,
+          "maximum": 2.25093498968518,
+          "native_wins": 2,
+          "repeats": 3
+        }
+      }
+    },
+    "json_4k_c16": {
+      "throughput_native_over_coraza": 9.162109638871389,
+      "p99_coraza_over_native": 9.109861076757502,
+      "raw_cpu_coraza_over_native": 9.222222222222223,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 2.6833333333333336,
+        "coraza": 26.116666666666667
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 9.732919254658384,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 9.323773478963657,
+          "minimum": 8.95576720577287,
+          "maximum": 9.396013933141546,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 9.346820809248559,
+          "minimum": 9.023391812865496,
+          "maximum": 9.44311377245509,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 8.932224828666387,
+          "minimum": 6.497885469560806,
+          "maximum": 10.407451407684038,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "blocked_sqli_c16": {
+      "throughput_native_over_coraza": 1.5412218602101044,
+      "p99_coraza_over_native": 2.1659866281484597,
+      "raw_cpu_coraza_over_native": 1.533333333333337,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.5499999999999999,
+        "coraza": 0.9500000000000025
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 1.727272727272732,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.4286773659484697,
+          "minimum": 1.31363432199139,
+          "maximum": 1.5697677879499703,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.4000000000000066,
+          "minimum": 1.314285714285718,
+          "maximum": 1.5862068965517269,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 2.0580156703359767,
+          "minimum": 1.8776983989155935,
+          "maximum": 2.1815876939480447,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    },
+    "phase1_block_c16": {
+      "throughput_native_over_coraza": 1.5373675436731915,
+      "p99_coraza_over_native": 3.138551737659284,
+      "raw_cpu_coraza_over_native": 1.5315315315315337,
+      "baseline_adjusted_cpu_ms_per_request": {
+        "libmodsecurity": 0.042500000000000024,
+        "coraza": 0.0916666666666669
+      },
+      "baseline_adjusted_cpu_coraza_over_native": 2.1568627450980435,
+      "paired_repeat_ratios": {
+        "throughput_native_over_coraza": {
+          "median": 1.5003047264851235,
+          "minimum": 1.3555952195073089,
+          "maximum": 1.5835283727634444,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "raw_cpu_coraza_over_native": {
+          "median": 1.4954954954954922,
+          "minimum": 1.3571428571428572,
+          "maximum": 1.5740740740740777,
+          "native_wins": 3,
+          "repeats": 3
+        },
+        "p99_coraza_over_native": {
+          "median": 3.034555948525225,
+          "minimum": 2.7842520202660506,
+          "maximum": 3.2121461915255294,
+          "native_wins": 3,
+          "repeats": 3
+        }
+      }
+    }
+  }
+}
