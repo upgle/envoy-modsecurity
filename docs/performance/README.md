@@ -35,6 +35,8 @@ linear range, so compare bar lengths only within the same section.
 | Source job | [Linux comparison job 88996163525](https://github.com/upgle/envoy-modsecurity/actions/runs/29941453306/job/88996163525) |
 | Generated | `2026-07-22T20:21:27.285060+00:00` |
 | Project commit | [`6c396c920970bc4d09b7a2f1c8b14b4f7775eaba`](https://github.com/upgle/envoy-modsecurity/commit/6c396c920970bc4d09b7a2f1c8b14b4f7775eaba) |
+| Project tree | `9900d4510fa8fdc1e81956fc3d7e82b41c6f2b0d` |
+| Source archive | [`benchmark/waf-linux-2026-07-22`](https://github.com/upgle/envoy-modsecurity/tree/benchmark/waf-linux-2026-07-22) |
 | Platform | Linux `6.17.0-1020-azure`, x86_64, glibc 2.41 |
 | Envoy | 1.39.0 at [`8eea3285d6bd`](https://github.com/envoyproxy/envoy/commit/8eea3285d6bdb89f8ea34632cfe7ce1608a8f374), one worker pinned to CPU 0 |
 | Build profile | Bazel `opt`, Fission disabled, ThinLTO, LLVM instrumentation PGO, `--strip=never` |
@@ -43,6 +45,7 @@ linear range, so compare bar lengths only within the same section.
 | Coraza engine | 3.7.0 |
 | Go toolchain | 1.26.4, pinned by the Built On Envoy release |
 | OWASP CRS | 4.28.0 at [`55b09f5acfd1`](https://github.com/coreruleset/coreruleset/commit/55b09f5acfd16413e7b31041100711ceb7adc89c) |
+| Connector patch SHA-256 | `558d0e5c6e039472828c27c3fac8ded2987d2f026b13b8bd4a5be9e3ca41918e` |
 | Repeats | Three order-rotated measurement runs |
 | Client topology | 16 client processes pinned across CPUs 1, 2, and 3 |
 | Request scale | 1.0 |
@@ -191,8 +194,9 @@ The committed evidence and generator are:
 - [Benchmark build and local-run guide](../../test/performance/envoy_dynamic_comparison/README.md)
 - [Source workflow run](https://github.com/upgle/envoy-modsecurity/actions/runs/29941453306)
 
-The raw comparison result is preserved because the source Actions artifact expires. Verify and
-regenerate every chart and the normalized snapshot with:
+The raw comparison result is preserved because the source Actions artifact expires. The source
+archive tag preserves the exact measured project commit and tree independently of the pull-request
+branch history. Verify and regenerate every chart and the normalized snapshot with:
 
 ```shell
 printf '%s  %s\n' \

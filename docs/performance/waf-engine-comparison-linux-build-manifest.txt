@@ -1,4 +1,10 @@
 target=//test/performance/envoy_dynamic_comparison:envoy-waf-comparison
+source_run=https://github.com/upgle/envoy-modsecurity/actions/runs/29941453306
+source_job=https://github.com/upgle/envoy-modsecurity/actions/runs/29941453306/job/88996163525
+project_commit=6c396c920970bc4d09b7a2f1c8b14b4f7775eaba
+project_tree=9900d4510fa8fdc1e81956fc3d7e82b41c6f2b0d
+source_archive_tag=benchmark/waf-linux-2026-07-22
+libmodsecurity_patch_sha256=558d0e5c6e039472828c27c3fac8ded2987d2f026b13b8bd4a5be9e3ca41918e
 bazel_version=bazel 8.7.0
 llvm_profdata_version=LLVM (http://llvm.org/):
 build_flags=--compilation_mode=opt --fission=no --features=-per_object_debug_info --per_file_copt=.*@-flto=thin --linkopt=-flto=thin --nocheck_visibility --strip=never --define=modsecurity_benchmark_pgo=use --fdo_optimize=<merged LLVM profile>
