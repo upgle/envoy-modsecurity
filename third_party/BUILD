@@ -1,6 +1,28 @@
 load("@rules_foreign_cc//foreign_cc:configure.bzl", "configure_make")
+load("@bazel_skylib//lib:selects.bzl", "selects")
 
 package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "linux",
+    constraint_values = ["@platforms//os:linux"],
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "modsecurity_benchmark_thinlto",
+    define_values = {"modsecurity_benchmark_thinlto": "enabled"},
+    visibility = ["//visibility:private"],
+)
+
+selects.config_setting_group(
+    name = "linux_modsecurity_benchmark_thinlto",
+    match_all = [
+        ":linux",
+        ":modsecurity_benchmark_thinlto",
+    ],
+    visibility = ["//visibility:private"],
+)
 
 # Keep the pinned CRS inputs available to black-box tests without copying the
 # third-party distribution into project-owned fixtures.
@@ -57,6 +79,12 @@ configure_make(
     }),
     # On Darwin, let configure discover /usr/bin/ar because Bazel's static-link tool is libtool.
     env = select({
+        ":linux_modsecurity_benchmark_thinlto": {
+            "CFLAGS": "-flto=thin",
+            "CXXFLAGS": "-flto=thin",
+            "LDFLAGS": "-flto=thin",
+            "PKG_CONFIG_PATH": "/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig",
+        },
         "@platforms//os:linux": {
             # rules_foreign_cc builds pkg-config with an isolated prefix, so it does not discover
             # Debian's system package metadata by default. The pinned CI image is linux/amd64.
