@@ -137,7 +137,7 @@ configuration and update lifecycle.
 | Component | Version | Source |
 | --- | --- | --- |
 | Envoy | `v1.39.0` | `envoy/` |
-| ModSecurity | `v3.0.16` | `third_party/modsecurity/` |
+| ModSecurity | [upgle PR #1](https://github.com/upgle/ModSecurity/pull/1) | `third_party/modsecurity/` |
 | OWASP CRS | `v4.28.0` | `third_party/coreruleset/` |
 | Bazel | `8.7.0` | `.bazelversion` |
 
