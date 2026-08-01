@@ -1,0 +1,63 @@
+{
+  "build_profile": "Linux x86_64 Bazel opt, stripped, ThinLTO, no PGO",
+  "crossover_blocks": 5,
+  "generated_at": "2026-08-01T09:46:45.751430+00:00",
+  "repeats": 10,
+  "schema": "intervention-log-payload-chart/v1",
+  "source": {
+    "artifact_digest": "sha256:37aac0bd31593ffee64fade508f95499ba972fa59381e199fd47a2914a1c40ba",
+    "baseline_revision": "7ea9fefbe0ba409d8733b4d682c8c4c059cd028d",
+    "candidate_revision": "1e16589865de2d8d244741e0b9d219e59941bd80",
+    "run_url": "https://github.com/upgle/envoy-modsecurity/actions/runs/30689105354"
+  },
+  "workloads": [
+    {
+      "baseline": 4989.674936283552,
+      "blocks": 5,
+      "candidate": 5510.84453810201,
+      "change": 10.845864606360545,
+      "change_maximum": 12.953970223205058,
+      "change_minimum": 4.546651559679771,
+      "label": "1 concurrent connection",
+      "name": "phase1_block_c1",
+      "panel": "primary",
+      "wins": 5
+    },
+    {
+      "baseline": 8698.931774635608,
+      "blocks": 5,
+      "candidate": 9990.490356885068,
+      "change": 14.265832371481778,
+      "change_maximum": 16.75000017533479,
+      "change_minimum": 13.502315894717377,
+      "label": "16 concurrent connections",
+      "name": "phase1_block_c16",
+      "panel": "primary",
+      "wins": 5
+    },
+    {
+      "baseline": 1175.0094629189098,
+      "blocks": 5,
+      "candidate": 1203.615138436749,
+      "change": 2.3391756917151785,
+      "change_maximum": 2.9688290206061563,
+      "change_minimum": 2.019882280885432,
+      "label": "CRS SQLi block \u00b7 16 connections",
+      "name": "blocked_sqli_c16",
+      "panel": "checks",
+      "wins": 5
+    },
+    {
+      "baseline": 1458.1413669386989,
+      "blocks": 5,
+      "candidate": 1458.4921973353676,
+      "change": -0.11344347542180389,
+      "change_maximum": 1.47529829450741,
+      "change_minimum": -0.7732511002608744,
+      "label": "Headers only \u00b7 16 connections",
+      "name": "headers_c16",
+      "panel": "checks",
+      "wins": 2
+    }
+  ]
+}
