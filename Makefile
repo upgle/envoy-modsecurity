@@ -1,4 +1,4 @@
-.PHONY: bootstrap build build-api check integration-test owasp-lab qualification-benchmark test verify-deps
+.PHONY: body-pressure-stress bootstrap build build-api check integration-test owasp-lab qualification-benchmark test verify-deps
 
 bootstrap:
 	git submodule update --init --recursive --depth 1
@@ -18,6 +18,8 @@ test: verify-deps
 		//test/engine:exception_test \
 		//test/engine:rules_test \
 		//test/engine:engine_integration_test \
+		//test/tools:ci_qualification_retry_test \
+		//test/tools:ci_report_summary_test \
 		//test/tools:crs_compatibility_report_test \
 		//test/unit:config_test \
 		//test/unit:filter_test
@@ -35,6 +37,20 @@ owasp-lab: verify-deps
 qualification-benchmark: verify-deps
 	./tools/run-qualification-benchmark.sh --enforce
 
+body-pressure-stress: verify-deps
+	./tools/run-qualification-benchmark.sh \
+		--output-directory artifacts/body-pressure-stress \
+		--concurrency 48 \
+		--large-request-count 96 \
+		--large-response-count 96 \
+		--soak-rounds 12 \
+		--soak-requests 250 \
+		--soak-body-bytes 262144 \
+		--request-timeout-seconds 60 \
+		--minimum-throughput-rps 2 \
+		--maximum-p99-ms 5000 \
+		--maximum-rss-growth-mib 256
+
 check: verify-deps
 	bazel build //:api_bindings //source/extensions/filters/http/modsecurity:config
 	bazel test \
@@ -45,6 +61,8 @@ check: verify-deps
 		//test/integration:envoy_http_integration_test \
 		//test/integration:filter_protocol_integration_test \
 		//test/integration:owasp_crs_smoke_test \
+		//test/tools:ci_qualification_retry_test \
+		//test/tools:ci_report_summary_test \
 		//test/tools:crs_compatibility_report_test \
 		//test/unit:config_test \
 		//test/unit:filter_test

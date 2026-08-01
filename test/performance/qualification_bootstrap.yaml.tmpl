@@ -27,6 +27,7 @@ static_resources:
                             prefix: "/"
                           route:
                             cluster: qualification_upstream
+                            timeout: 60s
                 http_filters:
                   - name: envoy.filters.http.modsecurity
                     typed_config:
@@ -36,6 +37,10 @@ static_resources:
                       request_body:
                         max_bytes:
                           value: 1048576
+                      response:
+                        body:
+                          max_bytes:
+                            value: 1048576
                       failure_mode_allow: false
                       stat_prefix: qualification
                       max_active_body_bytes:

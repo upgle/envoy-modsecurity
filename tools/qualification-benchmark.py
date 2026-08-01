@@ -20,7 +20,6 @@ import time
 
 
 STARTUP_TIMEOUT_SECONDS = 30
-REQUEST_TIMEOUT_SECONDS = 10
 EXPECTED_CRS_RULE_FILE_COUNT = 27
 
 
@@ -57,6 +56,13 @@ def parse_args():
     )
     parser.add_argument("--concurrency", default=24, type=int)
     parser.add_argument("--request-scale", default=1.0, type=float)
+    parser.add_argument("--soak-rounds", default=3, type=int)
+    parser.add_argument("--soak-requests", default=250, type=int)
+    parser.add_argument("--soak-body-bytes", default=16 * 1024, type=int)
+    parser.add_argument("--large-request-count", default=0, type=int)
+    parser.add_argument("--large-response-count", default=0, type=int)
+    parser.add_argument("--large-body-bytes", default=1024 * 1024, type=int)
+    parser.add_argument("--request-timeout-seconds", default=10.0, type=float)
     parser.add_argument("--minimum-throughput-rps", default=50.0, type=float)
     parser.add_argument("--maximum-p99-ms", default=250.0, type=float)
     parser.add_argument("--maximum-pathological-p99-ms", default=1000.0, type=float)
@@ -92,7 +98,9 @@ def write_crs_config(workdir):
         "SecRequestBodyLimitAction Reject",
         "SecRequestBodyJsonDepthLimit 64",
         "SecArgumentsLimit 1000",
-        "SecResponseBodyAccess Off",
+        "SecResponseBodyAccess On",
+        "SecResponseBodyMimeType text/plain",
+        "SecResponseBodyLimit 1048576",
         "SecAuditEngine Off",
         f"SecUnicodeMapFile {seclang_path(ARGS.unicode_mapping)} 20127",
         "SecPcreMatchLimit 100000",
@@ -137,7 +145,11 @@ class UpstreamHandler(BaseHTTPRequestHandler):
         self._respond()
 
     def _respond(self):
-        body = b"ok"
+        body = (
+            b"r" * ARGS.large_body_bytes
+            if self.path == "/large-response"
+            else b"ok"
+        )
         self.send_response(200)
         self.send_header("content-type", "text/plain")
         self.send_header("content-length", str(len(body)))
@@ -149,7 +161,9 @@ class UpstreamHandler(BaseHTTPRequestHandler):
 
 
 def admin_request(host, port, path):
-    connection = http.client.HTTPConnection(host, port, timeout=REQUEST_TIMEOUT_SECONDS)
+    connection = http.client.HTTPConnection(
+        host, port, timeout=ARGS.request_timeout_seconds
+    )
     try:
         connection.request("GET", path)
         response = connection.getresponse()
@@ -235,6 +249,14 @@ def process_cpu_seconds(pid):
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
+def sample_process_rss(pid, samples, stop):
+    while not stop.wait(0.25):
+        try:
+            samples.append(process_rss_bytes(pid))
+        except (OSError, subprocess.CalledProcessError, ValueError):
+            return
+
+
 def percentile(values, fraction):
     ordered = sorted(values)
     index = min(len(ordered) - 1, max(0, int(len(ordered) * fraction) - 1))
@@ -243,7 +265,9 @@ def percentile(values, fraction):
 
 def one_request(port, method, path, body, expected_status):
     started = time.perf_counter_ns()
-    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=REQUEST_TIMEOUT_SECONDS)
+    connection = http.client.HTTPConnection(
+        "127.0.0.1", port, timeout=ARGS.request_timeout_seconds
+    )
     try:
         headers = {"host": "qualification.test"}
         if body is not None:
@@ -290,6 +314,7 @@ def run_workload(port, pid, name, count, concurrency, method, path, body, expect
             "median": statistics.median(latencies),
             "p95": percentile(latencies, 0.95),
             "p99": percentile(latencies, 0.99),
+            "p999": percentile(latencies, 0.999),
             "maximum": max(latencies),
         },
     }
@@ -299,8 +324,15 @@ def scaled(value):
     return max(1, int(value * ARGS.request_scale))
 
 
+def form_body(size, fill):
+    prefix = "value="
+    if size < len(prefix):
+        raise ValueError(f"body size must be at least {len(prefix)} bytes")
+    return prefix + fill * (size - len(prefix))
+
+
 def zero_modsecurity_gauges(admin_host, admin_port):
-    deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+    deadline = time.monotonic() + ARGS.request_timeout_seconds
     last = {}
     while time.monotonic() < deadline:
         status, body = admin_request(admin_host, admin_port, "/stats?filter=modsecurity&format=json")
@@ -327,8 +359,8 @@ def write_markdown(path, result):
         "",
         f"Platform: `{result['platform']}`",
         "",
-        "| Workload | Requests | Concurrency | Throughput (rps) | Envoy CPU (ms/request) | p50 (ms) | p95 (ms) | p99 (ms) | Max (ms) |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Workload | Requests | Concurrency | Throughput (rps) | Envoy CPU (ms/request) | p50 (ms) | p95 (ms) | p99 (ms) | p99.9 (ms) | Max (ms) |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for name, workload in result["workloads"].items():
         latency = workload["latency_ms"]
@@ -336,7 +368,8 @@ def write_markdown(path, result):
             f"| {name} | {workload['requests']} | {workload['concurrency']} | "
             f"{workload['throughput_rps']:.2f} | {workload['envoy_cpu_ms_per_request']:.2f} | "
             f"{latency['median']:.2f} | "
-            f"{latency['p95']:.2f} | {latency['p99']:.2f} | {latency['maximum']:.2f} |"
+            f"{latency['p95']:.2f} | {latency['p99']:.2f} | {latency['p999']:.2f} | "
+            f"{latency['maximum']:.2f} |"
         )
     lines.extend(
         [
@@ -347,7 +380,11 @@ def write_markdown(path, result):
             "",
             f"RSS growth: {result['rss']['growth_bytes'] / 1048576:.2f} MiB",
             "",
-            f"Qualification: **{'PASS' if result['passed'] else 'FAIL'}**",
+            f"Peak RSS growth: {result['rss']['peak_growth_bytes'] / 1048576:.2f} MiB",
+            "",
+            f"Threshold result: **{'PASS' if result['passed'] else 'FAIL'}**",
+            "",
+            f"Threshold enforcement: **{'enabled' if result['enforced'] else 'diagnostic'}**",
             "",
         ]
     )
@@ -357,6 +394,21 @@ def write_markdown(path, result):
 
 
 def main():
+    if (
+        ARGS.concurrency <= 0
+        or ARGS.request_scale <= 0
+        or ARGS.request_timeout_seconds <= 0
+    ):
+        raise ValueError("concurrency, request scale, and request timeout must be positive")
+    if ARGS.soak_rounds < 0 or ARGS.soak_requests <= 0:
+        raise ValueError("soak rounds must be non-negative and soak requests must be positive")
+    if not 6 <= ARGS.soak_body_bytes <= 1024 * 1024:
+        raise ValueError("soak body size must be between 6 bytes and 1 MiB")
+    if ARGS.large_request_count < 0 or ARGS.large_response_count < 0:
+        raise ValueError("large request and response counts must be non-negative")
+    if not 6 <= ARGS.large_body_bytes <= 1024 * 1024:
+        raise ValueError("large body size must be between 6 bytes and 1 MiB")
+
     envoy_binary = ARGS.envoy_binary.resolve()
     if not envoy_binary.is_file() or not os.access(envoy_binary, os.X_OK):
         raise RuntimeError(f"Envoy binary is not executable: {envoy_binary}")
@@ -367,6 +419,8 @@ def main():
     upstream_thread.start()
 
     envoy = None
+    rss_sampler_stop = None
+    rss_sampler_thread = None
     with tempfile.TemporaryDirectory(
         prefix="envoy-modsecurity-benchmark-", dir=os.environ.get("TEST_TMPDIR")
     ) as temporary_directory:
@@ -415,6 +469,14 @@ def main():
                 port, envoy.pid, "warmup", scaled(100), ARGS.concurrency, "GET", "/safe", None, 200
             )
             rss_baseline = process_rss_bytes(envoy.pid)
+            rss_samples = [rss_baseline]
+            rss_sampler_stop = threading.Event()
+            rss_sampler_thread = threading.Thread(
+                target=sample_process_rss,
+                args=(envoy.pid, rss_samples, rss_sampler_stop),
+                daemon=True,
+            )
+            rss_sampler_thread.start()
 
             workloads = {
                 "safe_headers": run_workload(
@@ -454,21 +516,50 @@ def main():
                     200,
                 ),
             }
-            for soak_round in range(3):
+            if ARGS.large_request_count:
+                workloads["large_request_body"] = run_workload(
+                    port,
+                    envoy.pid,
+                    "large-request",
+                    scaled(ARGS.large_request_count),
+                    ARGS.concurrency,
+                    "POST",
+                    "/large-request",
+                    form_body(ARGS.large_body_bytes, "d"),
+                    200,
+                )
+            if ARGS.large_response_count:
+                workloads["large_response_body"] = run_workload(
+                    port,
+                    envoy.pid,
+                    "large-response",
+                    scaled(ARGS.large_response_count),
+                    ARGS.concurrency,
+                    "GET",
+                    "/large-response",
+                    None,
+                    200,
+                )
+            for soak_round in range(ARGS.soak_rounds):
                 run_workload(
                     port,
                     envoy.pid,
                     f"soak-{soak_round}",
-                    scaled(250),
+                    scaled(ARGS.soak_requests),
                     ARGS.concurrency,
                     "POST",
                     "/body",
-                    "value=" + "c" * 16378,
+                    form_body(ARGS.soak_body_bytes, "c"),
                     200,
                 )
             gauges = zero_modsecurity_gauges(admin_host, admin_port)
             rss_after_soak = process_rss_bytes(envoy.pid)
+            rss_samples.append(rss_after_soak)
         finally:
+            if rss_sampler_stop is not None:
+                rss_sampler_stop.set()
+            if rss_sampler_thread is not None:
+                rss_sampler_thread.join(timeout=1)
             if envoy is not None and envoy.poll() is None:
                 envoy.terminate()
                 try:
@@ -482,6 +573,8 @@ def main():
             upstream_thread.join(timeout=5)
 
     rss_growth = max(0, rss_after_soak - rss_baseline)
+    peak_rss = max(rss_samples)
+    peak_rss_growth = max(0, peak_rss - rss_baseline)
     violations = []
     for name, workload in workloads.items():
         if workload["throughput_rps"] < ARGS.minimum_throughput_rps:
@@ -507,9 +600,9 @@ def main():
                 f"{name} Envoy CPU {workload['envoy_cpu_ms_per_request']:.2f} ms/request exceeds "
                 f"{ARGS.maximum_pathological_cpu_ms_per_request:.2f} ms/request"
             )
-    if rss_growth > ARGS.maximum_rss_growth_mib * 1048576:
+    if peak_rss_growth > ARGS.maximum_rss_growth_mib * 1048576:
         violations.append(
-            f"RSS growth {rss_growth / 1048576:.2f} MiB exceeds "
+            f"peak RSS growth {peak_rss_growth / 1048576:.2f} MiB exceeds "
             f"{ARGS.maximum_rss_growth_mib:.2f} MiB"
         )
 
@@ -531,10 +624,14 @@ def main():
             "baseline_bytes": rss_baseline,
             "after_soak_bytes": rss_after_soak,
             "growth_bytes": rss_growth,
+            "peak_bytes": peak_rss,
+            "peak_growth_bytes": peak_rss_growth,
+            "samples_bytes": rss_samples,
         },
         "terminal_gauges": gauges,
         "violations": violations,
         "passed": not violations,
+        "enforced": ARGS.enforce,
     }
     (output_directory / "qualification-benchmark.json").write_text(
         json.dumps(result, indent=2) + "\n", encoding="utf-8"

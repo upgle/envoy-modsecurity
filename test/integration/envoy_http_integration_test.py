@@ -16,6 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 STARTUP_TIMEOUT_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 5
+INSPECTION_LIMIT_BYTES = 1024 * 1024
+RESPONSE_CHUNK_BYTES = 64 * 1024
 
 
 def parse_args():
@@ -75,8 +77,35 @@ class UpstreamHandler(BaseHTTPRequestHandler):
         if self.path == "/large-response":
             self.send_response(200)
             self.send_header("content-type", "application/octet-stream")
-            self.send_header("content-length", str(1024 * 1024 + 1))
+            self.send_header("content-length", str(INSPECTION_LIMIT_BYTES + 1))
             self.end_headers()
+            return
+
+        if self.path == "/large-response-at-limit":
+            response_body = b"x" * INSPECTION_LIMIT_BYTES
+            self.send_response(200)
+            self.send_header("content-type", "text/plain")
+            self.send_header("content-length", str(len(response_body)))
+            self.end_headers()
+            self.wfile.write(response_body)
+            return
+
+        if self.path == "/large-chunked-response":
+            self.send_response(200)
+            self.send_header("content-type", "text/plain")
+            self.send_header("transfer-encoding", "chunked")
+            self.end_headers()
+            remaining = INSPECTION_LIMIT_BYTES + 1
+            chunk = b"x" * RESPONSE_CHUNK_BYTES
+            try:
+                while remaining:
+                    current = chunk[: min(len(chunk), remaining)]
+                    self.wfile.write(f"{len(current):x}\r\n".encode("ascii"))
+                    self.wfile.write(current + b"\r\n")
+                    remaining -= len(current)
+                self.wfile.write(b"0\r\n\r\n")
+            except (BrokenPipeError, ConnectionResetError):
+                pass
             return
 
         if self.path == "/chunked-response":
@@ -502,6 +531,20 @@ class EnvoyHttpIntegrationTest(unittest.TestCase):
         before = self._upstream.request_count()
         self.assertResponse(
             "GET", "/large-response", 500, b"ModSecurity inspection error"
+        )
+        self.assertEqual(before + 1, self._upstream.request_count())
+
+    def test_large_response_at_exact_inspection_limit_is_allowed(self):
+        before = self._upstream.request_count()
+        status, response_body = self._request("GET", "/large-response-at-limit")
+        self.assertEqual(200, status, self._envoy_logs())
+        self.assertEqual(INSPECTION_LIMIT_BYTES, len(response_body))
+        self.assertEqual(before + 1, self._upstream.request_count())
+
+    def test_rejects_actual_chunked_response_above_inspection_limit(self):
+        before = self._upstream.request_count()
+        self.assertResponse(
+            "GET", "/large-chunked-response", 500, b"ModSecurity inspection error"
         )
         self.assertEqual(before + 1, self._upstream.request_count())
 
