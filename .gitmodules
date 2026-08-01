@@ -4,7 +4,7 @@
 	shallow = true
 [submodule "third_party/modsecurity"]
 	path = third_party/modsecurity
-	url = https://github.com/owasp-modsecurity/ModSecurity.git
+	url = https://github.com/upgle/ModSecurity.git
 	shallow = true
 [submodule "third_party/coreruleset"]
 	path = third_party/coreruleset

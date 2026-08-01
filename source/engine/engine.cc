@@ -71,6 +71,9 @@ class RuntimeImpl final : public Runtime, public std::enable_shared_from_this<Ru
  public:
   RuntimeImpl() : modsecurity_(std::make_unique<modsecurity::ModSecurity>()) {
     modsecurity_->setConnectorInformation("envoy-modsecurity v0.1.0");
+    // The connector consumes intervention status and redirect fields plus bounded structured rule
+    // events, but does not expose the free-form intervention log payload.
+    modsecurity_->setInterventionLogPayloadEnabled(false);
     // Native synchronous server logging is deliberately disabled. Structured stream metadata and
     // Envoy stats provide bounded observability without a shared log sink in worker callbacks.
     modsecurity_->setServerLogCb(discardServerLog);
