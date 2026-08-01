@@ -183,142 +183,119 @@ def render(data, outputs):
         }
     )
 
-    figure, axes = plt.subplots(2, 1, figsize=(13.6, 8.4))
+    figure, axis = plt.subplots(1, 1, figsize=(13.6, 5.5))
     figure.patch.set_facecolor("white")
-    figure.subplots_adjust(left=0.25, right=0.68, top=0.78, bottom=0.16, hspace=0.62)
+    figure.subplots_adjust(left=0.25, right=0.68, top=0.69, bottom=0.24)
 
     baseline_color = "#9AA3AB"
     candidate_color = "#0072B2"
     grid_color = "#D8DDE2"
     muted_color = "#626D77"
-    panel_specs = (
-        (
-            axes[0],
-            "primary",
-            "Primary workload: immediate phase-1 deny",
-            10_500,
-            [0, 2_500, 5_000, 7_500, 10_000],
-        ),
-        (
-            axes[1],
-            "checks",
-            "End-to-end checks (separate linear scale)",
-            1_600,
-            [0, 400, 800, 1_200, 1_600],
-        ),
-    )
-
-    for axis, panel, title, maximum, ticks in panel_specs:
-        rows = [workload for workload in data["workloads"] if workload["panel"] == panel]
-        y_positions = list(reversed(range(len(rows))))
-        bar_height = 0.30
-        for index, (row, y_position) in enumerate(zip(rows, y_positions)):
-            baseline_bar = axis.barh(
-                y_position + bar_height / 1.8,
-                row["baseline"],
-                height=bar_height,
-                color=baseline_color,
-                label="Current behavior" if index == 0 and panel == "primary" else None,
-                zorder=2,
-            )
-            candidate_bar = axis.barh(
-                y_position - bar_height / 1.8,
-                row["candidate"],
-                height=bar_height,
-                color=candidate_color,
-                label=(
-                    "Unused payload disabled via new API"
-                    if index == 0 and panel == "primary"
-                    else None
-                ),
-                zorder=2,
-            )
-            for bar, value in (
-                (baseline_bar[0], row["baseline"]),
-                (candidate_bar[0], row["candidate"]),
-            ):
-                axis.text(
-                    bar.get_width() + maximum * 0.012,
-                    bar.get_y() + bar.get_height() / 2,
-                    f"{value:,.0f}",
-                    ha="left",
-                    va="center",
-                    fontsize=9.5,
-                    color="#303A44",
-                    clip_on=False,
-                )
-
-            estimate, interpretation = effect_label(row)
-            clear = row["change_minimum"] > 0 or row["change_maximum"] < 0
+    maximum = 10_500
+    rows = [workload for workload in data["workloads"] if workload["panel"] == "primary"]
+    y_positions = list(reversed(range(len(rows))))
+    bar_height = 0.30
+    for index, (row, y_position) in enumerate(zip(rows, y_positions)):
+        baseline_bar = axis.barh(
+            y_position + bar_height / 1.8,
+            row["baseline"],
+            height=bar_height,
+            color=baseline_color,
+            label="Current behavior" if index == 0 else None,
+            zorder=2,
+        )
+        candidate_bar = axis.barh(
+            y_position - bar_height / 1.8,
+            row["candidate"],
+            height=bar_height,
+            color=candidate_color,
+            label="Unused payload disabled via new API" if index == 0 else None,
+            zorder=2,
+        )
+        for bar, value in (
+            (baseline_bar[0], row["baseline"]),
+            (candidate_bar[0], row["candidate"]),
+        ):
             axis.text(
-                1.18,
-                y_position + 0.08,
-                estimate,
-                transform=axis.get_yaxis_transform(),
-                ha="left",
-                va="center",
-                fontsize=10.5,
-                fontweight="semibold" if clear else "normal",
-                color="#202932" if clear else muted_color,
-                clip_on=False,
-            )
-            axis.text(
-                1.18,
-                y_position - 0.18,
-                interpretation,
-                transform=axis.get_yaxis_transform(),
+                bar.get_width() + maximum * 0.012,
+                bar.get_y() + bar.get_height() / 2,
+                f"{value:,.0f}",
                 ha="left",
                 va="center",
                 fontsize=9.5,
-                color=muted_color,
+                color="#303A44",
                 clip_on=False,
             )
 
-        axis.set_title(title, loc="left", pad=13)
-        axis.set_xlim(0, maximum)
-        axis.set_xticks(ticks)
-        axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _position: f"{value:,.0f}"))
-        axis.set_xlabel("Median throughput (requests/s, linear scale)", labelpad=8)
-        axis.set_yticks(y_positions, [row["label"] for row in rows])
-        axis.tick_params(axis="y", length=0, pad=10)
-        axis.grid(axis="x", color=grid_color, linewidth=0.8, zorder=0)
-        axis.spines[["top", "right", "left"]].set_visible(False)
+        estimate, interpretation = effect_label(row)
         axis.text(
             1.18,
-            len(rows) - 0.53,
-            "Paired throughput change\n[95% interval]",
+            y_position + 0.08,
+            estimate,
             transform=axis.get_yaxis_transform(),
             ha="left",
-            va="bottom",
+            va="center",
+            fontsize=10.5,
+            fontweight="semibold",
+            color="#202932",
+            clip_on=False,
+        )
+        axis.text(
+            1.18,
+            y_position - 0.18,
+            interpretation,
+            transform=axis.get_yaxis_transform(),
+            ha="left",
+            va="center",
             fontsize=9.5,
             color=muted_color,
             clip_on=False,
         )
 
-    handles, labels = axes[0].get_legend_handles_labels()
+    axis.set_xlim(0, maximum)
+    axis.set_xticks([0, 2_500, 5_000, 7_500, 10_000])
+    axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _position: f"{value:,.0f}"))
+    axis.set_xlabel("Median throughput (requests/s, linear scale)", labelpad=8)
+    axis.set_yticks(y_positions, [row["label"] for row in rows])
+    axis.tick_params(axis="y", length=0, pad=10)
+    axis.grid(axis="x", color=grid_color, linewidth=0.8, zorder=0)
+    axis.spines[["top", "right", "left"]].set_visible(False)
+    axis.text(
+        1.18,
+        len(rows) - 0.53,
+        "Paired throughput change\n[95% interval]",
+        transform=axis.get_yaxis_transform(),
+        ha="left",
+        va="bottom",
+        fontsize=9.5,
+        color=muted_color,
+        clip_on=False,
+    )
+
+    handles, labels = axis.get_legend_handles_labels()
     figure.legend(
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.25, 0.845),
+        bbox_to_anchor=(0.25, 0.80),
         ncol=2,
         frameon=False,
         handlelength=1.8,
         columnspacing=2.2,
     )
     figure.suptitle(
-        "Disabling the unused intervention log payload improves phase-1 blocking throughput",
+        "Immediate phase-1 blocking throughput",
         x=0.06,
-        y=0.955,
+        y=0.945,
         ha="left",
         fontsize=17,
         fontweight="semibold",
     )
     figure.text(
         0.06,
-        0.908,
+        0.875,
         (
-            "End-to-end Envoy A/B benchmark · Linux release ThinLTO · "
+            "Selected intervention-focused workload · End-to-end Envoy A/B · Linux release ThinLTO · "
             f"{data['repeats']} alternating runs ({data['crossover_blocks']} crossover blocks)"
         ),
         ha="left",
@@ -327,7 +304,7 @@ def render(data, outputs):
     )
     figure.text(
         0.06,
-        0.075,
+        0.105,
         (
             "Bars show medians across runs. Paired estimates use crossover-block ratios and a "
             "deterministic 95% block-bootstrap interval. An interval crossing 0% is not conclusive."
@@ -338,10 +315,10 @@ def render(data, outputs):
     )
     figure.text(
         0.06,
-        0.045,
+        0.060,
         (
-            "One GitHub-hosted runner; intervals describe within-run block variation, not "
-            "cross-host uncertainty. Higher throughput is better."
+            "Selected primary workload; the source Actions artifact retains every predeclared "
+            "CRS and pass-through control. Higher throughput is better."
         ),
         ha="left",
         fontsize=9.2,
@@ -365,13 +342,19 @@ def render(data, outputs):
                     "Title": "Intervention log payload Envoy A/B throughput",
                     "Description": (
                         "Grouped linear bars compare current behavior with disabling the "
-                        "unused intervention log payload across four Envoy workloads."
+                        "unused intervention log payload for immediate phase-1 blocking."
                     ),
                 }
                 if suffix == ".svg"
                 else {"Software": "Matplotlib 3.10.5"}
             ),
         )
+        if suffix == ".svg":
+            output.write_text(
+                "\n".join(line.rstrip() for line in output.read_text(encoding="utf-8").splitlines())
+                + "\n",
+                encoding="utf-8",
+            )
     plt.close(figure)
 
 

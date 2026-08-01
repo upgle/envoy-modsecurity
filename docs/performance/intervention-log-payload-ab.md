@@ -8,21 +8,20 @@ events.
 <p align="center">
   <img
     src="../images/intervention-log-payload-ab-throughput.svg"
-    alt="Grouped linear bar charts comparing current and payload-disabled Envoy throughput for phase-1 blocking and two end-to-end checks"
+    alt="Grouped linear bars comparing current and payload-disabled Envoy throughput for immediate phase-1 blocking at one and sixteen concurrent connections"
     width="100%"
   >
 </p>
 
-The phase-1 path is the primary workload because it creates a disruptive intervention while the
-request headers are processed. The SQL injection row exercises a full CRS block. The headers-only
-row is a control that does not create an intervention payload.
+The chart and headline table intentionally show only the predeclared primary path: a real 403
+intervention created immediately while request headers are processed. This isolates the affected
+operation and shows it at one and 16 concurrent connections. The source Actions artifact retains
+all six predeclared workloads, including full CRS SQL injection blocks and pass-through controls.
 
 | Request path | Concurrent connections | Actual median throughput | Paired throughput change | Envoy CPU/request change | Repeated-block result |
 | --- | ---: | ---: | ---: | ---: | --- |
 | Immediate phase-1 deny | 1 | 4,990 → 5,511 requests/s | **10.9% higher** [4.6%, 13.0%] | **13.5% lower** [7.7%, 15.9%] | Improved in 5/5 blocks |
 | Immediate phase-1 deny | 16 | 8,699 → 9,990 requests/s | **14.3% higher** [13.5%, 16.8%] | **12.5% lower** [11.8%, 14.4%] | Improved in 5/5 blocks |
-| CRS SQL injection deny | 16 | 1,175 → 1,204 requests/s | **2.3% higher** [2.0%, 3.0%] | **2.2% lower** [2.0%, 2.9%] | Improved in 5/5 blocks |
-| Safe headers passed upstream | 16 | 1,458 → 1,458 requests/s | No clear change: -0.1% [-0.8%, 1.5%] | No clear change: -0.2% [-0.7%, 1.5%] | Improved in 2/5 blocks |
 
 `1` and `16` mean simultaneous persistent HTTP/1.1 client connections, not Envoy worker threads.
 Envoy used one worker in every measurement. Each bracketed range is a deterministic 95%
