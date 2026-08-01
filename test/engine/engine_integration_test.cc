@@ -40,6 +40,11 @@ SecRuleEngine DetectionOnly
 SecRule REQUEST_URI "@rx ^/observed" "id:1000150,phase:1,deny,status:418,log"
 )";
 
+constexpr char kLoggedRedirectRules[] = R"(
+SecRuleEngine On
+SecRule REQUEST_URI "@streq /redirect" "id:1000175,phase:1,redirect:'https://example.test/blocked',log,msg:'redirect signal'"
+)";
+
 constexpr char kJsonParserRules[] = R"(
 SecRuleEngine On
 SecRequestBodyAccess On
@@ -52,6 +57,16 @@ SecRuleEngine On
 SecRequestBodyAccess On
 SecRule REQUEST_HEADERS:Content-Type "@streq application/xml" "id:1000300,phase:1,pass,nolog,ctl:requestBodyProcessor=XML"
 SecRule XML:/* "@contains attack-token" "id:1000301,phase:2,deny,status:423,nolog"
+)";
+
+constexpr char kNumericFallbackRules[] = R"(
+SecRuleEngine On
+SecAction "id:1000500,phase:1,pass,nolog,setvar:tx.blocking_inbound_anomaly_score=7"
+SecAction "id:1000501,phase:1,pass,nolog,setvar:tx.detection_inbound_anomaly_score=2147483648"
+SecAction "id:1000502,phase:1,pass,nolog,setvar:tx.inbound_anomaly_score_threshold=-4"
+SecAction "id:1000503,phase:1,pass,nolog,setvar:tx.detection_outbound_anomaly_score=7suffix"
+SecAction "id:1000504,phase:5,pass,nolog,setvar:tx.blocking_inbound_anomaly_score=+%{tx.unset_score},setvar:tx.detection_inbound_anomaly_score=+1"
+SecAction "id:1000505,phase:5,pass,nolog,setvar:tx.inbound_anomaly_score_threshold=+2,setvar:tx.blocking_outbound_anomaly_score=+%{tx.unset_score},setvar:tx.detection_outbound_anomaly_score=+1"
 )";
 
 absl::Status processRequestHeaders(Transaction& transaction, const std::string& uri,
@@ -92,6 +107,14 @@ void expectIntervention(Transaction& transaction, int expected_status) {
   ASSERT_TRUE(intervention.ok()) << intervention.status();
   ASSERT_TRUE(intervention->has_value());
   EXPECT_EQ(intervention->value().status, expected_status);
+}
+
+void expectRedirect(Transaction& transaction, int expected_status, absl::string_view expected_url) {
+  auto intervention = transaction.intervention();
+  ASSERT_TRUE(intervention.ok()) << intervention.status();
+  ASSERT_TRUE(intervention->has_value());
+  EXPECT_EQ(intervention->value().status, expected_status);
+  EXPECT_EQ(intervention->value().redirect_url, expected_url);
 }
 
 void processStructuredRequestBody(Transaction& transaction, absl::string_view content_type,
@@ -139,6 +162,25 @@ TEST(EngineIntegrationTest, ReportsDetectionOnlyRuleEngineMode) {
   expectNoIntervention(*transaction);
 }
 
+TEST(EngineIntegrationTest, PreservesRedirectAndStructuredEventWithoutInterventionLogPayload) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("logged-redirect.conf", kLoggedRedirectRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/redirect").ok());
+  expectRedirect(*transaction, 302, "https://example.test/blocked");
+
+  auto result = transaction->processLogging();
+  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_EQ(result->rules.size(), 1);
+  EXPECT_EQ(result->rules[0].id, 1000175);
+  EXPECT_EQ(result->rules[0].phase, 1);
+  EXPECT_TRUE(result->rules[0].disruptive);
+}
+
 TEST(EngineIntegrationTest, ExecutesPhaseTwoAgainstBufferedRequestBody) {
   const std::shared_ptr<Runtime> runtime = createRuntime();
   auto generation = runtime->compile({RuleSource::inlineRules("phase-two.conf", kPhaseTwoRules)});
@@ -180,6 +222,24 @@ TEST(EngineIntegrationTest, ParsesJsonAndXmlRequestBodies) {
   processStructuredRequestBody(*xml_transaction, "application/xml",
                                "<request>attack-token</request>");
   expectIntervention(*xml_transaction, 423);
+}
+
+TEST(EngineIntegrationTest, TreatsMissingNumericVariablesAsZeroInPhaseFive) {
+  const std::shared_ptr<Runtime> runtime = createRuntime();
+  auto generation =
+      runtime->compile({RuleSource::inlineRules("numeric-fallback.conf", kNumericFallbackRules)});
+  ASSERT_TRUE(generation.ok()) << generation.status();
+
+  std::unique_ptr<Transaction> transaction = createTransaction(*generation);
+  ASSERT_NE(transaction, nullptr);
+  ASSERT_TRUE(processRequestHeaders(*transaction, "/numeric-fallback").ok());
+  auto result = transaction->processLogging();
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(result->blocking_inbound_anomaly_score, 7);
+  EXPECT_EQ(result->detection_inbound_anomaly_score, 1);
+  EXPECT_EQ(result->inbound_anomaly_score_threshold, -2);
+  EXPECT_EQ(result->blocking_outbound_anomaly_score, 0);
+  EXPECT_EQ(result->detection_outbound_anomaly_score, 8);
 }
 
 TEST(EngineIntegrationTest, ReturnsStructuredPhaseFiveResultWithNativeAuditDisabled) {
